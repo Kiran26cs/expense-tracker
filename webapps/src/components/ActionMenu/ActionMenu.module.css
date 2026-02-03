@@ -1,0 +1,125 @@
+.action-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.menu-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.menu-button:hover {
+  background: #4f46e5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.menu-button:active {
+  transform: translateY(0);
+}
+
+.dropdown-icon {
+  font-size: 0.75rem;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.menu-button:has(.dropdown-icon) .dropdown-icon {
+  transform: rotate(0deg);
+}
+
+.menu-dropdown {
+  position: fixed;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  min-width: 280px;
+  z-index: 9999;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menu-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  color: inherit;
+}
+
+.menu-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.menu-item:hover {
+  background: var(--bg-secondary);
+}
+
+.menu-item:active {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.icon {
+  font-size: 1.5rem;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.item-content {
+  flex: 1;
+}
+
+.item-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: var(--text-primary);
+}
+
+.item-description {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .menu-button {
+    padding: 0.65rem 1rem;
+    font-size: 0.95rem;
+  }
+
+  .menu-dropdown {
+    min-width: 250px;
+  }
+
+  .menu-item {
+    padding: 0.875rem 1rem;
+  }
+}

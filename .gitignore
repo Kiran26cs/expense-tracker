@@ -1,0 +1,29 @@
+# Frontend
+webapps/node_modules/
+webapps/dist/
+webapps/.env.local
+webapps/.env.*.local
+
+# Backend
+expensesBackend/bin/
+expensesBackend/obj/
+expensesBackend/.vs/
+expensesBackend/.vscode/
+expensesBackend/appsettings.Development.json
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Build artifacts
+*.o
+*.a
+*.so
