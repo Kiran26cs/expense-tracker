@@ -49,4 +49,36 @@ public class DashboardController : ControllerBase
             return BadRequest(ApiResponse<List<MonthlyTrend>>.ErrorResponse(ex.Message));
         }
     }
+
+    [HttpGet("grouped-transactions")]
+    public async Task<ActionResult<ApiResponse<List<DailyTransactionGroup>>>> GetGroupedTransactions(
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var transactions = await _dashboardService.GetGroupedTransactionsAsync(userId, startDate, endDate);
+            return Ok(ApiResponse<List<DailyTransactionGroup>>.SuccessResponse(transactions));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<List<DailyTransactionGroup>>.ErrorResponse(ex.Message));
+        }
+    }
+
+    [HttpPost("migrate-daily-summaries")]
+    public async Task<ActionResult<ApiResponse<string>>> MigrateDailySummaries()
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            await _dashboardService.MigrateDailySummariesAsync(userId);
+            return Ok(ApiResponse<string>.SuccessResponse("Daily summaries migrated successfully"));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<string>.ErrorResponse(ex.Message));
+        }
+    }
 }

@@ -6,6 +6,22 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
+// Check if running migration command
+if (args.Length > 0 && args[0] == "migrate")
+{
+    Console.WriteLine("Running Daily Summaries Migration...");
+    var config = new ConfigurationBuilder()
+        .SetBasePath(Directory.GetCurrentDirectory())
+        .AddJsonFile("appsettings.json", optional: false)
+        .Build();
+    
+    var connectionString = config["MongoDB:ConnectionString"] ?? "mongodb://localhost:27017";
+    var databaseName = config["MongoDB:DatabaseName"] ?? "expensesDb";
+    
+    await ExpensesBackend.API.MigrateDailySummaries.RunMigration(connectionString, databaseName);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container

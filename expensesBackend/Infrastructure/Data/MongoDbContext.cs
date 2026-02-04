@@ -28,6 +28,8 @@ public class MongoDbContext
         _database.GetCollection<RecurringExpense>("recurringExpenses");
     public IMongoCollection<OtpRecord> OtpRecords => 
         _database.GetCollection<OtpRecord>("otpRecords");
+    public IMongoCollection<DailyExpenseSummary> DailyExpenseSummaries => 
+        _database.GetCollection<DailyExpenseSummary>("dailyExpenseSummaries");
 
     private void CreateIndexes()
     {

@@ -65,6 +65,9 @@ public class ExpenseService : IExpenseService
 
         await _context.Expenses.InsertOneAsync(expense);
 
+        // Update daily expense summary
+        await UpdateDailyExpenseSummaryAsync(userId, expense.Date, expense.Category, expense.Amount, isAdd: true);
+
         // Handle recurring expense
         if (request.IsRecurring && request.RecurringConfig != null)
         {
@@ -99,6 +102,10 @@ public class ExpenseService : IExpenseService
         if (expense == null)
             throw new KeyNotFoundException("Expense not found");
 
+        var oldAmount = expense.Amount;
+        var oldDate = expense.Date;
+        var oldCategory = expense.Category;
+
         if (request.Amount.HasValue)
             expense.Amount = request.Amount.Value;
         if (request.Date.HasValue)
@@ -116,11 +123,27 @@ public class ExpenseService : IExpenseService
 
         await _context.Expenses.ReplaceOneAsync(e => e.Id == expenseId, expense);
 
+        // Update daily expense summaries
+        // Remove old amount from old date/category
+        await UpdateDailyExpenseSummaryAsync(userId, oldDate, oldCategory, oldAmount, isAdd: false);
+        // Add new amount to new date/category
+        await UpdateDailyExpenseSummaryAsync(userId, expense.Date, expense.Category, expense.Amount, isAdd: true);
+
         return MapToExpenseDto(expense);
     }
 
     public async Task<bool> DeleteExpenseAsync(string userId, string expenseId)
     {
+        var expense = await _context.Expenses
+            .Find(e => e.Id == expenseId && e.UserId == userId)
+            .FirstOrDefaultAsync();
+
+        if (expense == null)
+            return false;
+
+        // Update daily expense summary before deleting
+        await UpdateDailyExpenseSummaryAsync(userId, expense.Date, expense.Category, expense.Amount, isAdd: false);
+
         var result = await _context.Expenses
             .DeleteOneAsync(e => e.Id == expenseId && e.UserId == userId);
 
@@ -157,6 +180,90 @@ public class ExpenseService : IExpenseService
             "yearly" => startDate.AddYears(1),
             _ => startDate.AddMonths(1)
         };
+    }
+
+    private async Task UpdateDailyExpenseSummaryAsync(string userId, DateTime expenseDate, string category, decimal amount, bool isAdd)
+    {
+        var dateOnly = expenseDate.Date; // Remove time component
+
+        var filter = Builders<DailyExpenseSummary>.Filter.Eq(d => d.UserId, userId) &
+                     Builders<DailyExpenseSummary>.Filter.Eq(d => d.Date, dateOnly);
+
+        var summary = await _context.DailyExpenseSummaries.Find(filter).FirstOrDefaultAsync();
+
+        if (summary == null && isAdd)
+        {
+            // Create new summary for this date
+            summary = new DailyExpenseSummary
+            {
+                UserId = userId,
+                Date = dateOnly,
+                CategorySpending = new List<CategorySpending>
+                {
+                    new CategorySpending
+                    {
+                        Category = category,
+                        Amount = amount,
+                        Count = 1
+                    }
+                },
+                TotalSpent = amount
+            };
+
+            await _context.DailyExpenseSummaries.InsertOneAsync(summary);
+        }
+        else if (summary != null)
+        {
+            // Update existing summary
+            var categorySpending = summary.CategorySpending.FirstOrDefault(c => c.Category == category);
+
+            if (categorySpending != null)
+            {
+                if (isAdd)
+                {
+                    categorySpending.Amount += amount;
+                    categorySpending.Count++;
+                }
+                else
+                {
+                    categorySpending.Amount -= amount;
+                    categorySpending.Count--;
+
+                    // Remove category if count is 0
+                    if (categorySpending.Count <= 0)
+                    {
+                        summary.CategorySpending.Remove(categorySpending);
+                    }
+                }
+            }
+            else if (isAdd)
+            {
+                // Add new category spending
+                summary.CategorySpending.Add(new CategorySpending
+                {
+                    Category = category,
+                    Amount = amount,
+                    Count = 1
+                });
+            }
+
+            // Update total spent
+            summary.TotalSpent = isAdd ? summary.TotalSpent + amount : summary.TotalSpent - amount;
+            summary.UpdatedAt = DateTime.UtcNow;
+
+            // Sort category spending by amount descending
+            summary.CategorySpending = summary.CategorySpending.OrderByDescending(c => c.Amount).ToList();
+
+            if (summary.CategorySpending.Count == 0 && summary.TotalSpent <= 0)
+            {
+                // Delete summary if no more expenses
+                await _context.DailyExpenseSummaries.DeleteOneAsync(filter);
+            }
+            else
+            {
+                await _context.DailyExpenseSummaries.ReplaceOneAsync(filter, summary);
+            }
+        }
     }
 
     private ExpenseDto MapToExpenseDto(Expense expense)
