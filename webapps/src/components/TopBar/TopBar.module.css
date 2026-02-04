@@ -153,45 +153,114 @@
 
 .dropdown-menu {
   position: absolute;
-  top: calc(100% + var(--spacing-sm));
+  top: calc(100% + 8px);
   right: 0;
-  min-width: 200px;
+  min-width: 240px;
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: var(--spacing-sm);
-  display: none;
-  animation: slideInUp 150ms ease-out;
-  z-index: var(--z-dropdown);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  animation: slideInUp 200ms ease-out;
+  z-index: 1000;
 }
 
-.dropdown.active .dropdown-menu {
-  display: block;
+.dropdown-header {
+  padding: 8px 12px 4px;
+}
+
+.dropdown-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dropdown-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.dropdown-user-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.dropdown-user-email {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
+  gap: 12px;
+  padding: 10px 12px;
   color: var(--color-text-primary);
   text-decoration: none;
-  border-radius: var(--radius-md);
-  transition: background-color var(--transition-fast);
+  border-radius: 8px;
+  transition: all var(--transition-fast);
   cursor: pointer;
-  font-size: var(--font-size-sm);
+  font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.dropdown-item svg {
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .dropdown-item:hover {
   background-color: var(--color-surface-hover);
 }
 
+.dropdown-item:hover svg {
+  opacity: 1;
+}
+
+.dropdown-item-danger {
+  color: #ef4444;
+}
+
+.dropdown-item-danger:hover {
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
+.dropdown-item-danger svg {
+  color: #ef4444;
+}
+
 .dropdown-divider {
   height: 1px;
   background-color: var(--color-border);
-  margin: var(--spacing-sm) 0;
+  margin: 6px 0;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Mobile Styles */

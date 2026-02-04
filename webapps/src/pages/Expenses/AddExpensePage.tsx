@@ -5,9 +5,13 @@ import { Button } from '@/components/Button/Button';
 import { Input } from '@/components/Input/Input';
 import { Select } from '@/components/Select/Select';
 import { Textarea } from '@/components/Input/Input';
+import ToastContainer from '@/components/Toast/ToastContainer';
 import { expenseApi } from '@/services/expense.api';
+import { useToast } from '@/hooks/useToast';
 
 export const AddExpensePage = () => {
+  const navigate = useNavigate();
+  const { toasts, dismissToast, success: showSuccess, error: showError } = useToast();
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [category, setCategory] = useState('');
@@ -18,7 +22,6 @@ export const AddExpensePage = () => {
   const [frequency, setFrequency] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,12 +50,13 @@ export const AddExpensePage = () => {
       const response = await expenseApi.createExpense(expenseData);
       
       if (response.success) {
-        navigate('/expenses');
+        showSuccess('Expense added successfully!');
+        setTimeout(() => navigate('/expenses'), 1500);
       } else {
-        setError(response.error || 'Failed to create expense');
+        showError(response.error || 'Failed to create expense');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create expense');
+      showError(err instanceof Error ? err.message : 'Failed to create expense');
     } finally {
       setLoading(false);
     }
@@ -176,6 +180,16 @@ export const AddExpensePage = () => {
           </div>
         </form>
       </Card>
+
+      {/* Toast Container */}
+      <ToastContainer 
+        toasts={toasts.map(t => ({
+          id: t.id,
+          message: t.message,
+          type: t.type,
+        }))}
+        onDismiss={dismissToast}
+      />
     </div>
   );
 };

@@ -16,7 +16,6 @@ export const ActionMenu = ({ onAddExpense, onImportCSV }: ActionMenuProps) => {
   useEffect(() => {
     if (isOpen && buttonRef.current && dropdownRef.current) {
       const buttonRect = buttonRef.current.getBoundingClientRect();
-      const dropdownHeight = dropdownRef.current.offsetHeight;
       
       // Position dropdown below button
       setDropdownPosition({

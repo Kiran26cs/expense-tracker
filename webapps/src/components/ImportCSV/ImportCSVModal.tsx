@@ -1,7 +1,5 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/Button/Button';
-import { Input } from '@/components/Input/Input';
-import { Card } from '@/components/Card/Card';
 import { expenseApi } from '@/services/expense.api';
 import styles from './ImportCSVModal.module.css';
 

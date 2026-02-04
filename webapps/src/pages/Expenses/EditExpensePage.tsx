@@ -5,15 +5,16 @@ import { Button } from '@/components/Button/Button';
 import { Input } from '@/components/Input/Input';
 import { Select } from '@/components/Select/Select';
 import { Textarea } from '@/components/Input/Input';
+import ToastContainer from '@/components/Toast/ToastContainer';
 import { expenseApi } from '@/services/expense.api';
+import { useToast } from '@/hooks/useToast';
 import { Loading, ErrorState } from '@/components/Loading/Loading';
-import type { Expense } from '@/types';
 
 export const EditExpensePage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toasts, dismissToast, success: showSuccess, error: showError } = useToast();
 
-  const [expense, setExpense] = useState<Expense | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -39,7 +40,6 @@ export const EditExpensePage = () => {
         const response = await expenseApi.getExpense(id);
         if (response.success && response.data) {
           const exp = response.data;
-          setExpense(exp);
           setAmount(exp.amount.toString());
           setDate(new Date(exp.date).toISOString().split('T')[0]);
           setCategory(typeof exp.category === 'object' ? exp.category.name : exp.category);
@@ -77,12 +77,13 @@ export const EditExpensePage = () => {
       const response = await expenseApi.updateExpense(id!, expenseData);
 
       if (response.success) {
-        navigate('/expenses');
+        showSuccess('Expense updated successfully!');
+        setTimeout(() => navigate('/expenses'), 1500);
       } else {
-        setError(response.error || 'Failed to update expense');
+        showError(response.error || 'Failed to update expense');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update expense');
+      showError(err instanceof Error ? err.message : 'Failed to update expense');
     } finally {
       setSaving(false);
     }
@@ -192,6 +193,16 @@ export const EditExpensePage = () => {
           </div>
         </form>
       </Card>
+
+      {/* Toast Container */}
+      <ToastContainer 
+        toasts={toasts.map(t => ({
+          id: t.id,
+          message: t.message,
+          type: t.type,
+        }))}
+        onDismiss={dismissToast}
+      />
     </div>
   );
 };

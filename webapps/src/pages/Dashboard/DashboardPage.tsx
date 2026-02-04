@@ -1,16 +1,19 @@
 import { useNavigate } from 'react-router-dom';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/Card/Card';
 import { Button } from '@/components/Button/Button';
 import { Loading, EmptyState, ErrorState } from '@/components/Loading/Loading';
 import { ActionMenu } from '@/components/ActionMenu/ActionMenu';
 import { AddExpenseModal } from '@/components/AddExpenseModal/AddExpenseModal';
 import { ImportCSVModal } from '@/components/ImportCSV/ImportCSVModal';
+import { DateRangePicker } from '@/components/DateRangePicker/DateRangePicker';
+import ToastContainer from '@/components/Toast/ToastContainer';
 import { useApi } from '@/hooks/useApi';
+import { useToast } from '@/hooks/useToast';
 import { dashboardApi } from '@/services/dashboard.api';
-import { formatCurrency, formatDate, truncateText } from '@/utils/helpers';
+import { formatCurrency, formatDate } from '@/utils/helpers';
 import styles from './Dashboard.module.css';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const GRADIENT_COLORS = [
   { start: '#818cf8', end: '#6366f1' },
@@ -36,6 +39,18 @@ function getCategoryIcon(category: string): string {
   return categoryIcons[category] || '💰';
 }
 
+// Helper to get category color for charts
+function getCategoryColor(category: string): string {
+  const categoryColors: Record<string, string> = {
+    food: '#6366f1',
+    transport: '#ef4444',
+    shopping: '#f97316',
+    bills: '#8b5cf6',
+    entertainment: '#ec4899',
+  };
+  return categoryColors[category] || '#6366f1';
+}
+
 // Custom label for pie chart with amount and percentage
 const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }: any) => {
   const RADIAN = Math.PI / 180;
@@ -46,7 +61,7 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
   if (percent < 0.05) return null; // Don't show label for slices < 5%
 
   return (
-    <g>
+    <g pointerEvents="none">
       <text
         x={x}
         y={y - 8}
@@ -57,6 +72,7 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
           fontSize: '13px',
           fontWeight: 700,
           textShadow: '0 2px 4px rgba(0, 0, 0, 0.6)',
+          pointerEvents: 'none',
         }}
       >
         {formatCurrency(value)}
@@ -72,6 +88,7 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
           fontWeight: 600,
           textShadow: '0 2px 4px rgba(0, 0, 0, 0.6)',
           opacity: 0.95,
+          pointerEvents: 'none',
         }}
       >
         {`${(percent * 100).toFixed(1)}%`}
@@ -82,9 +99,18 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const { toasts, dismissToast, success: showSuccess } = useToast();
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
   const [showImportCSVModal, setShowImportCSVModal] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showDateRangePicker, setShowDateRangePicker] = useState(false);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+
+  const handleDateRangeChange = (start: string, end: string) => {
+    setStartDate(start);
+    setEndDate(end);
+  };
 
   // Mock function for upcoming payments - replace with real API call
   const getUpcomingPayments = () => {
@@ -143,6 +169,21 @@ export const DashboardPage = () => {
     { immediate: true }
   );
 
+  const { 
+    data: groupedTransactions, 
+    isLoading: loadingGrouped, 
+    execute: fetchGroupedTransactions 
+  } = useApi(
+    () => dashboardApi.getGroupedTransactions(startDate || undefined, endDate || undefined),
+    { immediate: true }
+  );
+
+  // Refetch grouped transactions when date filters change
+  useEffect(() => {
+    fetchGroupedTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate]);
+
   if (isLoading) {
     return <Loading text="Loading dashboard..." />;
   }
@@ -160,7 +201,6 @@ export const DashboardPage = () => {
   const totalIncome = (summary as any).totalIncome || 0;
   const savings = (summary as any).savings || totalIncome - totalSpent;
   const categoryBreakdown = (summary as any).categoryBreakdown || [];
-  const recentTransactions = (summary as any).recentTransactions || [];
 
   // Calculate status
   const getStatus = (): 'safe' | 'warning' | 'risk' => {
@@ -286,11 +326,10 @@ export const DashboardPage = () => {
                       dataKey="value"
                       label={renderCustomLabel}
                       labelLine={false}
-                      onMouseEnter={(_, index) => setActiveIndex(index)}
-                      onMouseLeave={() => setActiveIndex(null)}
                       animationBegin={0}
                       animationDuration={800}
                       animationEasing="ease-out"
+                      isAnimationActive={true}
                     >
                       {chartData.map((_: any, index: number) => (
                         <Cell 
@@ -298,12 +337,6 @@ export const DashboardPage = () => {
                           fill={`url(#gradient-${index % GRADIENT_COLORS.length})`}
                           stroke="#fff"
                           strokeWidth={2}
-                          style={{
-                            filter: activeIndex === index ? 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3))' : 'none',
-                            transform: activeIndex === index ? 'scale(1.05)' : 'scale(1)',
-                            transformOrigin: 'center',
-                            transition: 'all 0.3s ease',
-                          }}
                         />
                       ))}
                     </Pie>
@@ -317,6 +350,8 @@ export const DashboardPage = () => {
                         padding: '12px',
                       }}
                       labelStyle={{ fontWeight: 600, marginBottom: '4px' }}
+                      isAnimationActive={false}
+                      animationDuration={0}
                     />
                     <Legend 
                       verticalAlign="bottom" 
@@ -390,31 +425,132 @@ export const DashboardPage = () => {
       <Card>
         <div className={styles['transactions-header']}>
           <CardTitle>Recent Transactions</CardTitle>
+          <div className={styles['filter-section']}>
+            {startDate && endDate && (
+              <div className={styles['date-chip']}>
+                {new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                <button 
+                  className={styles['chip-close']}
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                  }}
+                  aria-label="Clear date filter"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            <button
+              ref={filterButtonRef}
+              className={styles['filter-button']}
+              onClick={() => setShowDateRangePicker(!showDateRangePicker)}
+              aria-label="Filter transactions"
+              title="Filter by date range"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <CardContent>
-          {recentTransactions && recentTransactions.length > 0 ? (
+          {loadingGrouped ? (
+            <Loading text="Loading transactions..." />
+          ) : groupedTransactions && groupedTransactions.length > 0 ? (
             <div>
-              {recentTransactions.slice(0, 10).map((transaction: any) => (
-                <div key={transaction.id} className={styles['transaction-item']}>
-                  <div
-                    className={styles['transaction-icon']}
-                    style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)' }}
-                  >
-                    {getCategoryIcon(transaction.category)}
-                  </div>
-                  <div className={styles['transaction-details']}>
-                    <div className={styles['transaction-description']} title={transaction.description}>
-                      {truncateText(transaction.description, 50)}
+              {groupedTransactions.map((group: any) => {
+                // Prepare data for bar chart
+                const chartData = group.categorySpending.map((cat: any) => ({
+                  name: cat.category,
+                  amount: cat.amount,
+                  percentage: ((cat.amount / group.totalSpent) * 100).toFixed(1),
+                  count: cat.count,
+                  fill: getCategoryColor(cat.category),
+                }));
+
+                return (
+                  <div key={group.date} className={styles['date-group']}>
+                    <div className={styles['date-header']}>
+                      <span className={styles['date-label']}>{group.dateLabel}</span>
+                      <span className={styles['date-total']}>{formatCurrency(group.totalSpent)}</span>
                     </div>
-                    <div className={styles['transaction-meta']}>
-                      {transaction.category} • {formatDate(transaction.date, 'relative')} • {transaction.paymentMethod}
+                    <div className={styles['chart-wrapper']}>
+                      <ResponsiveContainer width="100%" height={group.categorySpending.length * 45 + 30}>
+                        <BarChart
+                          data={chartData}
+                          layout="vertical"
+                          margin={{ top: 8, right: 15, left: 90, bottom: 8 }}
+                          barSize={24}
+                        >
+                          <XAxis 
+                            type="number" 
+                            stroke="#9ca3af"
+                            fontSize={12}
+                            axisLine={{ stroke: '#e5e7eb' }}
+                            tickLine={{ stroke: '#e5e7eb' }}
+                          />
+                          <YAxis 
+                            dataKey="name" 
+                            type="category"
+                            width={85}
+                            tick={{ fontSize: 12, fill: '#4b5563' }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              padding: '10px 14px',
+                              color: '#1f2937',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                            }}
+                            labelStyle={{ color: '#1f2937', fontWeight: 600 }}
+                            formatter={(value: any, name: string, props: any) => {
+                              if (name === 'amount') {
+                                return [
+                                  `${formatCurrency(value)} (${props.payload.percentage}%)`,
+                                  'Amount',
+                                ];
+                              }
+                              return value;
+                            }}
+                            cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }}
+                          />
+                          <Bar
+                            dataKey="amount"
+                            fill="#6366f1"
+                            radius={[0, 6, 6, 0]}
+                            isAnimationActive={true}
+                            animationDuration={600}
+                          >
+                            {chartData.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <div className={styles['chart-legend']}>
+                        {group.categorySpending.map((cat: any) => (
+                          <div key={cat.category} className={styles['legend-item']}>
+                            <span className={styles['legend-icon']}>
+                              {getCategoryIcon(cat.category)}
+                            </span>
+                            <span className={styles['legend-text']}>
+                              {cat.count} transaction{cat.count > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <div className={styles['transaction-amount']}>
-                    {formatCurrency(transaction.amount)}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               <Button
                 variant="ghost"
                 fullWidth
@@ -430,7 +566,7 @@ export const DashboardPage = () => {
               title="No transactions yet"
               description="Start tracking your expenses"
               action={
-                <Button onClick={() => navigate('/expenses/add')}>Add First Expense</Button>
+                <Button onClick={() => setShowAddExpenseModal(true)}>Add First Expense</Button>
               }
             />
           )}
@@ -443,7 +579,9 @@ export const DashboardPage = () => {
         onClose={() => setShowAddExpenseModal(false)}
         onSuccess={() => {
           setShowAddExpenseModal(false);
+          showSuccess('Expense added successfully!');
           refetch(); // Refresh dashboard after adding expense
+          fetchGroupedTransactions(); // Refresh recent transactions
         }}
       />
       
@@ -452,8 +590,29 @@ export const DashboardPage = () => {
         onClose={() => setShowImportCSVModal(false)}
         onSuccess={() => {
           setShowImportCSVModal(false);
+          showSuccess('Expenses imported successfully!');
           refetch(); // Refresh dashboard after importing
+          fetchGroupedTransactions(); // Refresh recent transactions
         }}
+      />
+
+      {/* Toast Container */}
+      <ToastContainer 
+        toasts={toasts.map(t => ({
+          id: t.id,
+          message: t.message,
+          type: t.type,
+        }))}
+        onDismiss={dismissToast}
+      />
+
+      <DateRangePicker
+        startDate={startDate}
+        endDate={endDate}
+        onDateRangeChange={handleDateRangeChange}
+        isOpen={showDateRangePicker}
+        onClose={() => setShowDateRangePicker(false)}
+        anchorEl={filterButtonRef.current}
       />
     </div>
   );
