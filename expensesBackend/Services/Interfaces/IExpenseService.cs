@@ -11,4 +11,6 @@ public interface IExpenseService
     Task<ExpenseDto> UpdateExpenseAsync(string userId, string expenseId, UpdateExpenseRequest request);
     Task<bool> DeleteExpenseAsync(string userId, string expenseId);
     Task<string> UploadReceiptAsync(string userId, string expenseId, Stream fileStream, string fileName);
+    Task<List<RecurringExpenseDto>> GetRecurringExpensesAsync(string userId, DateTime? startDate, DateTime? endDate);
+    Task<ExpenseDto> MarkRecurringExpenseAsPaidAsync(string userId, string recurringExpenseId, DateTime paidDate);
 }

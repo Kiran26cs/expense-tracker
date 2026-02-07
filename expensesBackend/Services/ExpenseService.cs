@@ -282,4 +282,86 @@ public class ExpenseService : IExpenseService
             CreatedAt = expense.CreatedAt
         };
     }
+
+    private RecurringExpenseDto MapRecurringExpenseToDto(RecurringExpense recurring)
+    {
+        return new RecurringExpenseDto
+        {
+            Id = recurring.Id,
+            Amount = recurring.Amount,
+            Category = recurring.Category,
+            PaymentMethod = recurring.PaymentMethod,
+            Description = recurring.Description,
+            Frequency = recurring.Frequency,
+            StartDate = recurring.StartDate,
+            EndDate = recurring.EndDate,
+            NextOccurrence = recurring.NextOccurrence,
+            LastProcessed = recurring.LastProcessed,
+            IsActive = recurring.IsActive,
+            CreatedAt = recurring.CreatedAt,
+            UpdatedAt = recurring.UpdatedAt
+        };
+    }
+
+    public async Task<List<RecurringExpenseDto>> GetRecurringExpensesAsync(string userId, DateTime? startDate, DateTime? endDate)
+    {
+        var filterBuilder = Builders<RecurringExpense>.Filter;
+        var filter = filterBuilder.Eq(r => r.UserId, userId) & filterBuilder.Eq(r => r.IsActive, true);
+
+        // Filter by NextOccurrence falling within the date range
+        if (startDate.HasValue)
+            filter &= filterBuilder.Gte(r => r.NextOccurrence, startDate.Value);
+
+        if (endDate.HasValue)
+            filter &= filterBuilder.Lte(r => r.NextOccurrence, endDate.Value);
+
+        var recurringExpenses = await _context.RecurringExpenses
+            .Find(filter)
+            .SortBy(r => r.NextOccurrence)
+            .ToListAsync();
+
+        return recurringExpenses.Select(MapRecurringExpenseToDto).ToList();
+    }
+
+    public async Task<ExpenseDto> MarkRecurringExpenseAsPaidAsync(string userId, string recurringExpenseId, DateTime paidDate)
+    {
+        var recurring = await _context.RecurringExpenses
+            .Find(r => r.Id == recurringExpenseId && r.UserId == userId)
+            .FirstOrDefaultAsync();
+
+        if (recurring == null)
+            throw new KeyNotFoundException("Recurring expense not found");
+
+        // Create a new expense for this payment
+        var expense = new Expense
+        {
+            Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+            UserId = userId,
+            Amount = recurring.Amount,
+            Date = paidDate,
+            Category = recurring.Category,
+            PaymentMethod = recurring.PaymentMethod,
+            Description = recurring.Description,
+            Notes = $"Payment for recurring: {recurring.Description}",
+            IsRecurring = true,
+            RecurringId = recurringExpenseId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await _context.Expenses.InsertOneAsync(expense);
+
+        // Update the recurring expense's last processed date and next occurrence
+        recurring.LastProcessed = paidDate;
+        recurring.NextOccurrence = CalculateNextOccurrence(paidDate, recurring.Frequency);
+        recurring.UpdatedAt = DateTime.UtcNow;
+
+        await _context.RecurringExpenses.ReplaceOneAsync(r => r.Id == recurringExpenseId, recurring);
+
+        // Update daily expense summary
+        await UpdateDailyExpenseSummaryAsync(userId, paidDate, recurring.Category, recurring.Amount, isAdd: true);
+
+        return MapToExpenseDto(expense);
+    }
 }
+

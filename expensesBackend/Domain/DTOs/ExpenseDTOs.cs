@@ -42,3 +42,25 @@ public class RecurringConfig
     public DateTime StartDate { get; set; }
     public DateTime? EndDate { get; set; }
 }
+
+public class RecurringExpenseDto
+{
+    public string Id { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string Category { get; set; } = string.Empty;
+    public string PaymentMethod { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string Frequency { get; set; } = "monthly";
+    public DateTime StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public DateTime NextOccurrence { get; set; }
+    public DateTime? LastProcessed { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class MarkRecurringPaidRequest
+{
+    public DateTime PaidDate { get; set; }
+}

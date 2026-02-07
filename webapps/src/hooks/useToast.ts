@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export interface ToastMessage {
   id: string;
@@ -9,6 +9,23 @@ export interface ToastMessage {
 
 export const useToast = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Auto-dismiss toasts after their duration
+  useEffect(() => {
+    const timers: any[] = [];
+
+    toasts.forEach((toast) => {
+      const duration = toast.duration || 5000;
+      const timer = setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== toast.id));
+      }, duration);
+      timers.push(timer);
+    });
+
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  }, [toasts]);
 
   const showToast = useCallback((
     message: string,

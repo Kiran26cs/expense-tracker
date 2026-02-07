@@ -108,6 +108,42 @@ public class ExpensesController : ControllerBase
         }
     }
 
+    [HttpGet("recurring")]
+    public async Task<ActionResult<ApiResponse<List<RecurringExpenseDto>>>> GetRecurringExpenses(
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var recurringExpenses = await _expenseService.GetRecurringExpensesAsync(userId, startDate, endDate);
+            return Ok(ApiResponse<List<RecurringExpenseDto>>.SuccessResponse(recurringExpenses));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<List<RecurringExpenseDto>>.ErrorResponse(ex.Message));
+        }
+    }
+
+    [HttpPost("recurring/{id}/mark-paid")]
+    public async Task<ActionResult<ApiResponse<ExpenseDto>>> MarkRecurringExpenseAsPaid(string id, [FromBody] MarkRecurringPaidRequest request)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var expense = await _expenseService.MarkRecurringExpenseAsPaidAsync(userId, id, request.PaidDate);
+            return Ok(ApiResponse<ExpenseDto>.SuccessResponse(expense));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(ApiResponse<ExpenseDto>.ErrorResponse("Recurring expense not found"));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<ExpenseDto>.ErrorResponse(ex.Message));
+        }
+    }
+
     [HttpPost("{id}/receipt")]
     public async Task<ActionResult<ApiResponse<string>>> UploadReceipt(string id, IFormFile file)
     {

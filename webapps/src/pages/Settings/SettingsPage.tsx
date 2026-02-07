@@ -1,14 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/Card/Card';
 import { Button } from '@/components/Button/Button';
 import { Input } from '@/components/Input/Input';
 import { Select } from '@/components/Select/Select';
 import { useTheme } from '@/hooks/useTheme';
+import { CategoryManagementModal } from '@/components/CategoryManagementModal';
+import { ImportCSVModal } from '@/components/ImportCSV/ImportCSVModal';
+import { settingsApi } from '@/services/settings.api';
 
 export const SettingsPage = () => {
   const { theme, toggleTheme } = useTheme();
   const [currency, setCurrency] = useState('INR');
   const [minimumSavings, setMinimumSavings] = useState('5000');
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [categoryCount, setCategoryCount] = useState(0);
+
+  useEffect(() => {
+    fetchCategoryCount();
+  }, []);
+
+  const fetchCategoryCount = async () => {
+    try {
+      const response = await settingsApi.getCategories();
+      if (response.success && response.data) {
+        setCategoryCount(response.data.length);
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+    }
+  };
 
   return (
     <div style={{ maxWidth: '800px' }}>
@@ -70,12 +91,30 @@ export const SettingsPage = () => {
             <CardTitle>Categories</CardTitle>
           </CardHeader>
           <CardContent>
-            <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
-              Manage your expense categories
-            </p>
-            <Button>Manage Categories</Button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <p style={{ color: 'var(--color-text-secondary)' }}>
+                Manage your expense categories
+              </p>
+              <div style={{ 
+                padding: '0.25rem 0.75rem', 
+                backgroundColor: 'var(--color-primary-light, rgba(139, 92, 246, 0.1))',
+                color: 'var(--color-primary)',
+                borderRadius: '1rem',
+                fontSize: '0.875rem',
+                fontWeight: '600'
+              }}>
+                {categoryCount} {categoryCount === 1 ? 'Category' : 'Categories'}
+              </div>
+            </div>
+            <Button onClick={() => setIsCategoryModalOpen(true)}>Manage Categories</Button>
           </CardContent>
         </Card>
+
+        <CategoryManagementModal 
+          isOpen={isCategoryModalOpen} 
+          onClose={() => setIsCategoryModalOpen(false)}
+          onSuccess={fetchCategoryCount}
+        />
 
         <Card>
           <CardHeader>
@@ -83,11 +122,20 @@ export const SettingsPage = () => {
           </CardHeader>
           <CardContent>
             <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
-              Import expenses from CSV file
+              Add expenses manually or import from CSV file
             </p>
-            <Button>Import CSV</Button>
+            <Button onClick={() => setIsImportModalOpen(true)}>
+              <i className="fa-solid fa-file-import" style={{ marginRight: '0.5rem' }} />
+              Add / Import Expenses
+            </Button>
           </CardContent>
         </Card>
+
+        <ImportCSVModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => setIsImportModalOpen(false)}
+        />
 
         <Card>
           <CardHeader>

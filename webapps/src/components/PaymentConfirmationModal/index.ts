@@ -1,0 +1,1 @@
+export { PaymentConfirmationModal } from './PaymentConfirmationModal';

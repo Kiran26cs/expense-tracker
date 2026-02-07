@@ -64,7 +64,7 @@ export const ActionMenu = ({ onAddExpense, onImportCSV }: ActionMenuProps) => {
               setIsOpen(false);
             }}
           >
-            <span className={styles.icon}>➕</span>
+            <span className={styles.icon}><i className="fa-solid fa-plus" /></span>
             <div className={styles['item-content']}>
               <div className={styles['item-title']}>Add Expense</div>
               <div className={styles['item-description']}>Add a single expense</div>
@@ -78,7 +78,7 @@ export const ActionMenu = ({ onAddExpense, onImportCSV }: ActionMenuProps) => {
               setIsOpen(false);
             }}
           >
-            <span className={styles.icon}>📥</span>
+            <span className={styles.icon}><i className="fa-solid fa-file-import" /></span>
             <div className={styles['item-content']}>
               <div className={styles['item-title']}>Import from CSV</div>
               <div className={styles['item-description']}>Bulk import multiple expenses</div>

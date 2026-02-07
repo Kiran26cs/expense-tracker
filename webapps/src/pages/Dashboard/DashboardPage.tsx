@@ -3,8 +3,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Ba
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/Card/Card';
 import { Button } from '@/components/Button/Button';
 import { Loading, EmptyState, ErrorState } from '@/components/Loading/Loading';
-import { ActionMenu } from '@/components/ActionMenu/ActionMenu';
-import { AddExpenseModal } from '@/components/AddExpenseModal/AddExpenseModal';
 import { ImportCSVModal } from '@/components/ImportCSV/ImportCSVModal';
 import { DateRangePicker } from '@/components/DateRangePicker/DateRangePicker';
 import ToastContainer from '@/components/Toast/ToastContainer';
@@ -100,7 +98,6 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
 export const DashboardPage = () => {
   const navigate = useNavigate();
   const { toasts, dismissToast, success: showSuccess } = useToast();
-  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
   const [showImportCSVModal, setShowImportCSVModal] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -237,10 +234,10 @@ export const DashboardPage = () => {
           <h1 className={styles['dashboard-title']}>Dashboard</h1>
           <p className={styles['dashboard-date']}>{formatDate(new Date(), 'long')}</p>
         </div>
-        <ActionMenu 
-          onAddExpense={() => setShowAddExpenseModal(true)}
-          onImportCSV={() => setShowImportCSVModal(true)}
-        />
+        <Button variant="primary" onClick={() => setShowImportCSVModal(true)}>
+          <i className="fa-solid fa-plus" style={{ marginRight: '0.5rem' }}></i>
+          Add Expense
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -566,7 +563,7 @@ export const DashboardPage = () => {
               title="No transactions yet"
               description="Start tracking your expenses"
               action={
-                <Button onClick={() => setShowAddExpenseModal(true)}>Add First Expense</Button>
+                <Button onClick={() => setShowImportCSVModal(true)}>Add First Expense</Button>
               }
             />
           )}
@@ -574,17 +571,6 @@ export const DashboardPage = () => {
       </Card>
 
       {/* Modals */}
-      <AddExpenseModal 
-        isOpen={showAddExpenseModal}
-        onClose={() => setShowAddExpenseModal(false)}
-        onSuccess={() => {
-          setShowAddExpenseModal(false);
-          showSuccess('Expense added successfully!');
-          refetch(); // Refresh dashboard after adding expense
-          fetchGroupedTransactions(); // Refresh recent transactions
-        }}
-      />
-      
       <ImportCSVModal
         isOpen={showImportCSVModal}
         onClose={() => setShowImportCSVModal(false)}

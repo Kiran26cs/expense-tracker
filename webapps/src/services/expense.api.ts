@@ -1,6 +1,6 @@
 // Expense API endpoints
 import { apiService } from './api.service';
-import type { Expense, FilterOptions, PaginatedResponse, ApiResponse } from '@/types';
+import type { Expense, FilterOptions, PaginatedResponse, ApiResponse, RecurringExpense } from '@/types';
 
 export const expenseApi = {
   // Get all expenses with filters (backend doesn't support pagination yet)
@@ -64,8 +64,28 @@ export const expenseApi = {
     return apiService.delete<ApiResponse<void>>(`/Expenses/${id}`);
   },
 
-  // Get recurring expenses
-  getRecurringExpenses: () => {
-    return apiService.get<ApiResponse<Expense[]>>('/Expenses/recurring');
+  // Get recurring expenses with optional filters
+  getRecurringExpenses: (filters?: { startDate?: string; endDate?: string }) => {
+    const params = new URLSearchParams();
+    
+    if (filters?.startDate) {
+      params.append('startDate', filters.startDate);
+    }
+    if (filters?.endDate) {
+      params.append('endDate', filters.endDate);
+    }
+
+    const queryString = params.toString();
+    return apiService.get<ApiResponse<RecurringExpense[]>>(
+      `/Expenses/recurring${queryString ? `?${queryString}` : ''}`
+    );
   },
+
+  // Mark a recurring expense as paid
+  markRecurringAsPaid: (recurringExpenseId: string, paidDate: string) => {
+    return apiService.post<ApiResponse<Expense>>(`/Expenses/recurring/${recurringExpenseId}/mark-paid`, {
+      paidDate: new Date(paidDate).toISOString(),
+    });
+  },
+
 };

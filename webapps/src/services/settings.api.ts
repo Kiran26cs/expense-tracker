@@ -2,6 +2,12 @@
 import { apiService } from './api.service';
 import type { Settings, ImportPreview, Category, PaymentMethod, ApiResponse } from '@/types';
 
+interface ImportCategoriesResponse {
+  imported: number;
+  failed: number;
+  errors: string[];
+}
+
 export const settingsApi = {
   // Get all settings
   getSettings: () => {
@@ -31,6 +37,11 @@ export const settingsApi = {
   // Delete category
   deleteCategory: (id: string) => {
     return apiService.delete<ApiResponse<void>>(`/settings/categories/${id}`);
+  },
+
+  // Import categories (bulk)
+  importCategories: (categories: Array<Omit<Category, 'id'>>) => {
+    return apiService.post<ApiResponse<ImportCategoriesResponse>>('/settings/categories/import', { categories });
   },
 
   // Get payment methods

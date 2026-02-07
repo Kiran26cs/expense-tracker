@@ -1,5 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import { Modal } from '@/components/Modal/Modal';
 import { Button } from '@/components/Button/Button';
+import { Input } from '@/components/Input/Input';
+import { Select } from '@/components/Select/Select';
 import { expenseApi } from '@/services/expense.api';
 import styles from './ImportCSVModal.module.css';
 
@@ -10,166 +13,192 @@ interface ImportCSVModalProps {
 }
 
 export const ImportCSVModal = ({ isOpen, onClose, onSuccess }: ImportCSVModalProps) => {
+  const [activeTab, setActiveTab] = useState<'manual' | 'upload'>('manual');
+
+  // ── Manual form state ──
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [category, setCategory] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [description, setDescription] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [frequency, setFrequency] = useState('');
+
+  // ── Upload state ──
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<any[]>([]);
   const [importStats, setImportStats] = useState<{ success: number; failed: number } | null>(null);
 
-  if (!isOpen) return null;
+  // ── Shared state ──
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const downloadTemplate = () => {
-    const csvContent = `description,amount,date,category,paymentMethod,notes
-Grocery Shopping,500,2026-02-03,food,cash,Weekly shopping at supermarket
-Gas Refill,1000,2026-02-02,transport,card,Monthly fuel
-Movie Tickets,400,2026-02-01,entertainment,upi,Movie night with friends
-Electric Bill,2500,2026-01-31,bills,bank,Monthly electricity bill
-Coffee,150,2026-01-30,food,cash,Coffee at cafe`;
+  // ──────────────── Manual – Submit ────────────────
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
 
-    const element = document.createElement('a');
-    element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent));
-    element.setAttribute('download', 'expense_template.csv');
-    element.style.display = 'none';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    if (!selectedFile.name.endsWith('.csv')) {
-      setError('Please select a CSV file');
+    if (!amount || !date || !category || !paymentMethod || !description) {
+      setError('Please fill in all required fields');
       return;
     }
 
+    try {
+      setLoading(true);
+      const expenseData: any = {
+        amount: parseFloat(amount),
+        date: new Date(date).toISOString(),
+        category,
+        paymentMethod,
+        description,
+        notes: notes || undefined,
+        isRecurring,
+      };
+      if (isRecurring && frequency) {
+        expenseData.recurringConfig = {
+          frequency,
+          startDate: new Date(date).toISOString(),
+          endDate: null,
+        };
+      }
+
+      const response = await expenseApi.createExpense(expenseData);
+      if (response.success) {
+        resetManualForm();
+        setSuccessMsg('Expense added successfully!');
+        onSuccess(1);
+        setTimeout(() => handleClose(), 1200);
+      } else {
+        setError(response.error || 'Failed to create expense');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create expense');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetManualForm = () => {
+    setAmount('');
+    setDate(new Date().toISOString().split('T')[0]);
+    setCategory('');
+    setPaymentMethod('');
+    setDescription('');
+    setNotes('');
+    setIsRecurring(false);
+    setFrequency('');
+  };
+
+  // ──────────────── Upload – CSV handling ────────────────
+  const parseCSV = useCallback((text: string) => {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) {
+      setError('CSV file must have a header row and at least one data row');
+      return;
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const requiredHeaders = ['description', 'amount', 'date', 'category', 'paymentmethod'];
+    const missing = requiredHeaders.filter(h => !headers.includes(h));
+
+    if (missing.length > 0) {
+      setError(`Missing required columns: ${missing.join(', ')}`);
+      return;
+    }
+
+    const rows = lines.slice(1).map((line, idx) => {
+      const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      const row: any = {};
+      headers.forEach((header, i) => {
+        row[header] = values[i] || '';
+      });
+      row._rowNumber = idx + 2;
+      return row;
+    }).filter(r => r.description && r.amount);
+
+    if (rows.length === 0) {
+      setError('No valid data found in CSV');
+      return;
+    }
+
+    setPreview(rows);
+    setError('');
+  }, []);
+
+  const handleFileSelect = (selectedFile: File) => {
+    if (!selectedFile.name.endsWith('.csv')) {
+      setError('Please upload a CSV file');
+      return;
+    }
     setFile(selectedFile);
     setError('');
     setPreview([]);
+    const reader = new FileReader();
+    reader.onload = (e) => parseCSV(e.target?.result as string);
+    reader.readAsText(selectedFile);
+  };
 
-    // Parse and preview the file
-    try {
-      const text = await selectedFile.text();
-      const lines = text.trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
-      
-      // Validate headers
-      const requiredHeaders = ['description', 'amount', 'date', 'category', 'paymentMethod'];
-      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
-      
-      if (missingHeaders.length > 0) {
-        setError(`Missing required columns: ${missingHeaders.join(', ')}`);
-        setFile(null);
-        return;
-      }
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) handleFileSelect(f);
+  };
 
-      // Parse data rows (max 10 for preview)
-      const previewData = lines.slice(1, 11).map((line, idx) => {
-        const values = line.split(',').map(v => v.trim());
-        const row: any = {};
-        headers.forEach((header, i) => {
-          row[header] = values[i] || '';
-        });
-        row._rowNumber = idx + 2;
-        return row;
-      });
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) handleFileSelect(f);
+  };
 
-      setPreview(previewData);
-    } catch (err) {
-      setError('Failed to parse CSV file');
-      setFile(null);
-    }
+  const downloadTemplate = () => {
+    const csv = `description,amount,date,category,paymentMethod,notes\nGrocery Shopping,500,2026-02-03,food,cash,Weekly shopping\nGas Refill,1000,2026-02-02,transport,card,Monthly fuel\nMovie Tickets,400,2026-02-01,entertainment,upi,Movie night`;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'expense_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleImport = async () => {
-    if (!file) {
-      setError('Please select a file');
-      return;
-    }
+    if (!file || preview.length === 0) { setError('No data to import'); return; }
 
     setLoading(true);
     setError('');
 
     try {
-      const text = await file.text();
-      const lines = text.trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
-
-      const expenses: any[] = [];
+      let successCount = 0;
       let failedCount = 0;
 
-      // Parse all data rows
-      for (let i = 1; i < lines.length; i++) {
+      for (const row of preview) {
         try {
-          const values = lines[i].split(',').map(v => v.trim());
-          const row: any = {};
-          headers.forEach((header, idx) => {
-            row[header] = values[idx] || '';
-          });
-
-          // Validate required fields
-          if (!row.description || !row.amount || !row.date || !row.category || !row.paymentMethod) {
-            failedCount++;
-            continue;
-          }
-
-          // Parse and validate amount
-          const amount = parseFloat(row.amount);
-          if (isNaN(amount) || amount <= 0) {
-            failedCount++;
-            continue;
-          }
-
-          // Parse and validate date
+          const amt = parseFloat(row.amount);
           const dateObj = new Date(row.date);
-          if (isNaN(dateObj.getTime())) {
-            failedCount++;
-            continue;
-          }
+          if (isNaN(amt) || amt <= 0 || isNaN(dateObj.getTime())) { failedCount++; continue; }
 
-          expenses.push({
+          const response = await expenseApi.createExpense({
             description: row.description,
-            amount,
+            amount: amt,
             date: dateObj.toISOString(),
-            category: row.category.toLowerCase(),
-            paymentMethod: row.paymentMethod.toLowerCase(),
+            category: row.category?.toLowerCase(),
+            paymentMethod: (row.paymentmethod || row.paymentMethod || '').toLowerCase(),
             notes: row.notes || undefined,
             isRecurring: false,
           });
-        } catch (err) {
-          failedCount++;
-        }
-      }
-
-      if (expenses.length === 0) {
-        setError('No valid expenses found in the file');
-        setLoading(false);
-        return;
-      }
-
-      // Import all expenses (send one by one or batch if backend supports)
-      let successCount = 0;
-      for (const expense of expenses) {
-        try {
-          const response = await expenseApi.createExpense(expense);
-          if (response.success) {
-            successCount++;
-          } else {
-            failedCount++;
-          }
-        } catch (err) {
-          failedCount++;
-        }
+          if (response.success) successCount++; else failedCount++;
+        } catch { failedCount++; }
       }
 
       setImportStats({ success: successCount, failed: failedCount });
-      
       if (successCount > 0) {
-        setTimeout(() => {
-          onSuccess(successCount);
-        }, 1500);
+        setTimeout(() => onSuccess(successCount), 1500);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed');
@@ -178,81 +207,259 @@ Coffee,150,2026-01-30,food,cash,Coffee at cafe`;
     }
   };
 
+  // ──────────────── Close / Reset ────────────────
   const handleClose = () => {
+    resetManualForm();
     setFile(null);
-    setError('');
     setPreview([]);
     setImportStats(null);
+    setError('');
+    setSuccessMsg('');
+    setActiveTab('manual');
     onClose();
   };
 
+  // ──────────────── RENDER ────────────────
   return (
-    <div className={styles.overlay}>
-      <div className={styles.modal}>
-        <div className={styles.header}>
-          <h2>Import Expenses from CSV</h2>
-          <button
-            className={styles['close-btn']}
-            onClick={handleClose}
-            type="button"
-          >
-            ✕
-          </button>
-        </div>
+    <Modal isOpen={isOpen} onClose={handleClose} title="Add Expense" size="large">
+      {error && <div className={styles.error}><i className="fa-solid fa-circle-exclamation" /> {error}</div>}
+      {successMsg && <div className={styles.success}><i className="fa-solid fa-circle-check" /> {successMsg}</div>}
 
-        <div className={styles.content}>
-          {importStats ? (
-            <div className={styles['import-result']}>
-              <div className={styles['success-icon']}>✅</div>
-              <h3>Import Complete!</h3>
-              <p className={styles['stat-row']}>
-                <span className={styles.label}>Successfully imported:</span>
-                <span className={styles['success-count']}>{importStats.success} expenses</span>
-              </p>
-              {importStats.failed > 0 && (
-                <p className={styles['stat-row']}>
-                  <span className={styles.label}>Failed:</span>
-                  <span className={styles['failed-count']}>{importStats.failed} rows</span>
-                </p>
-              )}
-              <p className={styles.info}>Your expenses will appear in the list shortly.</p>
+      {/* ── Import Result Screen ── */}
+      {importStats ? (
+        <div className={styles.importResult}>
+          <i className="fa-solid fa-circle-check" style={{ fontSize: '3rem', color: 'var(--color-success)' }} />
+          <h3>Import Complete!</h3>
+          <div className={styles.statRow}>
+            <span className={styles.statLabel}>Successfully imported:</span>
+            <span className={styles.statSuccess}>{importStats.success} expenses</span>
+          </div>
+          {importStats.failed > 0 && (
+            <div className={styles.statRow}>
+              <span className={styles.statLabel}>Failed:</span>
+              <span className={styles.statFailed}>{importStats.failed} rows</span>
             </div>
-          ) : (
-            <>
-              <div className={styles.section}>
-                <h3>1. Download Template</h3>
-                <p>Start with the CSV template to understand the required format.</p>
-                <Button onClick={downloadTemplate} variant="ghost" fullWidth>
-                  📥 Download CSV Template
+          )}
+          <p className={styles.statInfo}>Your expenses will appear in the list shortly.</p>
+          <Button onClick={handleClose} style={{ marginTop: '1rem' }}>Close</Button>
+        </div>
+      ) : (
+        <>
+          {/* ── Tabs ── */}
+          <div className={styles.tabs}>
+            <button
+              className={`${styles.tab} ${activeTab === 'manual' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('manual')}
+            >
+              <i className="fa-solid fa-pen" /> Manual
+            </button>
+            <button
+              className={`${styles.tab} ${activeTab === 'upload' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('upload')}
+            >
+              <i className="fa-solid fa-cloud-arrow-up" /> Upload
+            </button>
+          </div>
+
+          {activeTab === 'manual' ? (
+            /* ═══════ MANUAL TAB ═══════ */
+            <form onSubmit={handleManualSubmit} className={styles.manualForm}>
+              <div className={styles.formRow}>
+                <Input
+                  label="Amount"
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  required
+                />
+                <Input
+                  label="Date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className={styles.formRow}>
+                <Select
+                  label="Category"
+                  options={[
+                    { value: 'food', label: 'Food & Dining' },
+                    { value: 'transport', label: 'Transportation' },
+                    { value: 'shopping', label: 'Shopping' },
+                    { value: 'bills', label: 'Bills & Utilities' },
+                    { value: 'entertainment', label: 'Entertainment' },
+                    { value: 'health', label: 'Health' },
+                    { value: 'education', label: 'Education' },
+                    { value: 'rent', label: 'Rent' },
+                    { value: 'groceries', label: 'Groceries' },
+                    { value: 'other', label: 'Other' },
+                  ]}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  required
+                />
+                <Select
+                  label="Payment Method"
+                  options={[
+                    { value: 'cash', label: 'Cash' },
+                    { value: 'card', label: 'Credit/Debit Card' },
+                    { value: 'upi', label: 'UPI' },
+                    { value: 'bank', label: 'Bank Transfer' },
+                  ]}
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  required
+                />
+              </div>
+
+              <Input
+                label="Description"
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Brief description of the expense"
+                required
+              />
+
+              <Input
+                label="Notes (optional)"
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Additional notes"
+              />
+
+              <div className={styles.checkboxRow}>
+                <label className={styles.checkbox}>
+                  <input
+                    type="checkbox"
+                    checked={isRecurring}
+                    onChange={(e) => setIsRecurring(e.target.checked)}
+                  />
+                  <span>This is a recurring expense</span>
+                </label>
+              </div>
+
+              {isRecurring && (
+                <Select
+                  label="Frequency"
+                  options={[
+                    { value: 'daily', label: 'Daily' },
+                    { value: 'weekly', label: 'Weekly' },
+                    { value: 'monthly', label: 'Monthly' },
+                    { value: 'yearly', label: 'Yearly' },
+                  ]}
+                  value={frequency}
+                  onChange={(e) => setFrequency(e.target.value)}
+                  required={isRecurring}
+                />
+              )}
+
+              <div className={styles.formFooter}>
+                <Button type="button" variant="ghost" onClick={handleClose} disabled={loading}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? <><i className="fa-solid fa-spinner fa-spin" /> Saving...</> : 'SUBMIT'}
                 </Button>
               </div>
-
-              <div className={styles.section}>
-                <h3>2. Select File</h3>
-                <p>Click to select your CSV file or drag and drop below.</p>
-                <div className={styles['file-input-wrapper']}>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv"
-                    onChange={handleFileChange}
-                    className={styles['file-input']}
-                  />
-                  <div
-                    className={styles['file-drop']}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <div>📄 {file ? file.name : 'Click to select CSV or drag and drop'}</div>
-                  </div>
+            </form>
+          ) : (
+            /* ═══════ UPLOAD TAB ═══════ */
+            <div className={styles.uploadTab}>
+              <div className={styles.uploadHeader}>
+                <div>
+                  <h4>Upload a CSV</h4>
+                  <p className={styles.uploadSubtext}>
+                    Upload a .csv file with the following sample information
+                  </p>
+                  <p className={styles.uploadSubtext}>
+                    Columns: <strong>description</strong>, <strong>amount</strong>, <strong>date</strong>, <strong>category</strong>, <strong>paymentMethod</strong>, <strong>notes</strong>
+                  </p>
                 </div>
+                <button className={styles.downloadTemplate} onClick={downloadTemplate}>
+                  <i className="fa-solid fa-download" /> Download Template
+                </button>
               </div>
 
+              {/* Sample table */}
+              <div className={styles.sampleTable}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>description</th>
+                      <th>amount</th>
+                      <th>date</th>
+                      <th>category</th>
+                      <th>paymentMethod</th>
+                      <th>notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Grocery Shopping</td>
+                      <td>500</td>
+                      <td>2026-02-03</td>
+                      <td>food</td>
+                      <td>cash</td>
+                      <td>Weekly shopping</td>
+                    </tr>
+                    <tr>
+                      <td>Gas Refill</td>
+                      <td>1000</td>
+                      <td>2026-02-02</td>
+                      <td>transport</td>
+                      <td>card</td>
+                      <td>Monthly fuel</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Drag & Drop Zone */}
+              <div
+                className={`${styles.dropZone} ${isDragging ? styles.dropZoneActive : ''} ${file ? styles.dropZoneHasFile : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileInput}
+                  className={styles.hiddenInput}
+                />
+                {file ? (
+                  <div className={styles.fileInfo}>
+                    <i className="fa-solid fa-file-csv" style={{ fontSize: '2rem', color: 'var(--color-success)' }} />
+                    <span className={styles.fileName}>{file.name}</span>
+                    <span className={styles.fileSize}>{(file.size / 1024).toFixed(1)} KB</span>
+                    <button
+                      className={styles.removeFile}
+                      onClick={(e) => { e.stopPropagation(); setFile(null); setPreview([]); }}
+                    >
+                      <i className="fa-solid fa-xmark" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.dropContent}>
+                    <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: '2.5rem', color: 'var(--color-primary)' }} />
+                    <p>Drag & Drop your CSV File or <span className={styles.browseLink}>browse</span></p>
+                  </div>
+                )}
+              </div>
+
+              {/* Preview Table */}
               {preview.length > 0 && (
-                <div className={styles.section}>
-                  <h3>3. Preview</h3>
-                  <p>First few rows of your file:</p>
-                  <div className={styles['preview-table']}>
-                    <table>
+                <div className={styles.importPreview}>
+                  <h4>Preview ({preview.length} expenses)</h4>
+                  <div className={styles.previewTableWrap}>
+                    <table className={styles.previewTable}>
                       <thead>
                         <tr>
                           <th>#</th>
@@ -260,61 +467,41 @@ Coffee,150,2026-01-30,food,cash,Coffee at cafe`;
                           <th>Amount</th>
                           <th>Date</th>
                           <th>Category</th>
-                          <th>Payment Method</th>
+                          <th>Payment</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {preview.map((row) => (
+                        {preview.slice(0, 10).map((row) => (
                           <tr key={row._rowNumber}>
                             <td>{row._rowNumber}</td>
                             <td>{row.description}</td>
                             <td>₹{row.amount}</td>
                             <td>{row.date}</td>
                             <td>{row.category}</td>
-                            <td>{row.paymentMethod}</td>
+                            <td>{row.paymentmethod || row.paymentMethod}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                    {preview.length > 10 && (
+                      <div className={styles.previewMore}>...and {preview.length - 10} more rows</div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {error && (
-                <div className={styles['error-message']}>
-                  ⚠️ {error}
-                </div>
-              )}
-            </>
+              <div className={styles.formFooter}>
+                <Button type="button" variant="ghost" onClick={handleClose} disabled={loading}>
+                  Cancel
+                </Button>
+                <Button onClick={handleImport} disabled={loading || preview.length === 0}>
+                  {loading ? <><i className="fa-solid fa-spinner fa-spin" /> Importing...</> : 'SUBMIT'}
+                </Button>
+              </div>
+            </div>
           )}
-        </div>
-
-        <div className={styles.footer}>
-          {importStats ? (
-            <Button onClick={handleClose} fullWidth>
-              Close
-            </Button>
-          ) : (
-            <>
-              <Button
-                variant="ghost"
-                onClick={handleClose}
-                fullWidth
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleImport}
-                disabled={!file || loading}
-                loading={loading}
-                fullWidth
-              >
-                {loading ? 'Importing...' : 'Import Expenses'}
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </Modal>
   );
 };

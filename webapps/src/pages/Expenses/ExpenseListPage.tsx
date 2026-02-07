@@ -6,9 +6,7 @@ import { Button } from '@/components/Button/Button';
 import { Input } from '@/components/Input/Input';
 import { Select } from '@/components/Select/Select';
 import { EmptyState, Loading, ErrorState } from '@/components/Loading/Loading';
-import { ActionMenu } from '@/components/ActionMenu/ActionMenu';
 import { ImportCSVModal } from '@/components/ImportCSV/ImportCSVModal';
-import { AddExpenseModal } from '@/components/AddExpenseModal/AddExpenseModal';
 import { DateRangePicker } from '@/components/DateRangePicker/DateRangePicker';
 import { expenseApi } from '@/services/expense.api';
 import { dashboardApi } from '@/services/dashboard.api';
@@ -22,7 +20,6 @@ export const ExpenseListPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const [addExpenseModalOpen, setAddExpenseModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'expenses' | 'transactions'>('expenses');
   
   // Filter states
@@ -177,10 +174,10 @@ export const ExpenseListPage = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Expenses</h1>
-        <ActionMenu 
-          onAddExpense={() => setAddExpenseModalOpen(true)}
-          onImportCSV={() => setImportModalOpen(true)}
-        />
+        <Button variant="primary" onClick={() => setImportModalOpen(true)}>
+          <i className="fa-solid fa-plus" style={{ marginRight: '0.5rem' }}></i>
+          Add Expense
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -557,15 +554,6 @@ export const ExpenseListPage = () => {
           setImportModalOpen(false);
           // Refresh the expense list
           setTimeout(() => fetchExpenses(), 500);
-        }}
-      />
-
-      <AddExpenseModal
-        isOpen={addExpenseModalOpen}
-        onClose={() => setAddExpenseModalOpen(false)}
-        onSuccess={() => {
-          setAddExpenseModalOpen(false);
-          fetchExpenses(); // Refresh expense list
         }}
       />
 

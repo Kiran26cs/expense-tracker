@@ -30,6 +30,22 @@ export interface RecurringConfig {
   reminderEnabled: boolean;
 }
 
+export interface RecurringExpense {
+  id: string;
+  amount: number;
+  category: string;
+  paymentMethod: string;
+  description?: string;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  startDate: string;
+  endDate?: string;
+  nextOccurrence: string;
+  lastProcessed?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Category {
   id: string;
   name: string;
