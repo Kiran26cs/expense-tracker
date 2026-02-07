@@ -31,11 +31,30 @@ export const ExpenseListPage = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const dateFilterButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleDateRangeChange = (start: string, end: string) => {
     setStartDate(start);
     setEndDate(end);
+  };
+
+  // Handle scroll to show/hide scroll-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      // Show button after scrolling 800px (approximately 20 records at ~40px each)
+      setShowScrollTop(window.scrollY > 800);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   };
 
   // Pagination states
@@ -558,6 +577,20 @@ export const ExpenseListPage = () => {
         onClose={() => setShowDateRangePicker(false)}
         anchorEl={dateFilterButtonRef.current}
       />
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && activeTab === 'expenses' && (
+        <button
+          className={styles.scrollToTopButton}
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
+          title="Back to top"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15"></polyline>
+          </svg>
+        </button>
+      )}
     </div>
   );
 };
