@@ -73,6 +73,24 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpPost("google")]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> GoogleLogin([FromBody] GoogleAuthRequest request)
+    {
+        try
+        {
+            var result = await _authService.GoogleLoginAsync(request.Credential);
+            return Ok(ApiResponse<AuthResponse>.SuccessResponse(result));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ApiResponse<AuthResponse>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<AuthResponse>.ErrorResponse(ex.Message));
+        }
+    }
+
     [Authorize]
     [HttpGet("me")]
     public ActionResult<ApiResponse<UserDto>> GetCurrentUser()

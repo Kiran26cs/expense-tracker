@@ -43,4 +43,11 @@ export const authApi = {
   getCurrentUser: () => {
     return apiService.get<ApiResponse<User>>('/Auth/me');
   },
+
+  // Google SSO login
+  googleLogin: (credential: string) => {
+    return apiService.post<ApiResponse<{ token: string; refreshToken: string; user: User }>>('/Auth/google', {
+      credential,
+    });
+  },
 };

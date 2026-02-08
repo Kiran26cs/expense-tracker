@@ -38,3 +38,8 @@ public class UserDto
     public string Currency { get; set; } = "USD";
     public decimal MonthlyIncome { get; set; }
 }
+
+public class GoogleAuthRequest
+{
+    public string Credential { get; set; } = string.Empty;
+}

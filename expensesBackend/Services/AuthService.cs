@@ -2,6 +2,7 @@ using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Domain.Entities;
 using ExpensesBackend.API.Infrastructure.Data;
 using ExpensesBackend.API.Services.Interfaces;
+using Google.Apis.Auth;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
 using System.IdentityModel.Tokens.Jwt;
@@ -186,6 +187,52 @@ public class AuthService : IAuthService
 
         if (user == null)
             throw new UnauthorizedAccessException("User not found");
+
+        return new AuthResponse
+        {
+            Token = GenerateJwtToken(user),
+            RefreshToken = GenerateRefreshToken(),
+            User = MapToUserDto(user)
+        };
+    }
+
+    public async Task<AuthResponse> GoogleLoginAsync(string credential)
+    {
+        var googleClientId = _configuration["Google:ClientId"] 
+            ?? throw new InvalidOperationException("Google ClientId not configured");
+
+        var settings = new GoogleJsonWebSignature.ValidationSettings
+        {
+            Audience = new[] { googleClientId }
+        };
+
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(credential, settings);
+        }
+        catch (InvalidJwtException)
+        {
+            throw new UnauthorizedAccessException("Invalid Google token");
+        }
+
+        // Find existing user by email
+        var user = await _context.Users
+            .Find(u => u.Email == payload.Email)
+            .FirstOrDefaultAsync();
+
+        if (user == null)
+        {
+            // Auto-create user from Google profile
+            user = new User
+            {
+                Email = payload.Email,
+                Name = payload.Name ?? payload.Email ?? "Google User",
+                Currency = "INR",
+                MonthlyIncome = 0
+            };
+            await _context.Users.InsertOneAsync(user);
+        }
 
         return new AuthResponse
         {

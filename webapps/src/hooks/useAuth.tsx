@@ -10,6 +10,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (emailOrPhone: string, otp: string) => Promise<void>;
   signup: (name: string, emailOrPhone: string, otp: string) => Promise<void>;
+  googleLogin: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -66,6 +67,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const googleLogin = async (credential: string) => {
+    const response = await authApi.googleLogin(credential);
+    if (response.success && response.data) {
+      apiService.setToken(response.data.token);
+      setUser(response.data.user);
+    } else {
+      throw new Error(response.error || 'Google login failed');
+    }
+  };
+
   const logout = async () => {
     try {
       // Logout endpoint doesn't exist in backend, just clear local state
@@ -85,6 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: !!user,
         login,
         signup,
+        googleLogin,
         logout,
       }}
     >
