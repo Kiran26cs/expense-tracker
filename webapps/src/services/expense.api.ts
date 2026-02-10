@@ -4,7 +4,7 @@ import type { Expense, FilterOptions, PaginatedResponse, ApiResponse, RecurringE
 
 export const expenseApi = {
   // Get all expenses with filters (backend doesn't support pagination yet)
-  getExpenses: (filters?: { startDate?: string; endDate?: string; category?: string; searchQuery?: string }) => {
+  getExpenses: (filters?: { startDate?: string; endDate?: string; category?: string; searchQuery?: string; expenseBookId?: string }) => {
     const params = new URLSearchParams();
 
     if (filters?.startDate) {
@@ -15,6 +15,9 @@ export const expenseApi = {
     }
     if (filters?.category && filters.category !== 'all') {
       params.append('category', filters.category);
+    }
+    if (filters?.expenseBookId) {
+      params.append('expenseBookId', filters.expenseBookId);
     }
     // Note: searchQuery not supported by backend yet
 
@@ -41,6 +44,7 @@ export const expenseApi = {
       notes: expense.notes,
       isRecurring: expense.isRecurring || false,
       recurringConfig: expense.recurringConfig || null,
+      expenseBookId: expense.expenseBookId,
     };
     return apiService.post<ApiResponse<Expense>>('/Expenses', payload);
   },
@@ -65,7 +69,7 @@ export const expenseApi = {
   },
 
   // Get recurring expenses with optional filters
-  getRecurringExpenses: (filters?: { startDate?: string; endDate?: string }) => {
+  getRecurringExpenses: (filters?: { startDate?: string; endDate?: string; expenseBookId?: string }) => {
     const params = new URLSearchParams();
     
     if (filters?.startDate) {
@@ -73,6 +77,9 @@ export const expenseApi = {
     }
     if (filters?.endDate) {
       params.append('endDate', filters.endDate);
+    }
+    if (filters?.expenseBookId) {
+      params.append('expenseBookId', filters.expenseBookId);
     }
 
     const queryString = params.toString();
@@ -86,6 +93,24 @@ export const expenseApi = {
     return apiService.post<ApiResponse<Expense>>(`/Expenses/recurring/${recurringExpenseId}/mark-paid`, {
       paidDate: new Date(paidDate).toISOString(),
     });
+  },
+
+  // Update recurring expense
+  updateRecurringExpense: (id: string, data: {
+    amount?: number;
+    frequency?: string;
+    startDate?: string;
+    endDate?: string | null;
+    category?: string;
+    paymentMethod?: string;
+    description?: string;
+  }) => {
+    return apiService.put<ApiResponse<RecurringExpense>>(`/Expenses/recurring/${id}`, data);
+  },
+
+  // Delete recurring expense
+  deleteRecurringExpense: (id: string) => {
+    return apiService.delete<ApiResponse<void>>(`/Expenses/recurring/${id}`);
   },
 
 };

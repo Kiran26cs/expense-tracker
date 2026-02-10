@@ -7,10 +7,12 @@ import styles from './PaymentConfirmationModal.module.css';
 interface PaymentConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (paidDate: string) => void;
+  onConfirm: (paidDate: string, recordAsExpense: boolean) => void;
   loading?: boolean;
   amount: number;
   description: string;
+  category?: string;
+  frequency?: string;
 }
 
 export const PaymentConfirmationModal = ({
@@ -20,17 +22,21 @@ export const PaymentConfirmationModal = ({
   loading = false,
   amount,
   description,
+  category,
+  frequency,
 }: PaymentConfirmationModalProps) => {
   const [paidDate, setPaidDate] = useState(new Date().toISOString().split('T')[0]);
+  const [recordAsExpense, setRecordAsExpense] = useState(true);
 
   const handleConfirm = () => {
     if (paidDate) {
-      onConfirm(paidDate);
+      onConfirm(paidDate, recordAsExpense);
     }
   };
 
   const handleClose = () => {
     setPaidDate(new Date().toISOString().split('T')[0]);
+    setRecordAsExpense(true);
     onClose();
   };
 
@@ -42,6 +48,20 @@ export const PaymentConfirmationModal = ({
             <label className={styles.label}>Description</label>
             <div className={styles.value}>{description}</div>
           </div>
+
+          {category && (
+            <div className={styles.field}>
+              <label className={styles.label}>Category</label>
+              <div className={styles.value} style={{ textTransform: 'capitalize' }}>{category}</div>
+            </div>
+          )}
+
+          {frequency && (
+            <div className={styles.field}>
+              <label className={styles.label}>Frequency</label>
+              <div className={styles.value} style={{ textTransform: 'capitalize' }}>{frequency}</div>
+            </div>
+          )}
 
           <div className={styles.field}>
             <label className={styles.label}>Amount</label>
@@ -56,10 +76,31 @@ export const PaymentConfirmationModal = ({
             required
           />
 
-          <div className={styles.note}>
-            <i className="fa-solid fa-info-circle" style={{ marginRight: '0.5rem' }}></i>
-            This will record the payment as a completed expense
-          </div>
+          <label className={styles.checkboxContainer}>
+            <input
+              type="checkbox"
+              checked={recordAsExpense}
+              onChange={(e) => setRecordAsExpense(e.target.checked)}
+              className={styles.checkbox}
+            />
+            <span className={styles.checkboxLabel}>
+              Record this payment as an expense
+            </span>
+          </label>
+
+          {!recordAsExpense && (
+            <div className={styles.warningNote}>
+              <i className="fa-solid fa-exclamation-triangle" style={{ marginRight: '0.5rem' }}></i>
+              This payment will NOT be recorded in your expense sheet
+            </div>
+          )}
+
+          {recordAsExpense && (
+            <div className={styles.note}>
+              <i className="fa-solid fa-info-circle" style={{ marginRight: '0.5rem' }}></i>
+              This payment will be recorded as a completed expense
+            </div>
+          )}
         </div>
 
         <div className={styles.actions}>

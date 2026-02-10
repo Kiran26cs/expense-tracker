@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/Card/Card';
 import { Button } from '@/components/Button/Button';
@@ -16,6 +16,7 @@ import styles from './ExpenseList.module.css';
 
 export const ExpenseListPage = () => {
   const navigate = useNavigate();
+  const { bookId } = useParams<{ bookId: string }>();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -64,6 +65,13 @@ export const ExpenseListPage = () => {
   const [transactionsPage, setTransactionsPage] = useState(1);
   const [transactionsPerPage] = useState(10);
 
+  // Redirect if no bookId
+  useEffect(() => {
+    if (!bookId) {
+      navigate('/');
+    }
+  }, [bookId, navigate]);
+
   // Filtered expenses (client-side search filtering)
   const filteredExpenses = expenses.filter(expense => {
     if (searchQuery) {
@@ -89,10 +97,12 @@ export const ExpenseListPage = () => {
   const totalTransactionPages = Math.ceil(groupedTransactions.length / transactionsPerPage);
 
   const fetchExpenses = async () => {
+    if (!bookId) return;
+    
     setLoading(true);
     setError('');
     try {
-      const filters: any = {};
+      const filters: any = { expenseBookId: bookId };
       if (startDate) filters.startDate = new Date(startDate).toISOString();
       if (endDate) filters.endDate = new Date(endDate).toISOString();
       if (category && category !== 'all') filters.category = category;
@@ -112,9 +122,11 @@ export const ExpenseListPage = () => {
   };
 
   const fetchGroupedTransactions = async () => {
+    if (!bookId) return;
+    
     setLoadingGrouped(true);
     try {
-      const response = await dashboardApi.getGroupedTransactions(startDate, endDate);
+      const response = await dashboardApi.getGroupedTransactions(bookId, startDate, endDate);
       if (response.success && response.data) {
         setGroupedTransactions(response.data);
       }
@@ -126,11 +138,13 @@ export const ExpenseListPage = () => {
   };
 
   useEffect(() => {
-    fetchExpenses();
-    if (activeTab === 'transactions') {
-      fetchGroupedTransactions();
+    if (bookId) {
+      fetchExpenses();
+      if (activeTab === 'transactions') {
+        fetchGroupedTransactions();
+      }
     }
-  }, [startDate, endDate, category, activeTab]);
+  }, [startDate, endDate, category, activeTab, bookId]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -264,7 +278,7 @@ export const ExpenseListPage = () => {
                 description={searchQuery || startDate || endDate || category !== 'all' 
                   ? "No expenses match your filters. Try adjusting your search criteria."
                   : "Start tracking by adding your first expense"}
-                action={<Button onClick={() => navigate('/expenses/add')}>Add Expense</Button>}
+                action={<Button onClick={() => navigate(`/${bookId}/expenses/add`)}>Add Expense</Button>}
               />
             </Card>
           ) : (
@@ -315,7 +329,7 @@ export const ExpenseListPage = () => {
                         </div>
                         <Button
                           variant="ghost"
-                          onClick={() => navigate(`/expenses/${expense.id}/edit`)}
+                          onClick={() => navigate(`/${bookId}/expenses/${expense.id}/edit`)}
                           style={{ flexShrink: 0 }}
                           title="Edit expense"
                         >

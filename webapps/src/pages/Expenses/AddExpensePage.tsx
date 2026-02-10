@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '@/components/Card/Card';
 import { Button } from '@/components/Button/Button';
 import { Input } from '@/components/Input/Input';
@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/useToast';
 
 export const AddExpensePage = () => {
   const navigate = useNavigate();
+  const { bookId } = useParams<{ bookId: string }>();
   const { toasts, dismissToast, success: showSuccess, error: showError } = useToast();
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -23,8 +24,21 @@ export const AddExpensePage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Redirect if no bookId
+  useEffect(() => {
+    if (!bookId) {
+      navigate('/');
+    }
+  }, [bookId, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!bookId) {
+      showError('Expense book not selected');
+      return;
+    }
+    
     setLoading(true);
     setError('');
     
@@ -37,6 +51,7 @@ export const AddExpensePage = () => {
         description,
         notes: notes || undefined,
         isRecurring,
+        expenseBookId: bookId,
       };
 
       if (isRecurring && frequency) {
@@ -51,7 +66,7 @@ export const AddExpensePage = () => {
       
       if (response.success) {
         showSuccess('Expense added successfully!');
-        setTimeout(() => navigate('/expenses'), 1500);
+        setTimeout(() => navigate(`/${bookId}/expenses`), 1500);
       } else {
         showError(response.error || 'Failed to create expense');
       }

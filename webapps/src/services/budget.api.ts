@@ -4,9 +4,12 @@ import type { Budget, ApiResponse } from '@/types';
 
 export const budgetApi = {
   // Get all budgets for a month
-  getBudgets: (month?: string) => {
-    const params = month ? `?month=${month}` : '';
-    return apiService.get<ApiResponse<Budget[]>>(`/budgets${params}`);
+  getBudgets: (expenseBookId?: string, month?: string) => {
+    const params = new URLSearchParams();
+    if (expenseBookId) params.append('expenseBookId', expenseBookId);
+    if (month) params.append('month', month);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    return apiService.get<ApiResponse<Budget[]>>(`/budgets${queryString}`);
   },
 
   // Get single budget

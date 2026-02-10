@@ -5,12 +5,15 @@ namespace ExpensesBackend.API.Services.Interfaces;
 
 public interface IExpenseService
 {
-    Task<List<ExpenseDto>> GetExpensesAsync(string userId, DateTime? startDate, DateTime? endDate, string? category);
+    Task<List<ExpenseDto>> GetExpensesAsync(string userId, string? expenseBookId, DateTime? startDate, DateTime? endDate, string? category);
     Task<ExpenseDto> GetExpenseByIdAsync(string userId, string expenseId);
     Task<ExpenseDto> CreateExpenseAsync(string userId, CreateExpenseRequest request);
     Task<ExpenseDto> UpdateExpenseAsync(string userId, string expenseId, UpdateExpenseRequest request);
     Task<bool> DeleteExpenseAsync(string userId, string expenseId);
     Task<string> UploadReceiptAsync(string userId, string expenseId, Stream fileStream, string fileName);
-    Task<List<RecurringExpenseDto>> GetRecurringExpensesAsync(string userId, DateTime? startDate, DateTime? endDate);
+    Task<List<RecurringExpenseDto>> GetRecurringExpensesAsync(string userId, string? expenseBookId, DateTime? startDate, DateTime? endDate);
     Task<ExpenseDto> MarkRecurringExpenseAsPaidAsync(string userId, string recurringExpenseId, DateTime paidDate);
+    Task<RecurringExpenseDto> UpdateRecurringExpenseAsync(string userId, string recurringExpenseId, UpdateRecurringExpenseRequest request);
+    Task<bool> DeleteRecurringExpenseAsync(string userId, string recurringExpenseId);
+    Task DeleteUpcomingPaymentsForRecurringAsync(string recurringExpenseId);
 }

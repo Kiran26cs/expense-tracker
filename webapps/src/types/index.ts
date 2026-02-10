@@ -46,6 +46,28 @@ export interface RecurringExpense {
   updatedAt: string;
 }
 
+export interface UpcomingPayment {
+  id: string;
+  recurringExpenseId: string;
+  amount: number;
+  category: string;
+  paymentMethod: string;
+  description?: string;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  dueDate: string;
+  status: 'upcoming' | 'due' | 'overdue' | 'pending';
+  dueDateLabel: string;
+  createdAt: string;
+}
+
+export interface UpcomingPaymentsPaginatedResponse {
+  items: UpcomingPayment[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
 export interface Category {
   id: string;
   name: string;

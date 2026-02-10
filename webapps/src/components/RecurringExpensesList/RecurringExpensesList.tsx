@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/Card/Card';
 import { Button } from '@/components/Button/Button';
 import { Loading, ErrorState } from '@/components/Loading/Loading';
-import { PaymentConfirmationModal } from '@/components/PaymentConfirmationModal/PaymentConfirmationModal';
+import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog';
 import { expenseApi } from '@/services/expense.api';
 import { formatCurrency, formatDate } from '@/utils/helpers';
 import type { RecurringExpense } from '@/types';
 import styles from './RecurringExpensesList.module.css';
 
 interface RecurringExpensesListProps {
+  expenseBookId?: string;
   onPaymentSuccess?: () => void;
   startDate?: string;
   endDate?: string;
@@ -17,22 +18,19 @@ interface RecurringExpensesListProps {
 }
 
 export const RecurringExpensesList = ({ 
-  onPaymentSuccess, 
+  expenseBookId,
   startDate = '', 
   endDate = '',
-  onShowSuccess = () => {},
-  onShowError = () => {},
+  onShowSuccess,
+  onShowError,
 }: RecurringExpensesListProps) => {
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const itemsPerPage = 30;
-
-  // Modals
-  const [selectedRecurring, setSelectedRecurring] = useState<RecurringExpense | null>(null);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [isPaymentModalLoading, setIsPaymentModalLoading] = useState(false);
 
   // Fetch recurring expenses
   const fetchRecurringExpenses = async () => {
@@ -40,6 +38,7 @@ export const RecurringExpensesList = ({
     setError('');
     try {
       const response = await expenseApi.getRecurringExpenses({
+        expenseBookId: expenseBookId || undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
       });
@@ -59,27 +58,23 @@ export const RecurringExpensesList = ({
 
   useEffect(() => {
     fetchRecurringExpenses();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, expenseBookId]);
 
-  const handleConfirmPayment = async (paidDate: string) => {
-    if (!selectedRecurring) return;
-
-    setIsPaymentModalLoading(true);
+  const handleDeleteRecurring = async (id: string) => {
+    setIsDeleting(true);
     try {
-      const response = await expenseApi.markRecurringAsPaid(selectedRecurring.id, paidDate);
+      const response = await expenseApi.deleteRecurringExpense(id);
       if (response.success) {
-        onShowSuccess('Payment recorded successfully!');
-        setIsPaymentModalOpen(false);
-        setSelectedRecurring(null);
-        fetchRecurringExpenses();
-        onPaymentSuccess?.();
+        onShowSuccess?.('Recurring expense deleted successfully');
+        await fetchRecurringExpenses();
       } else {
-        onShowError(response.error || 'Failed to record payment');
+        onShowError?.(response.error || 'Failed to delete recurring expense');
       }
     } catch (err) {
-      onShowError(err instanceof Error ? err.message : 'Failed to record payment');
+      onShowError?.(err instanceof Error ? err.message : 'Failed to delete recurring expense');
     } finally {
-      setIsPaymentModalLoading(false);
+      setIsDeleting(false);
+      setDeleteConfirmId(null);
     }
   };
 
@@ -138,10 +133,10 @@ export const RecurringExpensesList = ({
           <Card>
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>📅</div>
-              <div className={styles.emptyTitle}>No due payments</div>
+              <div className={styles.emptyTitle}>No recurring expenses</div>
               <div className={styles.emptyDescription}>
                 {startDate || endDate 
-                  ? 'No recurring expenses due in the selected date range.'
+                  ? 'No recurring expenses found in the selected date range.'
                   : 'No recurring expenses found. Add one to track your regular payments!'}
               </div>
             </div>
@@ -172,23 +167,34 @@ export const RecurringExpensesList = ({
                           <span className={styles.frequency}>{getFrequencyDisplay(recurring.frequency)}</span>
                           <span className={styles.separator}>•</span>
                           <span className={styles.dueDate}>
-                            Due: {formatDate(recurring.nextOccurrence, 'short')}
+                            Next: {formatDate(recurring.nextOccurrence, 'short')}
                           </span>
                         </div>
                       </div>
 
                       <div className={styles.actionSection}>
                         <div className={styles.amount}>{formatCurrency(recurring.amount)}</div>
-                        <button
-                          onClick={() => {
-                            setSelectedRecurring(recurring);
-                            setIsPaymentModalOpen(true);
-                          }}
-                          className={styles.payButton}
-                        >
-                          <i className="fa-solid fa-check"></i>
-                          <span>Pay</span>
-                        </button>
+                        <div className={styles.payNote}>
+                          Pay from Dashboard
+                        </div>
+                        <div className={styles.actionButtons}>
+                          <Button
+                            variant="ghost"
+                            size="small"
+                            onClick={() => onShowError?.('Edit functionality coming soon')}
+                            title="Edit recurring expense"
+                          >
+                            <i className="fa-solid fa-edit"></i>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="small"
+                            onClick={() => setDeleteConfirmId(recurring.id)}
+                            title="Delete recurring expense"
+                          >
+                            <i className="fa-solid fa-trash"></i>
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </Card>
@@ -222,18 +228,18 @@ export const RecurringExpensesList = ({
         )}
       </div>
 
-      {/* Payment Confirmation Modal */}
-      {selectedRecurring && (
-        <PaymentConfirmationModal
-          isOpen={isPaymentModalOpen}
-          onClose={() => {
-            setIsPaymentModalOpen(false);
-            setSelectedRecurring(null);
-          }}
-          onConfirm={handleConfirmPayment}
-          loading={isPaymentModalLoading}
-          amount={selectedRecurring.amount}
-          description={selectedRecurring.description || selectedRecurring.category}
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmId && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Delete Recurring Expense"
+          message="Are you sure you want to delete this recurring expense? This will also remove all upcoming payment reminders."
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          variant="danger"
+          onConfirm={() => handleDeleteRecurring(deleteConfirmId)}
+          onCancel={() => setDeleteConfirmId(null)}
+          isLoading={isDeleting}
         />
       )}
     </>

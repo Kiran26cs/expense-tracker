@@ -14,10 +14,15 @@ public class BudgetService : IBudgetService
         _context = context;
     }
 
-    public async Task<List<Budget>> GetBudgetsAsync(string userId, string? month = null)
+    public async Task<List<Budget>> GetBudgetsAsync(string userId, string? expenseBookId, string? month = null)
     {
         var filterBuilder = Builders<Budget>.Filter;
         var filter = filterBuilder.Eq(b => b.UserId, userId);
+        
+        if (!string.IsNullOrEmpty(expenseBookId))
+        {
+            filter &= filterBuilder.Eq(b => b.ExpenseBookId, expenseBookId);
+        }
 
         if (!string.IsNullOrEmpty(month))
         {
@@ -38,10 +43,16 @@ public class BudgetService : IBudgetService
         // Calculate spent amount for each budget
         foreach (var budget in budgets)
         {
-            var expenseFilter = Builders<Expense>.Filter.Eq(e => e.UserId, userId) &
-                               Builders<Expense>.Filter.Eq(e => e.Category, budget.Category) &
-                               Builders<Expense>.Filter.Gte(e => e.Date, budget.StartDate) &
-                               Builders<Expense>.Filter.Lte(e => e.Date, budget.EndDate);
+            var expenseFilterBuilder = Builders<Expense>.Filter;
+            var expenseFilter = expenseFilterBuilder.Eq(e => e.UserId, userId) &
+                               expenseFilterBuilder.Eq(e => e.Category, budget.Category) &
+                               expenseFilterBuilder.Gte(e => e.Date, budget.StartDate) &
+                               expenseFilterBuilder.Lte(e => e.Date, budget.EndDate);
+            
+            if (!string.IsNullOrEmpty(expenseBookId))
+            {
+                expenseFilter &= expenseFilterBuilder.Eq(e => e.ExpenseBookId, expenseBookId);
+            }
 
             var expenses = await _context.Expenses.Find(expenseFilter).ToListAsync();
             budget.Spent = expenses.Sum(e => e.Amount);

@@ -21,6 +21,7 @@ public class MongoDbContext
     }
 
     public IMongoCollection<User> Users => _database.GetCollection<User>("users");
+    public IMongoCollection<ExpenseBook> ExpenseBooks => _database.GetCollection<ExpenseBook>("expenseBooks");
     public IMongoCollection<Expense> Expenses => _database.GetCollection<Expense>("expenses");
     public IMongoCollection<Category> Categories => _database.GetCollection<Category>("categories");
     public IMongoCollection<Budget> Budgets => _database.GetCollection<Budget>("budgets");
@@ -30,6 +31,8 @@ public class MongoDbContext
         _database.GetCollection<OtpRecord>("otpRecords");
     public IMongoCollection<DailyExpenseSummary> DailyExpenseSummaries => 
         _database.GetCollection<DailyExpenseSummary>("dailyExpenseSummaries");
+    public IMongoCollection<UpcomingPayment> UpcomingPayments => 
+        _database.GetCollection<UpcomingPayment>("upcomingPayments");
 
     private void CreateIndexes()
     {
@@ -38,6 +41,12 @@ public class MongoDbContext
             .Ascending(u => u.Email)
             .Ascending(u => u.Phone);
         Users.Indexes.CreateOne(new CreateIndexModel<User>(userIndexKeys));
+
+        // ExpenseBook indexes
+        var expenseBookIndexKeys = Builders<ExpenseBook>.IndexKeys
+            .Ascending(eb => eb.UserId)
+            .Descending(eb => eb.CreatedAt);
+        ExpenseBooks.Indexes.CreateOne(new CreateIndexModel<ExpenseBook>(expenseBookIndexKeys));
 
         // Expense indexes
         var expenseIndexKeys = Builders<Expense>.IndexKeys
@@ -71,5 +80,16 @@ public class MongoDbContext
             new CreateIndexOptions { ExpireAfter = TimeSpan.Zero }
         );
         OtpRecords.Indexes.CreateOne(ttlIndexOptions);
+
+        // UpcomingPayment indexes
+        var upcomingPaymentIndexKeys = Builders<UpcomingPayment>.IndexKeys
+            .Ascending(u => u.UserId)
+            .Ascending(u => u.DueDate);
+        UpcomingPayments.Indexes.CreateOne(new CreateIndexModel<UpcomingPayment>(upcomingPaymentIndexKeys));
+
+        var upcomingRecurringIndexKeys = Builders<UpcomingPayment>.IndexKeys
+            .Ascending(u => u.UserId)
+            .Ascending(u => u.RecurringExpenseId);
+        UpcomingPayments.Indexes.CreateOne(new CreateIndexModel<UpcomingPayment>(upcomingRecurringIndexKeys));
     }
 }

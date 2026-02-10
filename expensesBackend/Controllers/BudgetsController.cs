@@ -20,12 +20,14 @@ public class BudgetsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<Budget>>>> GetBudgets([FromQuery] string? month)
+    public async Task<ActionResult<ApiResponse<List<Budget>>>> GetBudgets(
+        [FromQuery] string? expenseBookId,
+        [FromQuery] string? month)
     {
         try
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
-            var budgets = await _budgetService.GetBudgetsAsync(userId, month);
+            var budgets = await _budgetService.GetBudgetsAsync(userId, expenseBookId, month);
             return Ok(ApiResponse<List<Budget>>.SuccessResponse(budgets));
         }
         catch (Exception ex)

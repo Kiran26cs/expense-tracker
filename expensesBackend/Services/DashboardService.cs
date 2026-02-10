@@ -9,13 +9,15 @@ namespace ExpensesBackend.API.Services;
 public class DashboardService : IDashboardService
 {
     private readonly MongoDbContext _context;
+    private readonly IExpenseService _expenseService;
 
-    public DashboardService(MongoDbContext context)
+    public DashboardService(MongoDbContext context, IExpenseService expenseService)
     {
         _context = context;
+        _expenseService = expenseService;
     }
 
-    public async Task<DashboardSummary> GetSummaryAsync(string userId, DateTime? startDate, DateTime? endDate)
+    public async Task<DashboardSummary> GetSummaryAsync(string userId, string? expenseBookId, DateTime? startDate, DateTime? endDate)
     {
         var start = startDate ?? DateTime.UtcNow.AddMonths(-1);
         var end = endDate ?? DateTime.UtcNow;
@@ -24,6 +26,11 @@ public class DashboardService : IDashboardService
         var filter = filterBuilder.Eq(e => e.UserId, userId) &
                     filterBuilder.Gte(e => e.Date, start) &
                     filterBuilder.Lte(e => e.Date, end);
+        
+        if (!string.IsNullOrEmpty(expenseBookId))
+        {
+            filter &= filterBuilder.Eq(e => e.ExpenseBookId, expenseBookId);
+        }
 
         var expenses = await _context.Expenses
             .Find(filter)
@@ -76,13 +83,18 @@ public class DashboardService : IDashboardService
         };
     }
 
-    public async Task<List<MonthlyTrend>> GetMonthlyTrendsAsync(string userId, int months)
+    public async Task<List<MonthlyTrend>> GetMonthlyTrendsAsync(string userId, string? expenseBookId, int months)
     {
         var startDate = DateTime.UtcNow.AddMonths(-months);
         
         var filterBuilder = Builders<Domain.Entities.Expense>.Filter;
         var filter = filterBuilder.Eq(e => e.UserId, userId) &
                     filterBuilder.Gte(e => e.Date, startDate);
+        
+        if (!string.IsNullOrEmpty(expenseBookId))
+        {
+            filter &= filterBuilder.Eq(e => e.ExpenseBookId, expenseBookId);
+        }
 
         var expenses = await _context.Expenses
             .Find(filter)
@@ -105,7 +117,7 @@ public class DashboardService : IDashboardService
         return trends;
     }
 
-    public async Task<List<DailyTransactionGroup>> GetGroupedTransactionsAsync(string userId, DateTime? startDate = null, DateTime? endDate = null)
+    public async Task<List<DailyTransactionGroup>> GetGroupedTransactionsAsync(string userId, string? expenseBookId, DateTime? startDate = null, DateTime? endDate = null)
     {
         var start = startDate ?? DateTime.UtcNow.AddDays(-30);
         var end = endDate ?? DateTime.UtcNow;
@@ -114,6 +126,11 @@ public class DashboardService : IDashboardService
         var filter = filterBuilder.Eq(d => d.UserId, userId) &
                      filterBuilder.Gte(d => d.Date, start.Date) &
                      filterBuilder.Lte(d => d.Date, end.Date);
+        
+        if (!string.IsNullOrEmpty(expenseBookId))
+        {
+            filter &= filterBuilder.Eq(d => d.ExpenseBookId, expenseBookId);
+        }
 
         var summaries = await _context.DailyExpenseSummaries
             .Find(filter)
@@ -207,6 +224,252 @@ public class DashboardService : IDashboardService
                     existingSummary
                 );
             }
+        }
+    }
+
+    public async Task<UpcomingPaymentsPaginatedResponse> GetUpcomingPaymentsAsync(string userId, string? expenseBookId, int page = 1, int pageSize = 10)
+    {
+        // First, generate any missing upcoming payments and refresh statuses
+        await GenerateUpcomingPaymentsAsync(userId);
+
+        var expenseService = _expenseService as ExpenseService;
+        if (expenseService != null)
+        {
+            await expenseService.RefreshUpcomingPaymentStatusesAsync(userId);
+        }
+
+        var filterBuilder = Builders<UpcomingPayment>.Filter;
+        var filter = filterBuilder.Eq(u => u.UserId, userId);
+        
+        if (!string.IsNullOrEmpty(expenseBookId))
+        {
+            filter &= filterBuilder.Eq(u => u.ExpenseBookId, expenseBookId);
+        }
+
+        var total = (int)await _context.UpcomingPayments.CountDocumentsAsync(filter);
+
+        // Sort: overdue/pending first, then due, then upcoming (by dueDate ascending)
+        var upcomingPayments = await _context.UpcomingPayments
+            .Find(filter)
+            .SortBy(u => u.DueDate)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
+
+        var today = DateTime.UtcNow.Date;
+
+        var items = upcomingPayments.Select(u => new UpcomingPaymentDto
+        {
+            Id = u.Id,
+            RecurringExpenseId = u.RecurringExpenseId,
+            Amount = u.Amount,
+            Category = u.Category,
+            PaymentMethod = u.PaymentMethod,
+            Description = u.Description,
+            Frequency = u.Frequency,
+            DueDate = u.DueDate,
+            Status = u.Status,
+            DueDateLabel = GetDueDateLabel(u.DueDate, today),
+            CreatedAt = u.CreatedAt
+        }).ToList();
+
+        return new UpcomingPaymentsPaginatedResponse
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize,
+            HasMore = (page * pageSize) < total
+        };
+    }
+
+    public async Task<UpcomingPaymentDto> MarkUpcomingPaymentAsPaidAsync(string userId, string upcomingPaymentId, DateTime paidDate, bool recordAsExpense)
+    {
+        var upcomingPayment = await _context.UpcomingPayments
+            .Find(u => u.Id == upcomingPaymentId && u.UserId == userId)
+            .FirstOrDefaultAsync();
+
+        if (upcomingPayment == null)
+            throw new KeyNotFoundException("Upcoming payment not found");
+
+        // Get the related recurring expense
+        var recurring = await _context.RecurringExpenses
+            .Find(r => r.Id == upcomingPayment.RecurringExpenseId && r.UserId == userId)
+            .FirstOrDefaultAsync();
+
+        if (recurring == null)
+            throw new KeyNotFoundException("Related recurring expense not found");
+
+        // Optionally record as expense
+        if (recordAsExpense)
+        {
+            var expense = new Expense
+            {
+                Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
+                UserId = userId,
+                Amount = upcomingPayment.Amount,
+                Date = paidDate,
+                Category = upcomingPayment.Category,
+                PaymentMethod = upcomingPayment.PaymentMethod,
+                Description = upcomingPayment.Description,
+                Notes = $"Payment for recurring: {upcomingPayment.Description}",
+                IsRecurring = true,
+                RecurringId = upcomingPayment.RecurringExpenseId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _context.Expenses.InsertOneAsync(expense);
+
+            // Update daily expense summary
+            var expenseService = _expenseService as ExpenseService;
+            // Use reflection or add a public method - for now, we'll insert into DailyExpenseSummary directly
+            await UpdateDailyExpenseSummaryForPaymentAsync(userId, paidDate, upcomingPayment.Category, upcomingPayment.Amount);
+        }
+
+        // Build the DTO to return before deleting
+        var today = DateTime.UtcNow.Date;
+        var dto = new UpcomingPaymentDto
+        {
+            Id = upcomingPayment.Id,
+            RecurringExpenseId = upcomingPayment.RecurringExpenseId,
+            Amount = upcomingPayment.Amount,
+            Category = upcomingPayment.Category,
+            PaymentMethod = upcomingPayment.PaymentMethod,
+            Description = upcomingPayment.Description,
+            Frequency = upcomingPayment.Frequency,
+            DueDate = upcomingPayment.DueDate,
+            Status = "paid",
+            DueDateLabel = GetDueDateLabel(upcomingPayment.DueDate, today),
+            CreatedAt = upcomingPayment.CreatedAt
+        };
+
+        // Delete the upcoming payment FIRST
+        await _context.UpcomingPayments.DeleteOneAsync(u => u.Id == upcomingPaymentId);
+
+        // Find the latest upcoming payment date for this recurring expense
+        var latestUpcomingPayment = await _context.UpcomingPayments
+            .Find(u => u.RecurringExpenseId == recurring.Id)
+            .SortByDescending(u => u.DueDate)
+            .FirstOrDefaultAsync();
+
+        // Update recurring expense tracking
+        recurring.LastProcessed = paidDate;
+        
+        // Set NextOccurrence to be after the latest existing upcoming payment, or from paidDate if none exist
+        if (latestUpcomingPayment != null)
+        {
+            recurring.NextOccurrence = CalculateNextOccurrence(latestUpcomingPayment.DueDate, recurring.Frequency);
+        }
+        else
+        {
+            recurring.NextOccurrence = CalculateNextOccurrence(paidDate, recurring.Frequency);
+        }
+        
+        recurring.UpdatedAt = DateTime.UtcNow;
+        await _context.RecurringExpenses.ReplaceOneAsync(r => r.Id == recurring.Id, recurring);
+
+        // Generate next upcoming payment entries to maintain 2 instances
+        var expService = _expenseService as ExpenseService;
+        if (expService != null)
+        {
+            await expService.GenerateUpcomingPaymentsForRecurringAsync(recurring);
+        }
+
+        return dto;
+    }
+
+    public async Task GenerateUpcomingPaymentsAsync(string userId)
+    {
+        var expenseService = _expenseService as ExpenseService;
+        if (expenseService != null)
+        {
+            await expenseService.GenerateAllUpcomingPaymentsAsync(userId);
+        }
+    }
+
+    private string GetDueDateLabel(DateTime dueDate, DateTime today)
+    {
+        var daysUntilDue = (dueDate.Date - today).Days;
+
+        if (daysUntilDue < -7)
+            return $"Pending ({Math.Abs(daysUntilDue)} days overdue)";
+        if (daysUntilDue < -1)
+            return $"Overdue by {Math.Abs(daysUntilDue)} days";
+        if (daysUntilDue == -1)
+            return "Overdue by 1 day";
+        if (daysUntilDue == 0)
+            return "Due today";
+        if (daysUntilDue == 1)
+            return "Due tomorrow";
+        return $"Due in {daysUntilDue} days";
+    }
+
+    private DateTime CalculateNextOccurrence(DateTime fromDate, string frequency)
+    {
+        return frequency.ToLower() switch
+        {
+            "daily" => fromDate.AddDays(1),
+            "weekly" => fromDate.AddDays(7),
+            "monthly" => fromDate.AddMonths(1),
+            "yearly" => fromDate.AddYears(1),
+            _ => fromDate.AddMonths(1)
+        };
+    }
+
+    private async Task UpdateDailyExpenseSummaryForPaymentAsync(string userId, DateTime expenseDate, string category, decimal amount)
+    {
+        var dateOnly = expenseDate.Date;
+
+        var filter = Builders<DailyExpenseSummary>.Filter.Eq(d => d.UserId, userId) &
+                     Builders<DailyExpenseSummary>.Filter.Eq(d => d.Date, dateOnly);
+
+        var summary = await _context.DailyExpenseSummaries.Find(filter).FirstOrDefaultAsync();
+
+        if (summary == null)
+        {
+            summary = new DailyExpenseSummary
+            {
+                UserId = userId,
+                Date = dateOnly,
+                CategorySpending = new List<CategorySpending>
+                {
+                    new CategorySpending
+                    {
+                        Category = category,
+                        Amount = amount,
+                        Count = 1
+                    }
+                },
+                TotalSpent = amount
+            };
+
+            await _context.DailyExpenseSummaries.InsertOneAsync(summary);
+        }
+        else
+        {
+            var categorySpending = summary.CategorySpending.FirstOrDefault(c => c.Category == category);
+
+            if (categorySpending != null)
+            {
+                categorySpending.Amount += amount;
+                categorySpending.Count++;
+            }
+            else
+            {
+                summary.CategorySpending.Add(new CategorySpending
+                {
+                    Category = category,
+                    Amount = amount,
+                    Count = 1
+                });
+            }
+
+            summary.TotalSpent += amount;
+            summary.UpdatedAt = DateTime.UtcNow;
+            summary.CategorySpending = summary.CategorySpending.OrderByDescending(c => c.Amount).ToList();
+
+            await _context.DailyExpenseSummaries.ReplaceOneAsync(filter, summary);
         }
     }
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/Card/Card';
 import { Button } from '@/components/Button/Button';
 import { Input } from '@/components/Input/Input';
@@ -16,9 +17,10 @@ interface BudgetModalProps {
   onClose: () => void;
   onSuccess: () => void;
   editBudget?: Budget | null;
+  bookId: string;
 }
 
-const BudgetModal = ({ isOpen, onClose, onSuccess, editBudget }: BudgetModalProps) => {
+const BudgetModal = ({ isOpen, onClose, onSuccess, editBudget, bookId }: BudgetModalProps) => {
   const [category, setCategory] = useState('');
   const [plannedAmount, setPlannedAmount] = useState('');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -50,6 +52,7 @@ const BudgetModal = ({ isOpen, onClose, onSuccess, editBudget }: BudgetModalProp
         startDate: new Date(month + '-01').toISOString(),
         endDate: new Date(new Date(month + '-01').getFullYear(), new Date(month + '-01').getMonth() + 1, 0).toISOString(),
         alertThreshold: 80,
+        expenseBookId: bookId,
       };
 
       const response = editBudget
@@ -194,6 +197,8 @@ const ChartModal = ({ isOpen, onClose, budgets, month }: ChartModalProps) => {
 };
 
 export const BudgetPage = () => {
+  const navigate = useNavigate();
+  const { bookId } = useParams<{ bookId: string }>();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -204,11 +209,20 @@ export const BudgetPage = () => {
 
   const currentMonth = new Date().toISOString().slice(0, 7);
 
+  // Redirect if no bookId
+  useEffect(() => {
+    if (!bookId) {
+      navigate('/');
+    }
+  }, [bookId, navigate]);
+
   const fetchBudgets = async () => {
+    if (!bookId) return;
+    
     setLoading(true);
     setError('');
     try {
-      const response = await budgetApi.getBudgets();
+      const response = await budgetApi.getBudgets(bookId);
       if (response.success && response.data) {
         setBudgets(response.data);
       } else {
@@ -222,8 +236,10 @@ export const BudgetPage = () => {
   };
 
   useEffect(() => {
-    fetchBudgets();
-  }, []);
+    if (bookId) {
+      fetchBudgets();
+    }
+  }, [bookId]);
 
   const currentMonthBudgets = budgets.filter(b => {
     const budgetMonth = new Date(b.startDate).toISOString().slice(0, 7);
@@ -430,6 +446,7 @@ export const BudgetPage = () => {
         onClose={() => { setShowAddModal(false); setEditingBudget(null); }}
         onSuccess={fetchBudgets}
         editBudget={editingBudget}
+        bookId={bookId || ''}
       />
 
       <ChartModal

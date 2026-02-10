@@ -3,7 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace ExpensesBackend.API.Domain.Entities;
 
-public class RecurringExpense
+public class UpcomingPayment
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
@@ -17,6 +17,10 @@ public class RecurringExpense
     [BsonRepresentation(BsonType.ObjectId)]
     [BsonIgnoreIfDefault]
     public string? ExpenseBookId { get; set; }
+
+    [BsonElement("recurringExpenseId")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string RecurringExpenseId { get; set; } = string.Empty;
 
     [BsonElement("amount")]
     public decimal Amount { get; set; }
@@ -33,20 +37,18 @@ public class RecurringExpense
     [BsonElement("frequency")]
     public string Frequency { get; set; } = "monthly";
 
-    [BsonElement("startDate")]
-    public DateTime StartDate { get; set; }
+    [BsonElement("dueDate")]
+    public DateTime DueDate { get; set; }
 
-    [BsonElement("endDate")]
-    public DateTime? EndDate { get; set; }
-
-    [BsonElement("nextOccurrence")]
-    public DateTime NextOccurrence { get; set; }
-
-    [BsonElement("lastProcessed")]
-    public DateTime? LastProcessed { get; set; }
-
-    [BsonElement("isActive")]
-    public bool IsActive { get; set; } = true;
+    /// <summary>
+    /// Status: upcoming, due, overdue, pending
+    /// - upcoming: due in the future (more than 1 day away)
+    /// - due: due today
+    /// - overdue: past due date and unpaid
+    /// - pending: unpaid for more than a week
+    /// </summary>
+    [BsonElement("status")]
+    public string Status { get; set; } = "upcoming";
 
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

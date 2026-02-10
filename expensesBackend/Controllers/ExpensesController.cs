@@ -20,6 +20,7 @@ public class ExpensesController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<ExpenseDto>>>> GetExpenses(
+        [FromQuery] string? expenseBookId,
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
         [FromQuery] string? category)
@@ -27,7 +28,7 @@ public class ExpensesController : ControllerBase
         try
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
-            var expenses = await _expenseService.GetExpensesAsync(userId, startDate, endDate, category);
+            var expenses = await _expenseService.GetExpensesAsync(userId, expenseBookId, startDate, endDate, category);
             return Ok(ApiResponse<List<ExpenseDto>>.SuccessResponse(expenses));
         }
         catch (Exception ex)
@@ -110,13 +111,14 @@ public class ExpensesController : ControllerBase
 
     [HttpGet("recurring")]
     public async Task<ActionResult<ApiResponse<List<RecurringExpenseDto>>>> GetRecurringExpenses(
+        [FromQuery] string? expenseBookId,
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate)
     {
         try
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
-            var recurringExpenses = await _expenseService.GetRecurringExpensesAsync(userId, startDate, endDate);
+            var recurringExpenses = await _expenseService.GetRecurringExpensesAsync(userId, expenseBookId, startDate, endDate);
             return Ok(ApiResponse<List<RecurringExpenseDto>>.SuccessResponse(recurringExpenses));
         }
         catch (Exception ex)
@@ -141,6 +143,43 @@ public class ExpensesController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest(ApiResponse<ExpenseDto>.ErrorResponse(ex.Message));
+        }
+    }
+
+    [HttpPut("recurring/{id}")]
+    public async Task<ActionResult<ApiResponse<RecurringExpenseDto>>> UpdateRecurringExpense(string id, [FromBody] UpdateRecurringExpenseRequest request)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var recurringExpense = await _expenseService.UpdateRecurringExpenseAsync(userId, id, request);
+            return Ok(ApiResponse<RecurringExpenseDto>.SuccessResponse(recurringExpense));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(ApiResponse<RecurringExpenseDto>.ErrorResponse("Recurring expense not found"));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<RecurringExpenseDto>.ErrorResponse(ex.Message));
+        }
+    }
+
+    [HttpDelete("recurring/{id}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteRecurringExpense(string id)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            var result = await _expenseService.DeleteRecurringExpenseAsync(userId, id);
+            if (!result)
+                return NotFound(ApiResponse<bool>.ErrorResponse("Recurring expense not found"));
+            
+            return Ok(ApiResponse<bool>.SuccessResponse(true));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<bool>.ErrorResponse(ex.Message));
         }
     }
 

@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/useToast';
 import { Loading, ErrorState } from '@/components/Loading/Loading';
 
 export const EditExpensePage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, bookId } = useParams<{ id: string; bookId: string }>();
   const navigate = useNavigate();
   const { toasts, dismissToast, success: showSuccess, error: showError } = useToast();
 
@@ -78,7 +78,7 @@ export const EditExpensePage = () => {
 
       if (response.success) {
         showSuccess('Expense updated successfully!');
-        setTimeout(() => navigate('/expenses'), 1500);
+        setTimeout(() => navigate(`/${bookId}/expenses`), 1500);
       } else {
         showError(response.error || 'Failed to update expense');
       }
@@ -94,7 +94,7 @@ export const EditExpensePage = () => {
   }
 
   if (fetchError) {
-    return <ErrorState description={fetchError} onRetry={() => navigate('/expenses')} />;
+    return <ErrorState description={fetchError} onRetry={() => navigate(`/${bookId}/expenses`)} />;
   }
 
   return (
@@ -187,7 +187,7 @@ export const EditExpensePage = () => {
             <Button type="submit" fullWidth loading={saving}>
               Update Expense
             </Button>
-            <Button type="button" variant="ghost" fullWidth onClick={() => navigate('/expenses')}>
+            <Button type="button" variant="ghost" fullWidth onClick={() => navigate(`/${bookId}/expenses`)}>
               Cancel
             </Button>
           </div>

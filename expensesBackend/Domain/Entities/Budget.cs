@@ -13,6 +13,11 @@ public class Budget
     [BsonRepresentation(BsonType.ObjectId)]
     public string UserId { get; set; } = string.Empty;
 
+    [BsonElement("expenseBookId")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonIgnoreIfDefault]
+    public string? ExpenseBookId { get; set; }
+
     [BsonElement("category")]
     public string Category { get; set; } = string.Empty;
 

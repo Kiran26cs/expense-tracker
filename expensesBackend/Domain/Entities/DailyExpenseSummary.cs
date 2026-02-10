@@ -13,6 +13,11 @@ public class DailyExpenseSummary
     [BsonRepresentation(BsonType.ObjectId)]
     public string UserId { get; set; } = string.Empty;
 
+    [BsonElement("expenseBookId")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonIgnoreIfDefault]
+    public string? ExpenseBookId { get; set; }
+
     [BsonElement("date")]
     public DateTime Date { get; set; } // Date only, time set to 00:00:00
 

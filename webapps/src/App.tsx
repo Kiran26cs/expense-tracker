@@ -6,6 +6,7 @@ import { AppLayout } from '@/layouts/AppLayout/AppLayout';
 import { LoginPage } from '@/pages/Auth/LoginPage';
 import { SignupPage } from '@/pages/Auth/SignupPage';
 import { DashboardPage } from '@/pages/Dashboard/DashboardPage';
+import ExpenseBookDashboard from '@/pages/ExpenseBookDashboard';
 import { ExpenseListPage } from '@/pages/Expenses/ExpenseListPage';
 import { AddExpensePage } from '@/pages/Expenses/AddExpensePage';
 import { EditExpensePage } from '@/pages/Expenses/EditExpensePage';
@@ -70,6 +71,14 @@ function AppRoutes() {
         path="/"
         element={
           <ProtectedRoute>
+            <ExpenseBookDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/:bookId/dashboard"
+        element={
+          <ProtectedRoute>
             <AppLayout>
               <DashboardPage />
             </AppLayout>
@@ -77,7 +86,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/expenses"
+        path="/:bookId/expenses"
         element={
           <ProtectedRoute>
             <AppLayout>
@@ -87,7 +96,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/expenses/add"
+        path="/:bookId/expenses/add"
         element={
           <ProtectedRoute>
             <AppLayout>
@@ -97,7 +106,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/expenses/:id/edit"
+        path="/:bookId/expenses/:id/edit"
         element={
           <ProtectedRoute>
             <AppLayout>
@@ -107,7 +116,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/budget"
+        path="/:bookId/budget"
         element={
           <ProtectedRoute>
             <AppLayout>
@@ -117,7 +126,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/insights"
+        path="/:bookId/insights"
         element={
           <ProtectedRoute>
             <AppLayout>
@@ -127,7 +136,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/settings"
+        path="/:bookId/settings"
         element={
           <ProtectedRoute>
             <AppLayout>

@@ -10,9 +10,10 @@ interface ImportCSVModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (count: number) => void;
+  expenseBookId: string;
 }
 
-export const ImportCSVModal = ({ isOpen, onClose, onSuccess }: ImportCSVModalProps) => {
+export const ImportCSVModal = ({ isOpen, onClose, onSuccess, expenseBookId }: ImportCSVModalProps) => {
   const [activeTab, setActiveTab] = useState<'manual' | 'upload'>('manual');
 
   // ── Manual form state ──
@@ -57,6 +58,7 @@ export const ImportCSVModal = ({ isOpen, onClose, onSuccess }: ImportCSVModalPro
         description,
         notes: notes || undefined,
         isRecurring,
+        expenseBookId,
       };
       if (isRecurring && frequency) {
         expenseData.recurringConfig = {
@@ -191,6 +193,7 @@ export const ImportCSVModal = ({ isOpen, onClose, onSuccess }: ImportCSVModalPro
             paymentMethod: (row.paymentmethod || row.paymentMethod || '').toLowerCase(),
             notes: row.notes || undefined,
             isRecurring: false,
+            expenseBookId,
           });
           if (response.success) successCount++; else failedCount++;
         } catch { failedCount++; }

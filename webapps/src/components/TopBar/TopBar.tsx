@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useBreakpoint } from '@/hooks/useMediaQuery';
@@ -7,9 +8,10 @@ import styles from './TopBar.module.css';
 interface TopBarProps {
   isSidebarCollapsed?: boolean;
   onSearch?: (query: string) => void;
+  bookName?: string;
 }
 
-export const TopBar = ({ isSidebarCollapsed = false, onSearch }: TopBarProps) => {
+export const TopBar = ({ isSidebarCollapsed = false, onSearch, bookName }: TopBarProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -66,7 +68,9 @@ export const TopBar = ({ isSidebarCollapsed = false, onSearch }: TopBarProps) =>
             ☰
           </button>
         )}
-        <h2 className={styles['app-name']}>ExpenseTracker</h2>
+        <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <h2 className={styles['app-name']}>{bookName || 'ExpenseTracker'}</h2>
+        </Link>
       </div>
 
       {!isMobile && (

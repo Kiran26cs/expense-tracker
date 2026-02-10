@@ -10,6 +10,7 @@ interface CategoryManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  expenseBookId: string;
 }
 
 // Font Awesome icon options for categories
@@ -42,7 +43,7 @@ const COLOR_OPTIONS = [
   '#8b5cf6', '#ec4899', '#64748b', '#0ea5e9',
 ];
 
-export const CategoryManagementModal = ({ isOpen, onClose, onSuccess }: CategoryManagementModalProps) => {
+export const CategoryManagementModal = ({ isOpen, onClose, onSuccess, expenseBookId }: CategoryManagementModalProps) => {
   const [view, setView] = useState<'main' | 'add'>('main');
   const [activeTab, setActiveTab] = useState<'manual' | 'upload'>('manual');
   const [categories, setCategories] = useState<Category[]>([]);

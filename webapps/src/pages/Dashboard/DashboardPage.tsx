@@ -1,17 +1,19 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/Card/Card';
 import { Button } from '@/components/Button/Button';
 import { Loading, EmptyState, ErrorState } from '@/components/Loading/Loading';
 import { ImportCSVModal } from '@/components/ImportCSV/ImportCSVModal';
 import { DateRangePicker } from '@/components/DateRangePicker/DateRangePicker';
+import { PaymentConfirmationModal } from '@/components/PaymentConfirmationModal/PaymentConfirmationModal';
 import ToastContainer from '@/components/Toast/ToastContainer';
 import { useApi } from '@/hooks/useApi';
 import { useToast } from '@/hooks/useToast';
 import { dashboardApi } from '@/services/dashboard.api';
 import { formatCurrency, formatDate } from '@/utils/helpers';
+import type { UpcomingPayment } from '@/types';
 import styles from './Dashboard.module.css';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const GRADIENT_COLORS = [
   { start: '#818cf8', end: '#6366f1' },
@@ -97,73 +99,112 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
-  const { toasts, dismissToast, success: showSuccess } = useToast();
+  const { toasts, dismissToast, success: showSuccess, error: showError } = useToast();
   const [showImportCSVModal, setShowImportCSVModal] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Upcoming payments state
+  const [upcomingPayments, setUpcomingPayments] = useState<UpcomingPayment[]>([]);
+  const [upcomingTotal, setUpcomingTotal] = useState(0);
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [upcomingPageSize] = useState(5);
+  const [upcomingHasMore, setUpcomingHasMore] = useState(false);
+  const [upcomingLoading, setUpcomingLoading] = useState(true);
+  
+  // Payment modal state
+  const [selectedPayment, setSelectedPayment] = useState<UpcomingPayment | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isPaymentModalLoading, setIsPaymentModalLoading] = useState(false);
+
+  // Extract bookId from URL params
+  const { bookId } = useParams<{ bookId: string }>();
+
+  useEffect(() => {
+    if (!bookId) {
+      // Redirect to expense books page if no bookId
+      navigate('/');
+    }
+  }, [bookId, navigate]);
+
   const handleDateRangeChange = (start: string, end: string) => {
     setStartDate(start);
     setEndDate(end);
   };
 
-  // Mock function for upcoming payments - replace with real API call
-  const getUpcomingPayments = () => {
-    const mockPayments = [
-      {
-        id: '1',
-        description: 'Netflix Subscription',
-        category: 'entertainment',
-        amount: 15.99,
-        dueDate: 'Due in 2 days',
-        frequency: 'Monthly',
-        status: 'due-soon' as const,
-      },
-      {
-        id: '2',
-        description: 'Internet Bill',
-        category: 'bills',
-        amount: 79.99,
-        dueDate: 'Due in 5 days',
-        frequency: 'Monthly',
-        status: 'upcoming' as const,
-      },
-      {
-        id: '3',
-        description: 'Gym Membership',
-        category: 'shopping',
-        amount: 49.99,
-        dueDate: 'Due in 7 days',
-        frequency: 'Monthly',
-        status: 'upcoming' as const,
-      },
-      {
-        id: '4',
-        description: 'Car Insurance',
-        category: 'transport',
-        amount: 120.00,
-        dueDate: 'Due today',
-        frequency: 'Monthly',
-        status: 'overdue' as const,
-      },
-      {
-        id: '5',
-        description: 'Phone Bill',
-        category: 'bills',
-        amount: 55.00,
-        dueDate: 'Due tomorrow',
-        frequency: 'Monthly',
-        status: 'due-soon' as const,
-      },
-    ];
-    return mockPayments;
+  // Fetch upcoming payments
+  const fetchUpcomingPayments = useCallback(async (page: number = 1) => {
+    if (!bookId) return;
+    setUpcomingLoading(true);
+    try {
+      const response = await dashboardApi.getUpcomingPayments(bookId, page, upcomingPageSize);
+      if (response.success && response.data) {
+        setUpcomingPayments(response.data.items || []);
+        setUpcomingTotal(response.data.total || 0);
+        setUpcomingHasMore(response.data.hasMore || false);
+        setUpcomingPage(page);
+      }
+    } catch (err) {
+      console.error('Failed to fetch upcoming payments:', err);
+    } finally {
+      setUpcomingLoading(false);
+    }
+  }, [upcomingPageSize, bookId]);
+
+  // Handle marking upcoming payment as paid
+  const handleConfirmPayment = async (paidDate: string, recordAsExpense: boolean) => {
+    if (!selectedPayment) return;
+
+    setIsPaymentModalLoading(true);
+    try {
+      const response = await dashboardApi.markUpcomingPaymentAsPaid(
+        selectedPayment.id,
+        paidDate,
+        recordAsExpense
+      );
+      if (response.success) {
+        const expenseMsg = recordAsExpense ? ' and recorded as expense' : '';
+        showSuccess(`Payment confirmed${expenseMsg}!`);
+        setIsPaymentModalOpen(false);
+        setSelectedPayment(null);
+        fetchUpcomingPayments(upcomingPage);
+        refetch(); // Refresh dashboard summary
+        fetchGroupedTransactions(); // Refresh transactions
+      } else {
+        showError(response.error || 'Failed to record payment');
+      }
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to record payment');
+    } finally {
+      setIsPaymentModalLoading(false);
+    }
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'overdue': return 'overdue';
+      case 'pending': return 'overdue'; // pending uses same style as overdue
+      case 'due': return 'due-soon';
+      case 'upcoming': return 'upcoming';
+      default: return 'upcoming';
+    }
+  };
+
+  const getPaymentStatusLabel = (status: string) => {
+    switch (status) {
+      case 'overdue': return 'Overdue';
+      case 'pending': return 'Pending';
+      case 'due': return 'Due Today';
+      case 'upcoming': return 'Upcoming';
+      default: return status;
+    }
   };
 
   const { data: summary, isLoading, error, refetch } = useApi(
-    () => dashboardApi.getSummary(),
-    { immediate: true }
+    () => dashboardApi.getSummary(bookId || undefined),
+    { immediate: !!bookId }
   );
 
   const { 
@@ -171,15 +212,24 @@ export const DashboardPage = () => {
     isLoading: loadingGrouped, 
     execute: fetchGroupedTransactions 
   } = useApi(
-    () => dashboardApi.getGroupedTransactions(startDate || undefined, endDate || undefined),
-    { immediate: true }
+    () => dashboardApi.getGroupedTransactions(bookId || undefined, startDate || undefined, endDate || undefined),
+    { immediate: !!bookId }
   );
 
   // Refetch grouped transactions when date filters change
   useEffect(() => {
-    fetchGroupedTransactions();
+    if (bookId) {
+      fetchGroupedTransactions();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate]);
+  }, [startDate, endDate, bookId]);
+
+  // Fetch upcoming payments on mount
+  useEffect(() => {
+    if (bookId) {
+      fetchUpcomingPayments(1);
+    }
+  }, [fetchUpcomingPayments, bookId]);
 
   if (isLoading) {
     return <Loading text="Loading dashboard..." />;
@@ -210,7 +260,7 @@ export const DashboardPage = () => {
 
   const status = getStatus();
 
-  const getStatusLabel = (status: 'safe' | 'warning' | 'risk') => {
+  const getSummaryStatusLabel = (status: 'safe' | 'warning' | 'risk') => {
     const labels = {
       safe: '✓ On Track',
       warning: '⚠ Caution',
@@ -252,7 +302,7 @@ export const DashboardPage = () => {
               {formatCurrency(totalSpent)}
             </div>
             <span className={`${styles['summary-status']} ${styles[status]}`}>
-              {getStatusLabel(status)}
+              {getSummaryStatusLabel(status)}
             </span>
           </div>
         </Card>
@@ -375,33 +425,70 @@ export const DashboardPage = () => {
           </CardHeader>
           <CardContent>
             <div className={styles['recurring-section']}>
-              {/* Mock recurring payments - to be replaced with real API data */}
-              {getUpcomingPayments().length > 0 ? (
-                getUpcomingPayments().map((payment) => (
-                  <div key={payment.id} className={styles['recurring-item']}>
-                    <div className={styles['recurring-icon']}>
-                      {getCategoryIcon(payment.category)}
-                    </div>
-                    <div className={styles['recurring-details']}>
-                      <div className={styles['recurring-title']}>
-                        {payment.description}
-                        <span className={`${styles['recurring-badge']} ${styles[payment.status]}`}>
-                          {payment.status === 'due-soon' ? 'Due Soon' : payment.status === 'overdue' ? 'Overdue' : 'Upcoming'}
-                        </span>
+              {upcomingLoading ? (
+                <Loading text="Loading upcoming payments..." />
+              ) : upcomingPayments.length > 0 ? (
+                <>
+                  {upcomingPayments.map((payment) => (
+                    <div key={payment.id} className={styles['recurring-item']}>
+                      <div className={styles['recurring-icon']}>
+                        {getCategoryIcon(payment.category)}
                       </div>
-                      <div className={styles['recurring-meta']}>
-                        <span>{payment.category}</span>
-                        <span>•</span>
-                        <span>{payment.dueDate}</span>
-                        <span>•</span>
-                        <span>{payment.frequency}</span>
+                      <div className={styles['recurring-details']}>
+                        <div className={styles['recurring-title']}>
+                          {payment.description || payment.category}
+                          <span className={`${styles['recurring-badge']} ${styles[getStatusBadgeClass(payment.status)]}`}>
+                            {getPaymentStatusLabel(payment.status)}
+                          </span>
+                        </div>
+                        <div className={styles['recurring-meta']}>
+                          <span>{payment.category}</span>
+                          <span>•</span>
+                          <span>{payment.dueDateLabel}</span>
+                          <span>•</span>
+                          <span style={{ textTransform: 'capitalize' }}>{payment.frequency}</span>
+                        </div>
+                      </div>
+                      <div className={styles['recurring-action']}>
+                        <div className={styles['recurring-amount']}>
+                          {formatCurrency(payment.amount)}
+                        </div>
+                        <button
+                          className={styles['pay-button']}
+                          onClick={() => {
+                            setSelectedPayment(payment);
+                            setIsPaymentModalOpen(true);
+                          }}
+                        >
+                          <i className="fa-solid fa-check"></i>
+                          <span>Pay</span>
+                        </button>
                       </div>
                     </div>
-                    <div className={styles['recurring-amount']}>
-                      {formatCurrency(payment.amount)}
+                  ))}
+                  {/* Pagination */}
+                  {upcomingTotal > upcomingPageSize && (
+                    <div className={styles['upcoming-pagination']}>
+                      <Button
+                        variant="ghost"
+                        onClick={() => fetchUpcomingPayments(upcomingPage - 1)}
+                        disabled={upcomingPage <= 1}
+                      >
+                        <i className="fa-solid fa-chevron-left"></i>
+                      </Button>
+                      <span className={styles['page-info']}>
+                        Page {upcomingPage} of {Math.ceil(upcomingTotal / upcomingPageSize)}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        onClick={() => fetchUpcomingPayments(upcomingPage + 1)}
+                        disabled={!upcomingHasMore}
+                      >
+                        <i className="fa-solid fa-chevron-right"></i>
+                      </Button>
                     </div>
-                  </div>
-                ))
+                  )}
+                </>
               ) : (
                 <div className={styles['empty-recurring']}>
                   <div className={styles['empty-recurring-icon']}>📅</div>
@@ -551,7 +638,7 @@ export const DashboardPage = () => {
               <Button
                 variant="ghost"
                 fullWidth
-                onClick={() => navigate('/expenses')}
+                onClick={() => navigate(`/${bookId}/expenses`)}
                 style={{ marginTop: 'var(--spacing-md)' }}
               >
                 View All Transactions
@@ -581,6 +668,23 @@ export const DashboardPage = () => {
           fetchGroupedTransactions(); // Refresh recent transactions
         }}
       />
+
+      {/* Payment Confirmation Modal */}
+      {selectedPayment && (
+        <PaymentConfirmationModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => {
+            setIsPaymentModalOpen(false);
+            setSelectedPayment(null);
+          }}
+          onConfirm={handleConfirmPayment}
+          loading={isPaymentModalLoading}
+          amount={selectedPayment.amount}
+          description={selectedPayment.description || selectedPayment.category}
+          category={selectedPayment.category}
+          frequency={selectedPayment.frequency}
+        />
+      )}
 
       {/* Toast Container */}
       <ToastContainer 

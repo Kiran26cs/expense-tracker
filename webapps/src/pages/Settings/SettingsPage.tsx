@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/Card/Card';
 import { Button } from '@/components/Button/Button';
 import { Input } from '@/components/Input/Input';
@@ -9,6 +10,8 @@ import { ImportCSVModal } from '@/components/ImportCSV/ImportCSVModal';
 import { settingsApi } from '@/services/settings.api';
 
 export const SettingsPage = () => {
+  const navigate = useNavigate();
+  const { bookId } = useParams<{ bookId: string }>();
   const { theme, toggleTheme } = useTheme();
   const [currency, setCurrency] = useState('INR');
   const [minimumSavings, setMinimumSavings] = useState('5000');
@@ -16,9 +19,18 @@ export const SettingsPage = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [categoryCount, setCategoryCount] = useState(0);
 
+  // Redirect if no bookId
   useEffect(() => {
-    fetchCategoryCount();
-  }, []);
+    if (!bookId) {
+      navigate('/');
+    }
+  }, [bookId, navigate]);
+
+  useEffect(() => {
+    if (bookId) {
+      fetchCategoryCount();
+    }
+  }, [bookId]);
 
   const fetchCategoryCount = async () => {
     try {
@@ -114,6 +126,7 @@ export const SettingsPage = () => {
           isOpen={isCategoryModalOpen} 
           onClose={() => setIsCategoryModalOpen(false)}
           onSuccess={fetchCategoryCount}
+          expenseBookId={bookId || ''}
         />
 
         <Card>
@@ -135,6 +148,7 @@ export const SettingsPage = () => {
           isOpen={isImportModalOpen}
           onClose={() => setIsImportModalOpen(false)}
           onSuccess={() => setIsImportModalOpen(false)}
+          expenseBookId={bookId || ''}
         />
 
         <Card>

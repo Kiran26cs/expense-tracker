@@ -37,3 +37,33 @@ public class CategorySpendingDto
     public decimal Amount { get; set; }
     public int Count { get; set; }
 }
+
+public class UpcomingPaymentDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string RecurringExpenseId { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string Category { get; set; } = string.Empty;
+    public string PaymentMethod { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string Frequency { get; set; } = "monthly";
+    public DateTime DueDate { get; set; }
+    public string Status { get; set; } = "upcoming";
+    public string DueDateLabel { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
+public class UpcomingPaymentsPaginatedResponse
+{
+    public List<UpcomingPaymentDto> Items { get; set; } = new();
+    public int Total { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public bool HasMore { get; set; }
+}
+
+public class MarkUpcomingPaidRequest
+{
+    public DateTime PaidDate { get; set; }
+    public bool RecordAsExpense { get; set; } = true;
+}

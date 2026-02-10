@@ -13,6 +13,11 @@ public class Expense
     [BsonRepresentation(BsonType.ObjectId)]
     public string UserId { get; set; } = string.Empty;
 
+    [BsonElement("expenseBookId")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonIgnoreIfDefault]
+    public string? ExpenseBookId { get; set; }
+
     [BsonElement("amount")]
     public decimal Amount { get; set; }
 

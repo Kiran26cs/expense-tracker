@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/Card/Card';
 import { Button } from '@/components/Button/Button';
 import { EmptyState } from '@/components/Loading/Loading';
 import { RecurringExpensesList } from '@/components/RecurringExpensesList';
-import { ImportCSVModal } from '@/components/ImportCSV/ImportCSVModal';
+import { AddRecurringModal } from '@/components/AddRecurringModal';
 import { DateRangePicker } from '@/components/DateRangePicker/DateRangePicker';
 import { useToast } from '@/hooks/useToast';
 
@@ -21,13 +22,22 @@ const formatShortDate = (dateStr: string) => {
 };
 
 export const InsightsPage = () => {
+  const navigate = useNavigate();
+  const { bookId } = useParams<{ bookId: string }>();
   const { toasts, dismissToast, success, error } = useToast();
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isAddRecurringOpen, setIsAddRecurringOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(getDateFromNow(7));
   const dateFilterButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Redirect if no bookId
+  useEffect(() => {
+    if (!bookId) {
+      navigate('/');
+    }
+  }, [bookId, navigate]);
 
   const handleDateRangeChange = (start: string, end: string) => {
     setStartDate(start);
@@ -152,7 +162,7 @@ export const InsightsPage = () => {
               >
                 <i className="fa-regular fa-calendar"></i>
               </button>
-              <Button variant="primary" onClick={() => setIsImportModalOpen(true)}>
+              <Button variant="primary" onClick={() => setIsAddRecurringOpen(true)}>
                 <i className="fa-solid fa-plus" style={{ marginRight: '0.5rem' }}></i>
                 Add Recurring
               </Button>
@@ -161,6 +171,7 @@ export const InsightsPage = () => {
           <CardContent>
             <RecurringExpensesList 
               key={refreshKey}
+              expenseBookId={bookId || undefined}
               startDate={startDate}
               endDate={endDate}
               onPaymentSuccess={() => setRefreshKey(k => k + 1)}
@@ -180,12 +191,14 @@ export const InsightsPage = () => {
         />
       </div>
 
-      {/* Add/Import Recurring Expense Modal */}
-      <ImportCSVModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
+      {/* Add Recurring Expense Modal */}
+      <AddRecurringModal
+        isOpen={isAddRecurringOpen}
+        onClose={() => setIsAddRecurringOpen(false)}
+        expenseBookId={bookId || ''}
         onSuccess={() => {
-          setIsImportModalOpen(false);
+          setIsAddRecurringOpen(false);
+          success('Recurring expense added successfully!');
           setRefreshKey(k => k + 1);
         }}
       />

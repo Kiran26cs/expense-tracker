@@ -1,10 +1,17 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ExpensesBackend.API.Domain.DTOs;
 
 public class CreateExpenseRequest
 {
+    public string? ExpenseBookId { get; set; }
+    [Required]
     public decimal Amount { get; set; }
+    [Required]
     public DateTime Date { get; set; }
+    [Required]
     public string Category { get; set; } = string.Empty;
+    [Required]
     public string PaymentMethod { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? Notes { get; set; }
@@ -25,6 +32,7 @@ public class UpdateExpenseRequest
 public class ExpenseDto
 {
     public string Id { get; set; } = string.Empty;
+    public string? ExpenseBookId { get; set; }
     public decimal Amount { get; set; }
     public DateTime Date { get; set; }
     public string Category { get; set; } = string.Empty;
@@ -46,6 +54,7 @@ public class RecurringConfig
 public class RecurringExpenseDto
 {
     public string Id { get; set; } = string.Empty;
+    public string? ExpenseBookId { get; set; }
     public decimal Amount { get; set; }
     public string Category { get; set; } = string.Empty;
     public string PaymentMethod { get; set; } = string.Empty;
@@ -64,3 +73,15 @@ public class MarkRecurringPaidRequest
 {
     public DateTime PaidDate { get; set; }
 }
+
+public class UpdateRecurringExpenseRequest
+{
+    public decimal? Amount { get; set; }
+    public string? Frequency { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public string? Category { get; set; }
+    public string? PaymentMethod { get; set; }
+    public string? Description { get; set; }
+}
+
