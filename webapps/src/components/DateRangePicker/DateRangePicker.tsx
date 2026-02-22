@@ -37,19 +37,48 @@ export const DateRangePicker = ({ startDate, endDate, onDateRangeChange, isOpen,
   useEffect(() => {
     if (isOpen && anchorEl) {
       const rect = anchorEl.getBoundingClientRect();
-      const calendarWidth = 380;
-      const calendarHeight = 450;
+      const calendarWidth = 310;
+      const calendarHeight = 380;
+      const minTopMargin = 16;
+      const minBottomMargin = 16;
       
-      let left = rect.right - calendarWidth;
-      let top = rect.bottom + 8;
+      // Position to the right of the button
+      let left = rect.right + 12;
+      let top = rect.top;
 
-      // Adjust if calendar goes off screen
-      if (left < 10) left = 10;
+      // Adjust horizontal position if it goes off-screen
       if (left + calendarWidth > window.innerWidth - 10) {
-        left = window.innerWidth - calendarWidth - 10;
+        left = rect.left - calendarWidth - 12;
       }
-      if (top + calendarHeight > window.innerHeight - 10) {
+      if (left < 10) {
+        left = 10;
+      }
+
+      // Adjust vertical position - prioritize fitting below if possible
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      if (spaceBelow >= calendarHeight + minBottomMargin) {
+        // Enough space below
+        top = rect.bottom + 8;
+      } else if (spaceAbove >= calendarHeight + minTopMargin) {
+        // Enough space above
         top = rect.top - calendarHeight - 8;
+      } else {
+        // Not enough space either way, position to maximize visibility
+        if (spaceBelow > spaceAbove) {
+          top = rect.bottom + 8;
+        } else {
+          top = Math.max(minTopMargin, rect.top - calendarHeight - 8);
+        }
+      }
+
+      // Ensure calendar doesn't go off top or bottom
+      if (top < minTopMargin) {
+        top = minTopMargin;
+      }
+      if (top + calendarHeight > window.innerHeight - minBottomMargin) {
+        top = window.innerHeight - calendarHeight - minBottomMargin;
       }
 
       setPosition({ top, left });

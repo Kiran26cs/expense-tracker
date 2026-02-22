@@ -54,25 +54,8 @@ public class ExpenseService : IExpenseService
 
     public async Task<ExpenseDto> CreateExpenseAsync(string userId, CreateExpenseRequest request)
     {
-        var expense = new Expense
-        {
-            UserId = userId,
-            ExpenseBookId = request.ExpenseBookId,
-            Amount = request.Amount,
-            Date = request.Date,
-            Category = request.Category,
-            PaymentMethod = request.PaymentMethod,
-            Description = request.Description,
-            Notes = request.Notes,
-            IsRecurring = request.IsRecurring
-        };
-
-        await _context.Expenses.InsertOneAsync(expense);
-
-        // Update daily expense summary
-        await UpdateDailyExpenseSummaryAsync(userId, request.ExpenseBookId, expense.Date, expense.Category, expense.Amount, isAdd: true);
-
-        // Handle recurring expense
+        // If this is a recurring expense, only create RecurringExpense + upcoming payments.
+        // Do NOT create an expense entry — expense will be created only when "Paid" is clicked.
         if (request.IsRecurring && request.RecurringConfig != null)
         {
             var recurring = new RecurringExpense
@@ -86,17 +69,47 @@ public class ExpenseService : IExpenseService
                 Frequency = request.RecurringConfig.Frequency,
                 StartDate = request.RecurringConfig.StartDate,
                 EndDate = request.RecurringConfig.EndDate,
-                NextOccurrence = CalculateNextOccurrence(request.RecurringConfig.StartDate, request.RecurringConfig.Frequency)
+                NextOccurrence = request.RecurringConfig.StartDate // First occurrence is the start date itself
             };
 
             await _context.RecurringExpenses.InsertOneAsync(recurring);
-            
-            expense.RecurringId = recurring.Id;
-            await _context.Expenses.ReplaceOneAsync(e => e.Id == expense.Id, expense);
 
-            // Generate upcoming payments for the next 30 days
+            // Generate upcoming payment entries
             await GenerateUpcomingPaymentsForRecurringAsync(recurring);
+
+            // Return a DTO representing the recurring setup (no actual expense was created)
+            return new ExpenseDto
+            {
+                Id = recurring.Id,
+                ExpenseBookId = recurring.ExpenseBookId,
+                Amount = recurring.Amount,
+                Date = recurring.StartDate,
+                Category = recurring.Category,
+                PaymentMethod = recurring.PaymentMethod,
+                Description = recurring.Description,
+                IsRecurring = true,
+                CreatedAt = recurring.CreatedAt
+            };
         }
+
+        // Non-recurring: create the expense entry as usual
+        var expense = new Expense
+        {
+            UserId = userId,
+            ExpenseBookId = request.ExpenseBookId,
+            Amount = request.Amount,
+            Date = request.Date,
+            Category = request.Category,
+            PaymentMethod = request.PaymentMethod,
+            Description = request.Description,
+            Notes = request.Notes,
+            IsRecurring = false
+        };
+
+        await _context.Expenses.InsertOneAsync(expense);
+
+        // Update daily expense summary
+        await UpdateDailyExpenseSummaryAsync(userId, request.ExpenseBookId, expense.Date, expense.Category, expense.Amount, isAdd: true);
 
         return MapToExpenseDto(expense);
     }
@@ -352,6 +365,17 @@ public class ExpenseService : IExpenseService
         if (recurring == null)
             throw new KeyNotFoundException("Recurring expense not found");
 
+        // Find and remove the earliest unpaid upcoming payment for this recurring expense
+        var upcomingPayment = await _context.UpcomingPayments
+            .Find(u => u.RecurringExpenseId == recurringExpenseId && u.UserId == userId && u.Status != "paid")
+            .SortBy(u => u.DueDate)
+            .FirstOrDefaultAsync();
+
+        if (upcomingPayment != null)
+        {
+            await _context.UpcomingPayments.DeleteOneAsync(u => u.Id == upcomingPayment.Id);
+        }
+
         // Create a new expense for this payment
         var expense = new Expense
         {
@@ -381,6 +405,9 @@ public class ExpenseService : IExpenseService
 
         // Update daily expense summary
         await UpdateDailyExpenseSummaryAsync(userId, recurring.ExpenseBookId, paidDate, recurring.Category, recurring.Amount, isAdd: true);
+
+        // Generate new upcoming payments to maintain 2 instances
+        await GenerateUpcomingPaymentsForRecurringAsync(recurring);
 
         return MapToExpenseDto(expense);
     }

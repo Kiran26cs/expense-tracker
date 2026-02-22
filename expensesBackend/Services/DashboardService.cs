@@ -239,7 +239,9 @@ public class DashboardService : IDashboardService
         }
 
         var filterBuilder = Builders<UpcomingPayment>.Filter;
-        var filter = filterBuilder.Eq(u => u.UserId, userId);
+        // Only return upcoming payments that are NOT paid
+        var filter = filterBuilder.Eq(u => u.UserId, userId) &
+                     filterBuilder.Ne(u => u.Status, "paid");
         
         if (!string.IsNullOrEmpty(expenseBookId))
         {
@@ -300,13 +302,14 @@ public class DashboardService : IDashboardService
         if (recurring == null)
             throw new KeyNotFoundException("Related recurring expense not found");
 
-        // Optionally record as expense
+        // Record as expense (this is the ONLY way recurring expenses become actual expense entries)
         if (recordAsExpense)
         {
             var expense = new Expense
             {
                 Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString(),
                 UserId = userId,
+                ExpenseBookId = upcomingPayment.ExpenseBookId,
                 Amount = upcomingPayment.Amount,
                 Date = paidDate,
                 Category = upcomingPayment.Category,
@@ -322,9 +325,7 @@ public class DashboardService : IDashboardService
             await _context.Expenses.InsertOneAsync(expense);
 
             // Update daily expense summary
-            var expenseService = _expenseService as ExpenseService;
-            // Use reflection or add a public method - for now, we'll insert into DailyExpenseSummary directly
-            await UpdateDailyExpenseSummaryForPaymentAsync(userId, paidDate, upcomingPayment.Category, upcomingPayment.Amount);
+            await UpdateDailyExpenseSummaryForPaymentAsync(userId, upcomingPayment.ExpenseBookId, paidDate, upcomingPayment.Category, upcomingPayment.Amount);
         }
 
         // Build the DTO to return before deleting
@@ -417,12 +418,17 @@ public class DashboardService : IDashboardService
         };
     }
 
-    private async Task UpdateDailyExpenseSummaryForPaymentAsync(string userId, DateTime expenseDate, string category, decimal amount)
+    private async Task UpdateDailyExpenseSummaryForPaymentAsync(string userId, string? expenseBookId, DateTime expenseDate, string category, decimal amount)
     {
         var dateOnly = expenseDate.Date;
 
         var filter = Builders<DailyExpenseSummary>.Filter.Eq(d => d.UserId, userId) &
                      Builders<DailyExpenseSummary>.Filter.Eq(d => d.Date, dateOnly);
+
+        if (!string.IsNullOrEmpty(expenseBookId))
+        {
+            filter &= Builders<DailyExpenseSummary>.Filter.Eq(d => d.ExpenseBookId, expenseBookId);
+        }
 
         var summary = await _context.DailyExpenseSummaries.Find(filter).FirstOrDefaultAsync();
 
@@ -431,6 +437,7 @@ public class DashboardService : IDashboardService
             summary = new DailyExpenseSummary
             {
                 UserId = userId,
+                ExpenseBookId = expenseBookId,
                 Date = dateOnly,
                 CategorySpending = new List<CategorySpending>
                 {
