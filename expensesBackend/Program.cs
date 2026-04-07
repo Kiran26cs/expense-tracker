@@ -25,7 +25,12 @@ if (args.Length > 0 && args[0] == "migrate")
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.DictionaryKeyPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -36,6 +41,7 @@ builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IExpenseBookService, ExpenseBookService>();
+builder.Services.AddScoped<IExpenseBookDependencyService, ExpenseBookDependencyService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
@@ -70,7 +76,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000", "http://localhost:3001", "http://localhost:3002")
+        policy.WithOrigins("http://localhost:5173", "http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:4200")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

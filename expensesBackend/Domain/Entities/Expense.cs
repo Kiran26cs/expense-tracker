@@ -6,15 +6,15 @@ namespace ExpensesBackend.API.Domain.Entities;
 public class Expense
 {
     [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
     [BsonElement("userId")]
-    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
     public string UserId { get; set; } = string.Empty;
 
     [BsonElement("expenseBookId")]
-    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
     [BsonIgnoreIfDefault]
     public string? ExpenseBookId { get; set; }
 
@@ -23,6 +23,9 @@ public class Expense
 
     [BsonElement("date")]
     public DateTime Date { get; set; }
+
+    [BsonElement("type")]
+    public string Type { get; set; } = "expense";
 
     [BsonElement("category")]
     public string Category { get; set; } = string.Empty;
@@ -43,7 +46,7 @@ public class Expense
     public bool IsRecurring { get; set; }
 
     [BsonElement("recurringId")]
-    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
     public string? RecurringId { get; set; }
 
     [BsonElement("createdAt")]

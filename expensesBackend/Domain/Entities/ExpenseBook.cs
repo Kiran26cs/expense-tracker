@@ -6,11 +6,11 @@ namespace ExpensesBackend.API.Domain.Entities;
 public class ExpenseBook
 {
     [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
     [BsonElement("userId")]
-    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
     public string UserId { get; set; } = string.Empty;
 
     [BsonElement("name")]
@@ -21,6 +21,15 @@ public class ExpenseBook
 
     [BsonElement("category")]
     public string Category { get; set; } = string.Empty; // Personal, Work, or custom
+
+    [BsonElement("currency")]
+    public string Currency { get; set; } = "USD";
+
+    [BsonElement("color")]
+    public string? Color { get; set; }
+
+    [BsonElement("icon")]
+    public string? Icon { get; set; }
 
     [BsonElement("isDefault")]
     public bool IsDefault { get; set; } = false; // One default book per user

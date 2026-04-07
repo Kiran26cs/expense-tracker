@@ -6,8 +6,8 @@ namespace ExpensesBackend.API.Domain.Entities;
 public class OtpRecord
 {
     [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
     [BsonElement("email")]
     public string? Email { get; set; }

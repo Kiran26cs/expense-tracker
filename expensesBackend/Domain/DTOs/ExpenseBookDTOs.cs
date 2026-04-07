@@ -5,6 +5,9 @@ public class CreateExpenseBookRequest
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Category { get; set; } = "Personal"; // Default to Personal
+    public string Currency { get; set; } = "USD";
+    public string? Color { get; set; }
+    public string? Icon { get; set; }
     public bool IsDefault { get; set; } = false;
 }
 
@@ -13,6 +16,9 @@ public class UpdateExpenseBookRequest
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Category { get; set; } = string.Empty;
+    public string Currency { get; set; } = "USD";
+    public string? Color { get; set; }
+    public string? Icon { get; set; }
     public bool IsDefault { get; set; } = false;
 }
 
@@ -23,6 +29,9 @@ public class ExpenseBookResponse
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Category { get; set; } = string.Empty;
+    public string Currency { get; set; } = "USD";
+    public string? Color { get; set; }
+    public string? Icon { get; set; }
     public bool IsDefault { get; set; }
     public decimal TotalExpenses { get; set; }
     public int ExpenseCount { get; set; }

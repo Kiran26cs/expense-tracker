@@ -6,12 +6,12 @@ namespace ExpensesBackend.API.Domain.Entities;
 public class Category
 {
     [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
-    [BsonElement("userId")]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string? UserId { get; set; }
+    [BsonElement("expenseBookId")]
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
+    public string? ExpenseBookId { get; set; }
 
     [BsonElement("name")]
     public string Name { get; set; } = string.Empty;

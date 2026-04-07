@@ -5,6 +5,7 @@ namespace ExpensesBackend.API.Domain.DTOs;
 public class CreateExpenseRequest
 {
     public string? ExpenseBookId { get; set; }
+    public string Type { get; set; } = "expense";
     [Required]
     public decimal Amount { get; set; }
     [Required]
@@ -21,6 +22,7 @@ public class CreateExpenseRequest
 
 public class UpdateExpenseRequest
 {
+    public string? Type { get; set; }
     public decimal? Amount { get; set; }
     public DateTime? Date { get; set; }
     public string? Category { get; set; }
@@ -33,6 +35,7 @@ public class ExpenseDto
 {
     public string Id { get; set; } = string.Empty;
     public string? ExpenseBookId { get; set; }
+    public string Type { get; set; } = "expense";
     public decimal Amount { get; set; }
     public DateTime Date { get; set; }
     public string Category { get; set; } = string.Empty;

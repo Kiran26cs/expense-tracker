@@ -9,4 +9,5 @@ public interface IBudgetService
     Task<Budget> CreateBudgetAsync(Budget budget);
     Task<Budget?> UpdateBudgetAsync(string userId, string budgetId, Budget budget);
     Task<bool> DeleteBudgetAsync(string userId, string budgetId);
+    Task<Budget> UpsertBudgetVersionAsync(string userId, string? expenseBookId, string category, decimal amount, DateTime effectiveDate, string? effectivePeriod = null);
 }

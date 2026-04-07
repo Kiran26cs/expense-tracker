@@ -36,34 +36,58 @@ public class DashboardService : IDashboardService
             .Find(filter)
             .ToListAsync();
 
-        var totalExpenses = expenses.Sum(e => e.Amount);
+        var totalExpenses = expenses.Where(e => (e.Type ?? "expense") != "income").Sum(e => e.Amount);
+        var totalIncome = expenses.Where(e => e.Type == "income").Sum(e => e.Amount);
 
-        // Get user's monthly income
-        var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
-        var totalIncome = user?.MonthlyIncome ?? 0;
+        // Build category name lookup (load categories for this expense book + system defaults)
+        var catFilterBuilder = Builders<Domain.Entities.Category>.Filter;
+        FilterDefinition<Domain.Entities.Category> catFilter;
+        if (!string.IsNullOrEmpty(expenseBookId))
+        {
+            catFilter = catFilterBuilder.Eq(c => c.ExpenseBookId, expenseBookId) |
+                        catFilterBuilder.Eq(c => c.IsDefault, true);
+        }
+        else
+        {
+            catFilter = catFilterBuilder.Eq(c => c.IsDefault, true);
+        }
+        var categoryDocs = await _context.Categories.Find(catFilter).ToListAsync();
+        // Key is the category's Id (as hex string via FlexibleStringSerializer)
+        var categoryNameMap = categoryDocs
+            .Where(c => !string.IsNullOrEmpty(c.Id))
+            .GroupBy(c => c.Id)
+            .ToDictionary(g => g.Key, g => g.First().Name);
 
-        // Category breakdown
+        string ResolveCategoryName(string rawValue)
+        {
+            if (string.IsNullOrEmpty(rawValue)) return "Uncategorized";
+            return categoryNameMap.TryGetValue(rawValue, out var name) ? name : rawValue;
+        }
+
+        // Category breakdown — only expense-type records
         var categoryBreakdown = expenses
+            .Where(e => (e.Type ?? "expense") != "income")
             .GroupBy(e => e.Category)
             .Select(g => new CategoryBreakdown
             {
-                Category = g.Key,
+                Category = ResolveCategoryName(g.Key),
                 Amount = g.Sum(e => e.Amount),
                 Percentage = totalExpenses > 0 ? (double)(g.Sum(e => e.Amount) / totalExpenses * 100) : 0
             })
             .OrderByDescending(c => c.Amount)
             .ToList();
 
-        // Recent transactions
+        // Recent transactions (with resolved category names)
         var recentTransactions = expenses
             .OrderByDescending(e => e.Date)
             .Take(10)
             .Select(e => new ExpenseDto
             {
                 Id = e.Id,
+                ExpenseBookId = e.ExpenseBookId,
                 Amount = e.Amount,
                 Date = e.Date,
-                Category = e.Category,
+                Category = ResolveCategoryName(e.Category),
                 PaymentMethod = e.PaymentMethod,
                 Description = e.Description,
                 Notes = e.Notes,
@@ -78,6 +102,9 @@ public class DashboardService : IDashboardService
             TotalExpenses = totalExpenses,
             TotalIncome = totalIncome,
             Savings = totalIncome - totalExpenses,
+            NetSavings = totalIncome - totalExpenses,
+            TransactionCount = expenses.Count,
+            Currency = (await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync())?.Currency ?? "INR",
             CategoryBreakdown = categoryBreakdown,
             RecentTransactions = recentTransactions
         };
@@ -122,41 +149,62 @@ public class DashboardService : IDashboardService
         var start = startDate ?? DateTime.UtcNow.AddDays(-30);
         var end = endDate ?? DateTime.UtcNow;
 
-        var filterBuilder = Builders<Domain.Entities.DailyExpenseSummary>.Filter;
-        var filter = filterBuilder.Eq(d => d.UserId, userId) &
-                     filterBuilder.Gte(d => d.Date, start.Date) &
-                     filterBuilder.Lte(d => d.Date, end.Date);
-        
-        if (!string.IsNullOrEmpty(expenseBookId))
-        {
-            filter &= filterBuilder.Eq(d => d.ExpenseBookId, expenseBookId);
-        }
+        var filterBuilder = Builders<Domain.Entities.Expense>.Filter;
+        var filter = filterBuilder.Eq(e => e.UserId, userId) &
+                     filterBuilder.Gte(e => e.Date, start) &
+                     filterBuilder.Lte(e => e.Date, end);
 
-        var summaries = await _context.DailyExpenseSummaries
+        if (!string.IsNullOrEmpty(expenseBookId))
+            filter &= filterBuilder.Eq(e => e.ExpenseBookId, expenseBookId);
+
+        var expenses = await _context.Expenses
             .Find(filter)
-            .SortByDescending(d => d.Date)
-            .Limit(10) // Get 10 most recent days
+            .SortByDescending(e => e.Date)
             .ToListAsync();
+
+        // Build category name map
+        var catFilterBuilder = Builders<Domain.Entities.Category>.Filter;
+        FilterDefinition<Domain.Entities.Category> catFilter = string.IsNullOrEmpty(expenseBookId)
+            ? catFilterBuilder.Eq(c => c.IsDefault, true)
+            : catFilterBuilder.Eq(c => c.ExpenseBookId, expenseBookId) | catFilterBuilder.Eq(c => c.IsDefault, true);
+        var categoryDocs = await _context.Categories.Find(catFilter).ToListAsync();
+        var categoryNameMap = categoryDocs
+            .Where(c => !string.IsNullOrEmpty(c.Id))
+            .GroupBy(c => c.Id)
+            .ToDictionary(g => g.Key, g => g.First().Name);
+        string ResolveName(string raw) => string.IsNullOrEmpty(raw) ? "Uncategorized" : categoryNameMap.TryGetValue(raw, out var n) ? n : raw;
 
         var today = DateTime.UtcNow.Date;
         var yesterday = today.AddDays(-1);
 
-        var groupedTransactions = summaries.Select(s => new DailyTransactionGroup
-        {
-            Date = s.Date,
-            DateLabel = s.Date == today ? "Today" :
-                       s.Date == yesterday ? "Yesterday" :
-                       s.Date.ToString("MMMM dd, yyyy"),
-            CategorySpending = s.CategorySpending.Select(c => new CategorySpendingDto
+        return expenses
+            .GroupBy(e => e.Date.Date)
+            .OrderByDescending(g => g.Key)
+            .Take(10)
+            .Select(g => new DailyTransactionGroup
             {
-                Category = c.Category,
-                Amount = c.Amount,
-                Count = c.Count
-            }).ToList(),
-            TotalSpent = s.TotalSpent
-        }).ToList();
-
-        return groupedTransactions;
+                Date = g.Key,
+                DateLabel = g.Key == today ? "Today" : g.Key == yesterday ? "Yesterday" : g.Key.ToString("MMMM dd, yyyy"),
+                TotalSpent = g.Where(e => (e.Type ?? "expense") != "income").Sum(e => e.Amount),
+                CategorySpending = g.Where(e => (e.Type ?? "expense") != "income")
+                    .GroupBy(e => e.Category)
+                    .Select(cg => new CategorySpendingDto { Category = ResolveName(cg.Key), Amount = cg.Sum(e => e.Amount), Count = cg.Count() })
+                    .OrderByDescending(c => c.Amount).ToList(),
+                Transactions = g.Select(e => new ExpenseDto
+                {
+                    Id = e.Id,
+                    ExpenseBookId = e.ExpenseBookId,
+                    Type = string.IsNullOrEmpty(e.Type) ? "expense" : e.Type,
+                    Amount = e.Amount,
+                    Date = e.Date,
+                    Category = ResolveName(e.Category),
+                    PaymentMethod = e.PaymentMethod,
+                    Description = e.Description,
+                    Notes = e.Notes,
+                    IsRecurring = e.IsRecurring,
+                    CreatedAt = e.CreatedAt
+                }).OrderByDescending(e => e.Date).ToList()
+            }).ToList();
     }
 
     public async Task MigrateDailySummariesAsync(string userId)

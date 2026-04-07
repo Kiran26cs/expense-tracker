@@ -15,64 +15,43 @@ public class CategoryService : ICategoryService
         _context = context;
     }
 
-    public async Task<List<CategoryDto>> GetCategoriesAsync(string userId)
+    public async Task<List<CategoryDto>> GetCategoriesAsync(string expenseBookId)
     {
-        var filter = Builders<Category>.Filter.Or(
-            Builders<Category>.Filter.Eq(c => c.UserId, userId),
-            Builders<Category>.Filter.Eq(c => c.IsDefault, true)
-        );
-
+        var filter = Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId);
         var categories = await _context.Categories
             .Find(filter)
             .SortBy(c => c.Name)
             .ToListAsync();
-
-        // If user has no categories at all, seed defaults
-        if (categories.Count == 0)
-        {
-            await SeedDefaultCategoriesAsync(userId);
-            categories = await _context.Categories
-                .Find(filter)
-                .SortBy(c => c.Name)
-                .ToListAsync();
-        }
-
         return categories.Select(MapToDto).ToList();
     }
 
-    public async Task<CategoryDto> GetCategoryByIdAsync(string userId, string categoryId)
+    public async Task<CategoryDto> GetCategoryByIdAsync(string expenseBookId, string categoryId)
     {
         var filter = Builders<Category>.Filter.And(
             Builders<Category>.Filter.Eq(c => c.Id, categoryId),
-            Builders<Category>.Filter.Or(
-                Builders<Category>.Filter.Eq(c => c.UserId, userId),
-                Builders<Category>.Filter.Eq(c => c.IsDefault, true)
-            )
+            Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId)
         );
-
         var category = await _context.Categories.Find(filter).FirstOrDefaultAsync();
         if (category == null)
             throw new KeyNotFoundException("Category not found");
-
         return MapToDto(category);
     }
 
-    public async Task<CategoryDto> CreateCategoryAsync(string userId, CreateCategoryRequest request)
+    public async Task<CategoryDto> CreateCategoryAsync(string expenseBookId, CreateCategoryRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new ArgumentException("Category name is required");
 
-        // Check for duplicate name
-        var existing = await _context.Categories.Find(c =>
-            c.UserId == userId && c.Name.ToLower() == request.Name.ToLower()
-        ).FirstOrDefaultAsync();
+        var dupFilter = Builders<Category>.Filter.And(
+            Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId),
+            Builders<Category>.Filter.Eq(c => c.Name, request.Name.Trim()));
 
-        if (existing != null)
+        if (await _context.Categories.Find(dupFilter).AnyAsync())
             throw new ArgumentException($"Category '{request.Name}' already exists");
 
         var category = new Category
         {
-            UserId = userId,
+            ExpenseBookId = expenseBookId,
             Name = request.Name.Trim(),
             Type = request.Type ?? "expense",
             Icon = request.Icon ?? "fa-solid fa-tag",
@@ -85,12 +64,11 @@ public class CategoryService : ICategoryService
         return MapToDto(category);
     }
 
-    public async Task<CategoryDto> UpdateCategoryAsync(string userId, string categoryId, UpdateCategoryRequest request)
+    public async Task<CategoryDto> UpdateCategoryAsync(string expenseBookId, string categoryId, UpdateCategoryRequest request)
     {
         var filter = Builders<Category>.Filter.And(
             Builders<Category>.Filter.Eq(c => c.Id, categoryId),
-            Builders<Category>.Filter.Eq(c => c.UserId, userId)
-        );
+            Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId));
 
         var category = await _context.Categories.Find(filter).FirstOrDefaultAsync();
         if (category == null)
@@ -100,12 +78,12 @@ public class CategoryService : ICategoryService
 
         if (!string.IsNullOrWhiteSpace(request.Name))
         {
-            // Check for duplicate name
-            var existing = await _context.Categories.Find(c =>
-                c.UserId == userId && c.Name.ToLower() == request.Name.ToLower() && c.Id != categoryId
-            ).FirstOrDefaultAsync();
+            var dupFilter = Builders<Category>.Filter.And(
+                Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId),
+                Builders<Category>.Filter.Eq(c => c.Name, request.Name.Trim()),
+                Builders<Category>.Filter.Ne(c => c.Id, categoryId));
 
-            if (existing != null)
+            if (await _context.Categories.Find(dupFilter).AnyAsync())
                 throw new ArgumentException($"Category '{request.Name}' already exists");
 
             updates.Add(Builders<Category>.Update.Set(c => c.Name, request.Name.Trim()));
@@ -113,30 +91,23 @@ public class CategoryService : ICategoryService
 
         if (request.Type != null)
             updates.Add(Builders<Category>.Update.Set(c => c.Type, request.Type));
-
         if (request.Icon != null)
             updates.Add(Builders<Category>.Update.Set(c => c.Icon, request.Icon));
-
         if (request.Color != null)
             updates.Add(Builders<Category>.Update.Set(c => c.Color, request.Color));
 
         if (updates.Count > 0)
-        {
-            var combinedUpdate = Builders<Category>.Update.Combine(updates);
-            await _context.Categories.UpdateOneAsync(filter, combinedUpdate);
-        }
+            await _context.Categories.UpdateOneAsync(filter, Builders<Category>.Update.Combine(updates));
 
-        var updated = await _context.Categories.Find(filter).FirstOrDefaultAsync();
-        return MapToDto(updated!);
+        return MapToDto((await _context.Categories.Find(filter).FirstOrDefaultAsync())!);
     }
 
-    public async Task<bool> DeleteCategoryAsync(string userId, string categoryId)
+    public async Task<bool> DeleteCategoryAsync(string expenseBookId, string categoryId)
     {
         var filter = Builders<Category>.Filter.And(
             Builders<Category>.Filter.Eq(c => c.Id, categoryId),
-            Builders<Category>.Filter.Eq(c => c.UserId, userId),
-            Builders<Category>.Filter.Eq(c => c.IsDefault, false)
-        );
+            Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId),
+            Builders<Category>.Filter.Eq(c => c.IsDefault, false));
 
         var result = await _context.Categories.DeleteOneAsync(filter);
         if (result.DeletedCount == 0)
@@ -145,7 +116,7 @@ public class CategoryService : ICategoryService
         return true;
     }
 
-    public async Task<ImportCategoriesResponse> ImportCategoriesAsync(string userId, ImportCategoriesRequest request)
+    public async Task<ImportCategoriesResponse> ImportCategoriesAsync(string expenseBookId, ImportCategoriesRequest request)
     {
         var response = new ImportCategoriesResponse();
 
@@ -153,7 +124,7 @@ public class CategoryService : ICategoryService
         {
             try
             {
-                await CreateCategoryAsync(userId, catReq);
+                await CreateCategoryAsync(expenseBookId, catReq);
                 response.Imported++;
             }
             catch (Exception ex)
@@ -166,23 +137,11 @@ public class CategoryService : ICategoryService
         return response;
     }
 
-    public async Task SeedDefaultCategoriesAsync(string userId)
+    public Task SeedDefaultCategoriesAsync(string expenseBookId)
     {
-        var defaults = new List<Category>
-        {
-            new() { UserId = userId, Name = "Food & Dining", Icon = "fa-solid fa-utensils", Color = "#ef4444", IsDefault = false },
-            new() { UserId = userId, Name = "Transport", Icon = "fa-solid fa-car", Color = "#3b82f6", IsDefault = false },
-            new() { UserId = userId, Name = "Shopping", Icon = "fa-solid fa-bag-shopping", Color = "#8b5cf6", IsDefault = false },
-            new() { UserId = userId, Name = "Bills & Utilities", Icon = "fa-solid fa-bolt", Color = "#f59e0b", IsDefault = false },
-            new() { UserId = userId, Name = "Entertainment", Icon = "fa-solid fa-film", Color = "#ec4899", IsDefault = false },
-            new() { UserId = userId, Name = "Health", Icon = "fa-solid fa-heart-pulse", Color = "#10b981", IsDefault = false },
-            new() { UserId = userId, Name = "Education", Icon = "fa-solid fa-graduation-cap", Color = "#6366f1", IsDefault = false },
-            new() { UserId = userId, Name = "Rent", Icon = "fa-solid fa-house", Color = "#14b8a6", IsDefault = false },
-            new() { UserId = userId, Name = "Groceries", Icon = "fa-solid fa-cart-shopping", Color = "#22c55e", IsDefault = false },
-            new() { UserId = userId, Name = "Other", Icon = "fa-solid fa-ellipsis", Color = "#64748b", IsDefault = false },
-        };
-
-        await _context.Categories.InsertManyAsync(defaults);
+        // Seeding is handled by ExpenseBookDependencyService.CopyDefaultCategoriesToBookAsync
+        // which is called automatically when an expense book is created.
+        return Task.CompletedTask;
     }
 
     private static CategoryDto MapToDto(Category category) => new()

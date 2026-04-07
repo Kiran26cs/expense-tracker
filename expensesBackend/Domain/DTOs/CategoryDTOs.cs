@@ -13,6 +13,7 @@ public class CategoryDto
 
 public class CreateCategoryRequest
 {
+    public string? ExpenseBookId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Type { get; set; } = "expense";
     public string Icon { get; set; } = "fa-solid fa-tag";
@@ -29,6 +30,7 @@ public class UpdateCategoryRequest
 
 public class ImportCategoriesRequest
 {
+    public string? ExpenseBookId { get; set; }
     public List<CreateCategoryRequest> Categories { get; set; } = new();
 }
 

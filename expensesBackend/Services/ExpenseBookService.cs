@@ -9,10 +9,12 @@ namespace ExpensesBackend.API.Services;
 public class ExpenseBookService : IExpenseBookService
 {
     private readonly MongoDbContext _context;
+    private readonly IExpenseBookDependencyService _dependencyService;
 
-    public ExpenseBookService(MongoDbContext context)
+    public ExpenseBookService(MongoDbContext context, IExpenseBookDependencyService dependencyService)
     {
         _context = context;
+        _dependencyService = dependencyService;
     }
 
     public async Task<List<ExpenseBookResponse>> GetExpenseBooksAsync(string userId)
@@ -57,10 +59,14 @@ public class ExpenseBookService : IExpenseBookService
             Name = request.Name,
             Description = request.Description,
             Category = request.Category,
+            Currency = request.Currency,
+            Color = request.Color,
+            Icon = request.Icon,
             IsDefault = isDefault
         };
 
         await _context.ExpenseBooks.InsertOneAsync(expenseBook);
+        await _dependencyService.CopyDefaultCategoriesToBookAsync(expenseBook.Id);
 
         return MapToExpenseBookResponse(expenseBook);
     }
@@ -84,6 +90,9 @@ public class ExpenseBookService : IExpenseBookService
         expenseBook.Name = request.Name;
         expenseBook.Description = request.Description;
         expenseBook.Category = request.Category;
+        expenseBook.Currency = request.Currency;
+        expenseBook.Color = request.Color;
+        expenseBook.Icon = request.Icon;
         expenseBook.IsDefault = request.IsDefault;
         expenseBook.UpdatedAt = DateTime.UtcNow;
 
@@ -180,6 +189,9 @@ public class ExpenseBookService : IExpenseBookService
             Name = expenseBook.Name,
             Description = expenseBook.Description,
             Category = expenseBook.Category,
+            Currency = expenseBook.Currency,
+            Color = expenseBook.Color,
+            Icon = expenseBook.Icon,
             IsDefault = expenseBook.IsDefault,
             TotalExpenses = expenseBook.TotalExpenses,
             ExpenseCount = expenseBook.ExpenseCount,

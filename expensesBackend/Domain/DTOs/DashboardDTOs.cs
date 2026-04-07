@@ -5,6 +5,9 @@ public class DashboardSummary
     public decimal TotalExpenses { get; set; }
     public decimal TotalIncome { get; set; }
     public decimal Savings { get; set; }
+    public decimal NetSavings { get; set; }
+    public int TransactionCount { get; set; }
+    public string Currency { get; set; } = "USD";
     public List<CategoryBreakdown> CategoryBreakdown { get; set; } = new();
     public List<ExpenseDto> RecentTransactions { get; set; } = new();
 }
@@ -28,6 +31,7 @@ public class DailyTransactionGroup
     public DateTime Date { get; set; }
     public string DateLabel { get; set; } = string.Empty; // "Today", "Yesterday", or formatted date
     public List<CategorySpendingDto> CategorySpending { get; set; } = new();
+    public List<ExpenseDto> Transactions { get; set; } = new();
     public decimal TotalSpent { get; set; }
 }
 

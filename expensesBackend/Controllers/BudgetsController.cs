@@ -1,4 +1,4 @@
-using ExpensesBackend.API.Domain.DTOs;
+﻿using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Domain.Entities;
 using ExpensesBackend.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -43,10 +43,8 @@ public class BudgetsController : ControllerBase
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
             var budget = await _budgetService.GetBudgetByIdAsync(userId, id);
-
             if (budget == null)
                 return NotFound(ApiResponse<Budget>.ErrorResponse("Budget not found"));
-
             return Ok(ApiResponse<Budget>.SuccessResponse(budget));
         }
         catch (Exception ex)
@@ -55,35 +53,25 @@ public class BudgetsController : ControllerBase
         }
     }
 
-    [HttpPost]
-    public async Task<ActionResult<ApiResponse<Budget>>> CreateBudget([FromBody] Budget budget)
+    [HttpPost("upsert-version")]
+    public async Task<ActionResult<ApiResponse<Budget>>> UpsertBudgetVersion([FromBody] UpsertBudgetVersionRequest request)
     {
         try
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
-            budget.UserId = userId;
+            if (string.IsNullOrWhiteSpace(request.Category))
+                return BadRequest(ApiResponse<Budget>.ErrorResponse("Category is required"));
+            if (request.Amount <= 0)
+                return BadRequest(ApiResponse<Budget>.ErrorResponse("Amount must be greater than zero"));
+            if (!DateTime.TryParse(request.EffectiveDate, out var parsedDate))
+                return BadRequest(ApiResponse<Budget>.ErrorResponse("Invalid effective date"));
 
-            var createdBudget = await _budgetService.CreateBudgetAsync(budget);
-            return Ok(ApiResponse<Budget>.SuccessResponse(createdBudget));
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(ApiResponse<Budget>.ErrorResponse(ex.Message));
-        }
-    }
+            var effectiveDate = new DateTime(parsedDate.Year, parsedDate.Month, parsedDate.Day, 0, 0, 0, DateTimeKind.Utc);
+            var bookId = string.IsNullOrEmpty(request.ExpenseBookId) ? null : request.ExpenseBookId;
+            var effectivePeriod = string.IsNullOrWhiteSpace(request.EffectivePeriod) ? null : request.EffectivePeriod;
 
-    [HttpPut("{id}")]
-    public async Task<ActionResult<ApiResponse<Budget>>> UpdateBudget(string id, [FromBody] Budget budget)
-    {
-        try
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
-            var updatedBudget = await _budgetService.UpdateBudgetAsync(userId, id, budget);
-
-            if (updatedBudget == null)
-                return NotFound(ApiResponse<Budget>.ErrorResponse("Budget not found"));
-
-            return Ok(ApiResponse<Budget>.SuccessResponse(updatedBudget));
+            var budget = await _budgetService.UpsertBudgetVersionAsync(userId, bookId, request.Category, request.Amount, effectiveDate, effectivePeriod);
+            return Ok(ApiResponse<Budget>.SuccessResponse(budget));
         }
         catch (Exception ex)
         {
@@ -98,10 +86,8 @@ public class BudgetsController : ControllerBase
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
             var result = await _budgetService.DeleteBudgetAsync(userId, id);
-
             if (!result)
                 return NotFound(ApiResponse<object>.ErrorResponse("Budget not found"));
-
             return Ok(ApiResponse<object>.SuccessResponse(new { message = "Budget deleted successfully" }));
         }
         catch (Exception ex)

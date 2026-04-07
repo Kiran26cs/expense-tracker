@@ -6,15 +6,15 @@ namespace ExpensesBackend.API.Domain.Entities;
 public class RecurringExpense
 {
     [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
     [BsonElement("userId")]
-    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
     public string UserId { get; set; } = string.Empty;
 
     [BsonElement("expenseBookId")]
-    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonSerializer(typeof(FlexibleStringSerializer))]
     [BsonIgnoreIfDefault]
     public string? ExpenseBookId { get; set; }
 

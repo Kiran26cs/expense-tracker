@@ -97,6 +97,7 @@ public class ExpenseService : IExpenseService
         {
             UserId = userId,
             ExpenseBookId = request.ExpenseBookId,
+            Type = string.IsNullOrEmpty(request.Type) ? "expense" : request.Type,
             Amount = request.Amount,
             Date = request.Date,
             Category = request.Category,
@@ -139,6 +140,8 @@ public class ExpenseService : IExpenseService
             expense.Description = request.Description;
         if (request.Notes != null)
             expense.Notes = request.Notes;
+        if (!string.IsNullOrEmpty(request.Type))
+            expense.Type = request.Type;
 
         expense.UpdatedAt = DateTime.UtcNow;
 
@@ -300,6 +303,7 @@ public class ExpenseService : IExpenseService
         {
             Id = expense.Id,
             ExpenseBookId = expense.ExpenseBookId,
+            Type = string.IsNullOrEmpty(expense.Type) ? "expense" : expense.Type,
             Amount = expense.Amount,
             Date = expense.Date,
             Category = expense.Category,
