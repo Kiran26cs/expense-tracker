@@ -1,0 +1,8 @@
+<div class="input-wrapper">
+  <label *ngIf="label" class="input-label">{{ label }}</label>
+  <select class="select-field" [disabled]="disabled" [ngModel]="_value" (ngModelChange)="onSelect($event)">
+    <option *ngIf="placeholder" value="" disabled>{{ placeholder }}</option>
+    <option *ngFor="let opt of options" [value]="opt.value">{{ opt.label }}</option>
+    <ng-content></ng-content>
+  </select>
+</div>

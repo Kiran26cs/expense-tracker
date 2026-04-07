@@ -1,0 +1,81 @@
+<div class="page-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <div class="logo-mark">E</div>
+      <div>
+        <h1 class="page-title">My Expense Books</h1>
+        <p class="page-subtitle">Select a book to track expenses</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <app-button variant="ghost" (clicked)="handleLogout()">Logout</app-button>
+      <app-button (clicked)="openCreateModal()">+ New Book</app-button>
+    </div>
+  </div>
+
+  <!-- Loading/Error/Empty states -->
+  <app-loading *ngIf="loading()" text="Loading expense books..."></app-loading>
+  <app-error-state *ngIf="!loading() && error()" [message]="error()"></app-error-state>
+
+  <!-- Books grid -->
+  <div *ngIf="!loading() && !error()" class="books-section">
+    <app-empty-state
+      *ngIf="books().length === 0"
+      title="No expense books yet"
+      description="Create your first expense book to start tracking"
+      icon="📚">
+      <app-button (clicked)="openCreateModal()">Create First Book</app-button>
+    </app-empty-state>
+
+    <div *ngIf="books().length > 0" class="books-grid">
+      <div *ngFor="let book of books()" class="book-card" (click)="navigateToBook(book)">
+        <div class="book-icon" [style.background]="book.color || 'var(--gradient-primary)'">
+          {{ book.icon || '📖' }}
+        </div>
+        <div class="book-info">
+          <h3 class="book-name">{{ book.name }}</h3>
+          <p class="book-description" *ngIf="book.description">{{ book.description }}</p>
+          <div class="book-stats">
+            <span class="stat">
+              <span class="stat-label">Currency:</span>
+              <span class="stat-value">{{ book.currency || 'USD' }}</span>
+            </span>
+          </div>
+        </div>
+        <button class="book-delete" (click)="openDeleteConfirm(book, $event)" title="Delete book">
+          ✕
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Modal -->
+  <app-modal [isOpen]="showCreateModal()" title="Create Expense Book" (closed)="closeCreateModal()">
+    <form (ngSubmit)="handleCreate()" class="modal-form">
+      <div *ngIf="createError" class="error-banner">{{ createError }}</div>
+      <app-input label="Book Name" [value]="createForm.name" (valueChange)="createForm.name = $event" placeholder="e.g. Personal, Business" [required]="true"></app-input>
+      <app-input label="Description (optional)" [value]="createForm.description || ''" (valueChange)="createForm.description = $event" placeholder="What is this book for?"></app-input>
+      <div class="form-row">
+        <app-input label="Currency" [value]="createForm.currency || 'USD'" (valueChange)="createForm.currency = $event" placeholder="USD"></app-input>
+        <app-input label="Icon (emoji)" [value]="createForm.icon || ''" (valueChange)="createForm.icon = $event" placeholder="📖"></app-input>
+      </div>
+      <div class="modal-actions">
+        <app-button type="button" variant="ghost" (clicked)="closeCreateModal()">Cancel</app-button>
+        <app-button type="submit" [loading]="createLoading">Create Book</app-button>
+      </div>
+    </form>
+  </app-modal>
+
+  <!-- Delete Confirm Modal -->
+  <app-modal [isOpen]="showDeleteModal()" title="Delete Expense Book" (closed)="closeDeleteModal()">
+    <div class="delete-confirm">
+      <p>Are you sure you want to delete <strong>{{ bookToDelete()?.name }}</strong>?</p>
+      <p class="delete-warning">This will permanently delete all expenses in this book.</p>
+      <div class="modal-actions">
+        <app-button variant="ghost" (clicked)="closeDeleteModal()">Cancel</app-button>
+        <app-button variant="danger" [loading]="deleteLoading" (clicked)="handleDelete()">Delete</app-button>
+      </div>
+    </div>
+  </app-modal>
+</div>

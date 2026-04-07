@@ -1,0 +1,60 @@
+<div class="auth-container">
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-form-container">
+        <div class="auth-header">
+          <div class="auth-logo">E</div>
+          <h1 class="auth-title">Create Account</h1>
+          <p class="auth-subtitle">Start managing your finances today</p>
+        </div>
+
+        <form *ngIf="step() === 'input'" (ngSubmit)="handleRequestOTP()" class="auth-form">
+          <div *ngIf="error()" class="error-banner">{{ error() }}</div>
+          <app-input label="Full Name" [value]="name()" (valueChange)="name.set($event)" placeholder="Your full name" [required]="true"></app-input>
+          <app-input label="Email or Phone" [value]="emailOrPhone()" (valueChange)="emailOrPhone.set($event)" placeholder="Enter email or phone number" [required]="true"></app-input>
+          <app-button type="submit" [loading]="loading()" [fullWidth]="true">Send OTP</app-button>
+        </form>
+
+        <form *ngIf="step() === 'otp'" (ngSubmit)="handleSignup()" class="auth-form">
+          <div *ngIf="error()" class="error-banner">{{ error() }}</div>
+          <div class="otp-info">OTP sent to <strong>{{ emailOrPhone() }}</strong></div>
+          <div class="otp-input-row">
+            <input
+              *ngFor="let i of [0,1,2,3,4,5]; let idx = index"
+              type="text" maxlength="1" class="otp-box"
+              [id]="'sotp-' + idx"
+              (input)="onOtpInput($event, idx)"
+              (keydown)="onOtpKeydown($event, idx)"
+            />
+          </div>
+          <app-button type="submit" [loading]="loading()" [fullWidth]="true">Create Account</app-button>
+          <div class="resend-row">
+            <button type="button" class="resend-btn" [disabled]="resendTimer() > 0" (click)="handleResendOTP()">
+              {{ resendTimer() > 0 ? 'Resend in ' + resendTimer() + 's' : 'Resend OTP' }}
+            </button>
+            <button type="button" class="back-btn" (click)="step.set('input'); error.set('')">← Back</button>
+          </div>
+        </form>
+
+        <div class="auth-divider"><span>or</span></div>
+        <button class="google-btn" (click)="handleGoogleLogin()" [disabled]="loading()">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="google-icon" />
+          Continue with Google
+        </button>
+        <p class="auth-link">Already have an account? <a routerLink="/login">Sign in</a></p>
+      </div>
+    </div>
+    <div class="auth-graphic">
+      <div class="graphic-content">
+        <h2>Join Thousands of Smart Spenders</h2>
+        <p>Get complete visibility into your financial health with powerful expense tracking tools.</p>
+        <div class="graphic-features">
+          <div class="feature"><span>💳</span> Multi-currency support</div>
+          <div class="feature"><span>📱</span> Mobile-first design</div>
+          <div class="feature"><span>🔒</span> Secure &amp; private</div>
+          <div class="feature"><span>📤</span> CSV import/export</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

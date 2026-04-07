@@ -1,0 +1,170 @@
+<div class="insights-page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Insights</h1>
+      <p class="page-subtitle">Financial intelligence &amp; trends</p>
+    </div>
+    <app-date-range-picker [startDate]="dateStart()" [endDate]="dateEnd()" (rangeChange)="onDateRangeChange($event)"></app-date-range-picker>
+  </div>
+
+  <app-loading *ngIf="loading()" text="Analyzing your finances..."></app-loading>
+
+  <ng-container *ngIf="!loading()">
+    <!-- Cash Runway -->
+    <app-card class="runway-card">
+      <app-card-header><app-card-title>Cash Runway</app-card-title></app-card-header>
+      <app-card-content>
+        <div class="runway-content">
+          <div class="runway-stat">
+            <p class="stat-label">Avg Monthly Expenses</p>
+            <p class="stat-value">{{ formatCurrency(avgMonthlyExpenses(), currency()) }}</p>
+          </div>
+          <div class="runway-stat">
+            <p class="stat-label">Avg Monthly Income</p>
+            <p class="stat-value income">{{ formatCurrency(avgMonthlyIncome(), currency()) }}</p>
+          </div>
+          <div class="runway-stat">
+            <p class="stat-label">Savings Rate</p>
+            <p class="stat-value" [class.positive]="savingsRate() > 0" [class.negative]="savingsRate() <= 0">{{ savingsRate() }}%</p>
+          </div>
+        </div>
+      </app-card-content>
+    </app-card>
+
+    <!-- Spending Trend Chart -->
+    <div class="charts-row">
+      <app-card>
+        <app-card-header><app-card-title>Spending Trend</app-card-title></app-card-header>
+        <app-card-content>
+          <div *ngIf="trendData().datasets[0].data.length; else noTrend" class="chart-wrap">
+            <canvas baseChart [data]="trendData()" [type]="'line'" [options]="lineOptions"></canvas>
+          </div>
+          <ng-template #noTrend><app-empty-state title="No data" description="Add expenses to see trends" icon="📈"></app-empty-state></ng-template>
+        </app-card-content>
+      </app-card>
+
+      <!-- Category comparison -->
+      <app-card>
+        <app-card-header><app-card-title>Top Spending Categories</app-card-title></app-card-header>
+        <app-card-content>
+          <div *ngIf="topCategories().length; else noCats" class="categories-list">
+            <div *ngFor="let c of topCategories(); let i = index" class="category-row">
+              <span class="cat-rank">{{ i + 1 }}</span>
+              <span class="cat-name">{{ c.name }}</span>
+              <div class="cat-bar-wrap">
+                <div class="cat-bar" [style.width.%]="c.percent" [style.background]="'hsl(' + (200 + i * 30) + ', 70%, 55%)'"></div>
+              </div>
+              <span class="cat-amount">{{ formatCurrency(c.total, currency()) }}</span>
+              <span class="cat-pct">{{ c.percent }}%</span>
+            </div>
+          </div>
+          <ng-template #noCats><app-empty-state title="No data" description="No spending data for period" icon="🏷️"></app-empty-state></ng-template>
+        </app-card-content>
+      </app-card>
+    </div>
+
+    <!-- Recurring Expenses -->
+    <app-card>
+      <app-card-header>
+        <app-card-title>Recurring Expenses</app-card-title>
+        <app-button size="sm" (clicked)="openAddRecurringModal()">+ Add Recurring</app-button>
+      </app-card-header>
+      <app-card-content>
+        <app-empty-state *ngIf="recurring().length === 0" title="No recurring expenses" description="Click '+ Add Recurring' to set up a recurring expense" icon="⟳"></app-empty-state>
+        <div *ngIf="recurring().length > 0" class="recurring-list">
+          <div *ngFor="let r of recurring()" class="recurring-item">
+            <div class="recurring-info">
+              <p class="recurring-name">{{ r.description }}</p>
+              <p class="recurring-meta">{{ getCatName(r.category) }} · {{ getFrequency(r) }}
+                <span *ngIf="r.nextOccurrence" class="next-due"> · Next: {{ getNextOccurrence(r) }}</span>
+              </p>
+            </div>
+            <div class="recurring-amount">
+              <span class="amount">{{ formatCurrency(r.amount, r.currency || currency()) }}</span>
+              <span class="period">/ {{ getFrequency(r) }}</span>
+              <span *ngIf="getDueBadge(r).label" class="due-badge" [class]="getDueBadge(r).cls">{{ getDueBadge(r).label }}</span>
+            </div>
+            <button class="rec-delete-btn" title="Delete" (click)="openDeleteRecurringConfirm(r)">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+          <div class="recurring-total">
+            <span>Estimated Monthly Recurring Total</span>
+            <span class="total-amount">{{ formatCurrency(recurringTotal(), currency()) }}</span>
+          </div>
+        </div>
+      </app-card-content>
+    </app-card>
+  </ng-container>
+</div>
+
+<!-- Add Recurring Modal -->
+<app-modal [isOpen]="showAddRecurringModal()" title="Add Recurring Expense" maxWidth="560px" (closed)="showAddRecurringModal.set(false)">
+  <div *ngIf="recurringError()" class="rec-error">{{ recurringError() }}</div>
+  <form [formGroup]="addRecurringForm" class="rec-form">
+    <div class="rec-row">
+      <div class="rec-field">
+        <label class="rec-label">Description *</label>
+        <input class="rec-input" formControlName="description" placeholder="e.g. Netflix, Rent">
+        <span *ngIf="addRecurringForm.get('description')?.invalid && addRecurringForm.get('description')?.touched" class="rec-field-error">Required</span>
+      </div>
+      <div class="rec-field">
+        <label class="rec-label">Amount *</label>
+        <input class="rec-input" type="number" formControlName="amount" placeholder="0.00" min="0.01" step="0.01">
+        <span *ngIf="addRecurringForm.get('amount')?.invalid && addRecurringForm.get('amount')?.touched" class="rec-field-error">Enter a valid amount</span>
+      </div>
+    </div>
+    <div class="rec-row">
+      <div class="rec-field">
+        <label class="rec-label">Frequency *</label>
+        <select class="rec-select" formControlName="frequency">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </div>
+      <div class="rec-field">
+        <label class="rec-label">Start Date *</label>
+        <input class="rec-input" type="date" formControlName="startDate">
+      </div>
+    </div>
+    <div class="rec-row">
+      <div class="rec-field">
+        <label class="rec-label">Category</label>
+        <select class="rec-select" formControlName="category">
+          <option value="">Select category</option>
+          <option *ngFor="let c of recurringCategories()" [value]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+      <div class="rec-field">
+        <label class="rec-label">Payment Method</label>
+        <select class="rec-select" formControlName="paymentMethod">
+          <option value="">Select payment method</option>
+          <option *ngFor="let p of recurringPaymentMethods()" [value]="p.id">{{ p.name }}</option>
+        </select>
+      </div>
+    </div>
+    <div class="rec-field">
+      <label class="rec-label">End Date (optional)</label>
+      <input class="rec-input" type="date" formControlName="endDate">
+    </div>
+    <p class="rec-info"><i class="fa-solid fa-circle-info"></i> This will register a recurring expense tracked in the Insights tab. Mark it paid from this screen when due.</p>
+  </form>
+  <div modal-footer>
+    <app-button variant="ghost" (clicked)="showAddRecurringModal.set(false)" [disabled]="recurringLoading()">Cancel</app-button>
+    <app-button (clicked)="handleAddRecurring()" [loading]="recurringLoading()">Save Recurring Expense</app-button>
+  </div>
+</app-modal>
+
+<!-- Delete Recurring Confirm -->
+<app-confirm-dialog
+  [isOpen]="showDeleteRecurringConfirm()"
+  title="Delete Recurring Expense"
+  [message]="'Delete recurring expense &quot;' + (recurringToDelete()?.description || '') + '&quot;? This cannot be undone.'"
+  confirmLabel="Delete"
+  confirmVariant="danger"
+  [loading]="deleteRecurringLoading"
+  (confirmed)="handleDeleteRecurring()"
+  (cancelled)="showDeleteRecurringConfirm.set(false)">
+</app-confirm-dialog>

@@ -1,0 +1,345 @@
+<div class="settings-page">
+  <div class="page-header">
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Customize your expense tracker</p>
+  </div>
+
+  <div class="settings-grid">
+    <!-- Appearance -->
+    <app-card>
+      <app-card-header><app-card-title>Appearance</app-card-title></app-card-header>
+      <app-card-content>
+        <div class="setting-row">
+          <div class="setting-info">
+            <p class="setting-name">Dark Mode</p>
+            <p class="setting-desc">Switch between light and dark theme</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" [checked]="themeService.isDark()" (change)="themeService.toggle()" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </app-card-content>
+    </app-card>
+
+    <!-- General Settings -->
+    <app-card>
+      <app-card-header><app-card-title>General</app-card-title></app-card-header>
+      <app-card-content>
+        <form [formGroup]="generalForm" (ngSubmit)="saveGeneral()" class="settings-form">
+          <app-select label="Default Currency" formControlName="defaultCurrency">
+            <option value="USD">USD - US Dollar</option>
+            <option value="EUR">EUR - Euro</option>
+            <option value="GBP">GBP - British Pound</option>
+            <option value="INR">INR - Indian Rupee</option>
+            <option value="CAD">CAD - Canadian Dollar</option>
+            <option value="AUD">AUD - Australian Dollar</option>
+            <option value="JPY">JPY - Japanese Yen</option>
+          </app-select>
+          <app-input label="Monthly Savings Goal" type="number" formControlName="monthlySavingsGoal" placeholder="0.00"></app-input>
+          <app-button type="submit" [loading]="generalLoading">Save Settings</app-button>
+        </form>
+      </app-card-content>
+    </app-card>
+
+    <!-- Categories -->
+    <app-card>
+      <app-card-header><app-card-title>Categories</app-card-title></app-card-header>
+      <app-card-content>
+        <div class="setting-row" style="margin-bottom:1rem">
+          <p class="setting-desc">Manage your expense categories</p>
+          <span class="cat-count-badge">
+            {{ categories().length }} {{ categories().length === 1 ? 'Category' : 'Categories' }}
+          </span>
+        </div>
+        <app-button (clicked)="openCategoryModal()">Manage Categories</app-button>
+      </app-card-content>
+    </app-card>
+
+    <!-- Payment Methods -->
+    <app-card>
+      <app-card-header>
+        <app-card-title>Payment Methods</app-card-title>
+        <app-button size="sm" (clicked)="openPaymentModal()">+ Add</app-button>
+      </app-card-header>
+      <app-card-content>
+        <app-loading *ngIf="paymentLoading()" text="Loading..."></app-loading>
+        <div *ngIf="!paymentLoading()" class="tags-list">
+          <div *ngFor="let p of paymentMethods()" class="tag-item">
+            <span class="tag-label">{{ p.icon || '💳' }} {{ p.name }}</span>
+            <button class="tag-delete" (click)="deletePaymentMethod(p.id || p.name)" title="Remove">×</button>
+          </div>
+          <p *ngIf="!paymentMethods().length" class="empty-text">No payment methods yet</p>
+        </div>
+      </app-card-content>
+    </app-card>
+
+    <!-- CSV Import -->
+    <app-card>
+      <app-card-header><app-card-title>Import Data</app-card-title></app-card-header>
+      <app-card-content>
+        <div class="import-section">
+          <p class="import-desc">Import expenses from a CSV file. Columns: date, description, amount, category, type.</p>
+          <div class="import-actions">
+            <label class="file-upload-btn">
+              <input type="file" accept=".csv" (change)="onCSVSelect($event)" style="display:none" />
+              📂 Choose CSV File
+            </label>
+            <span *ngIf="csvFileName()" class="file-name">{{ csvFileName() }}</span>
+          </div>
+          <app-button *ngIf="csvFile()" [loading]="importLoading" (clicked)="handleImport()">Import Expenses</app-button>
+          <div *ngIf="importResult()" class="import-result">
+            <p class="result-success">✅ Imported {{ importResult()!.imported }} expenses</p>
+            <p *ngIf="importResult()!.skipped" class="result-warning">⚠️ Skipped {{ importResult()!.skipped }}</p>
+          </div>
+        </div>
+      </app-card-content>
+    </app-card>
+  </div>
+
+  <!-- ══ Category Management Modal ══ -->
+  <app-modal [isOpen]="showCategoryModal()" [title]="catModalTitle" maxWidth="660px" (closed)="closeCategoryModal()">
+
+    <!-- ── MAIN VIEW ── -->
+    <ng-container *ngIf="catView() === 'main'">
+      <div class="cat-alert cat-alert--error" *ngIf="catError()">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ catError() }}
+      </div>
+      <div class="cat-alert cat-alert--success" *ngIf="catSuccess()">
+        <i class="fa-solid fa-circle-check"></i> {{ catSuccess() }}
+      </div>
+
+      <div class="cat-actions">
+        <button class="cat-action-card" (click)="openCatAddView('manual')">
+          <i class="fa-solid fa-plus"></i>
+          <span>Add Category</span>
+        </button>
+        <button class="cat-action-card" (click)="openCatAddView('upload')">
+          <i class="fa-solid fa-file-import"></i>
+          <span>Import Categories</span>
+        </button>
+      </div>
+
+      <div class="cat-list-section">
+        <div class="cat-list-header">
+          <h3 class="cat-list-title">All Categories</h3>
+          <span class="cat-badge">{{ categories().length }}</span>
+        </div>
+        <div class="cat-loading" *ngIf="catModalLoading() && !editingCatId()">
+          <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+        </div>
+        <div class="cat-empty" *ngIf="!categories().length && !catModalLoading()">
+          <i class="fa-solid fa-folder-open"></i>
+          <p>No categories yet</p>
+          <p style="font-size:0.8rem">Click "Add Category" to get started</p>
+        </div>
+        <div class="cat-grid" *ngIf="categories().length">
+          <div class="cat-card" *ngFor="let c of categories()">
+            <!-- Inline edit mode -->
+            <ng-container *ngIf="editingCatId() === c.id">
+              <div class="cat-edit-row">
+                <input class="cat-edit-input"
+                  [value]="editCatName()"
+                  (input)="editCatName.set($any($event.target).value)"
+                  (keyup.enter)="confirmUpdateCategory()"
+                  (keyup.escape)="cancelEditCat()" />
+                <button class="cat-icon-btn" (click)="confirmUpdateCategory()" title="Save">
+                  <i class="fa-solid fa-check" style="color:var(--color-success)"></i>
+                </button>
+                <button class="cat-icon-btn" (click)="cancelEditCat()" title="Cancel">
+                  <i class="fa-solid fa-xmark" style="color:var(--color-danger)"></i>
+                </button>
+              </div>
+            </ng-container>
+            <!-- Normal mode -->
+            <ng-container *ngIf="editingCatId() !== c.id">
+              <div class="cat-info">
+                <span class="cat-icon-wrap" [style.color]="c.color">
+                  <i [class]="c.icon || 'fa-solid fa-tag'"></i>
+                </span>
+                <span class="cat-name">{{ c.name }}</span>
+              </div>
+              <div class="cat-card-actions">
+                <button class="cat-icon-btn" (click)="startEditCat(c)" title="Edit">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button class="cat-icon-btn cat-icon-btn--danger" (click)="handleDeleteCategory(c)" title="Delete">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- ── ADD / IMPORT VIEW ── -->
+    <ng-container *ngIf="catView() === 'add'">
+      <div class="cat-alert cat-alert--error" *ngIf="catError()">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ catError() }}
+      </div>
+      <div class="cat-alert cat-alert--success" *ngIf="catSuccess()">
+        <i class="fa-solid fa-circle-check"></i> {{ catSuccess() }}
+      </div>
+
+      <div class="cat-tabs">
+        <button class="cat-tab" [class.cat-tab--active]="catActiveTab() === 'manual'" (click)="catActiveTab.set('manual')">Manual</button>
+        <button class="cat-tab" [class.cat-tab--active]="catActiveTab() === 'upload'" (click)="catActiveTab.set('upload')">Upload</button>
+      </div>
+
+      <!-- MANUAL TAB -->
+      <ng-container *ngIf="catActiveTab() === 'manual'">
+        <div class="cat-manual-form">
+          <app-input
+            label="Category Name *"
+            [value]="newCatName()"
+            (valueChange)="newCatName.set($event)"
+            placeholder="e.g., Food, Transport, Entertainment">
+          </app-input>
+
+          <div class="cat-form-group">
+            <label class="cat-label">Select Icon</label>
+            <div class="cat-icon-grid">
+              <button *ngFor="let item of FA_ICONS" type="button"
+                class="cat-icon-option"
+                [class.cat-icon-option--selected]="newCatIcon() === item.icon"
+                [title]="item.label"
+                (click)="newCatIcon.set(item.icon)">
+                <i [class]="item.icon"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="cat-form-group">
+            <label class="cat-label">Select Color</label>
+            <div class="cat-color-grid">
+              <button *ngFor="let color of COLOR_OPTIONS" type="button"
+                class="cat-color-option"
+                [class.cat-color-option--selected]="newCatColor() === color"
+                [style.backgroundColor]="color"
+                (click)="newCatColor.set(color)">
+              </button>
+            </div>
+          </div>
+
+          <div class="cat-preview-box">
+            <span class="cat-preview-label">PREVIEW</span>
+            <div class="cat-preview-row">
+              <span [style.color]="newCatColor()" style="font-size:1.5rem">
+                <i [class]="newCatIcon()"></i>
+              </span>
+              <span style="font-weight:600">{{ newCatName() || 'Category Name' }}</span>
+              <span class="cat-preview-dot" [style.backgroundColor]="newCatColor()"></span>
+            </div>
+          </div>
+
+          <div class="cat-form-footer">
+            <app-button variant="ghost" (clicked)="backToMainView()" [disabled]="catModalLoading()">
+              <i class="fa-solid fa-arrow-left"></i> Back
+            </app-button>
+            <app-button (clicked)="handleAddCategory()" [loading]="catModalLoading()" [disabled]="!newCatName().trim()">
+              SUBMIT
+            </app-button>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- UPLOAD TAB -->
+      <ng-container *ngIf="catActiveTab() === 'upload'">
+        <div class="cat-upload-tab">
+          <div class="cat-upload-header">
+            <div>
+              <h4>Upload a CSV</h4>
+              <p class="cat-upload-sub">Upload a .csv file with the following sample information</p>
+              <p class="cat-upload-sub">Columns: <strong>name</strong>, <strong>icon</strong> (Font Awesome class), <strong>color</strong> (hex)</p>
+            </div>
+            <button class="cat-download-tmpl" (click)="downloadCatTemplate()">
+              <i class="fa-solid fa-download"></i> Download Template
+            </button>
+          </div>
+
+          <div class="cat-sample-table">
+            <table>
+              <thead><tr><th>name</th><th>icon</th><th>color</th></tr></thead>
+              <tbody>
+                <tr><td>Food &amp; Dining</td><td>fa-solid fa-utensils</td><td>#ef4444</td></tr>
+                <tr><td>Transport</td><td>fa-solid fa-car</td><td>#3b82f6</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="cat-drop-zone"
+            [class.cat-drop-zone--active]="isDraggingCat()"
+            [class.cat-drop-zone--has-file]="importCatFile()"
+            (dragover)="onCatDragOver($any($event))"
+            (dragleave)="onCatDragLeave($any($event))"
+            (drop)="onCatDrop($any($event))"
+            (click)="catFileInput.click()">
+            <input #catFileInput type="file" accept=".csv" style="display:none" (change)="handleCatFileInput($event)" />
+            <ng-container *ngIf="importCatFile(); else dropEmpty">
+              <div class="cat-file-info">
+                <i class="fa-solid fa-file-csv" style="font-size:2rem;color:var(--color-success)"></i>
+                <span class="cat-file-name">{{ importCatFile()!.name }}</span>
+                <span class="cat-file-size">{{ (importCatFile()!.size / 1024).toFixed(1) }} KB</span>
+                <button class="cat-remove-file" (click)="$event.stopPropagation(); removeImportFile()">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            </ng-container>
+            <ng-template #dropEmpty>
+              <div class="cat-drop-content">
+                <i class="fa-solid fa-cloud-arrow-up" style="font-size:2.5rem;color:var(--color-primary)"></i>
+                <p>Drag &amp; Drop your CSV File or <span class="cat-browse-link">browse</span></p>
+              </div>
+            </ng-template>
+          </div>
+
+          <div class="cat-import-preview" *ngIf="importCatData().length">
+            <h4>Preview ({{ importCatData().length }} categories)</h4>
+            <div class="cat-preview-table-wrap">
+              <table class="cat-preview-table">
+                <thead><tr><th>#</th><th>Icon</th><th>Name</th><th>Color</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let cat of importCatData(); let i = index">
+                    <td>{{ i + 1 }}</td>
+                    <td><i [class]="cat.icon" [style.color]="cat.color"></i></td>
+                    <td>{{ cat.name }}</td>
+                    <td>
+                      <span class="cat-color-swatch" [style.backgroundColor]="cat.color"></span>
+                      {{ cat.color }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="cat-form-footer">
+            <app-button variant="ghost" (clicked)="backToMainView()" [disabled]="catModalLoading()">
+              <i class="fa-solid fa-arrow-left"></i> Back
+            </app-button>
+            <app-button (clicked)="handleImportCategories()" [loading]="catModalLoading()" [disabled]="!importCatData().length">
+              SUBMIT
+            </app-button>
+          </div>
+        </div>
+      </ng-container>
+    </ng-container>
+
+  </app-modal>
+
+  <!-- Add Payment Method Modal -->
+  <app-modal [isOpen]="showPaymentModal()" title="Add Payment Method" (closed)="showPaymentModal.set(false)">
+    <div class="quick-add-form">
+      <app-input label="Payment Method Name" [value]="newPaymentName" (valueChange)="newPaymentName = $event" placeholder="e.g. Credit Card"></app-input>
+      <app-input label="Icon (emoji)" [value]="newPaymentIcon" (valueChange)="newPaymentIcon = $event" placeholder="💳"></app-input>
+      <div class="modal-actions">
+        <app-button variant="ghost" (clicked)="showPaymentModal.set(false)">Cancel</app-button>
+        <app-button [loading]="addPaymentLoading" (clicked)="handleAddPayment()">Add Method</app-button>
+      </div>
+    </div>
+  </app-modal>
+</div>
+
+  
+

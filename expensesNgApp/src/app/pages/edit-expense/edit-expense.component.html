@@ -1,0 +1,56 @@
+<div class="edit-expense-page">
+  <div class="page-header">
+    <button class="back-btn" (click)="goBack()">← Back</button>
+    <h1 class="page-title">Edit Expense</h1>
+  </div>
+
+  <app-loading *ngIf="pageLoading()" text="Loading expense..."></app-loading>
+
+  <app-card *ngIf="!pageLoading()" class="form-card">
+    <app-card-header><app-card-title>Edit Transaction</app-card-title></app-card-header>
+    <app-card-content>
+      <form [formGroup]="form" (ngSubmit)="handleSubmit()" class="expense-form">
+        <div *ngIf="error()" class="error-banner">{{ error() }}</div>
+
+        <div class="type-tabs">
+          <button type="button" class="type-tab" [class.active]="form.get('type')?.value === 'expense'" (click)="form.get('type')?.setValue('expense')">Expense</button>
+          <button type="button" class="type-tab" [class.active]="form.get('type')?.value === 'income'" (click)="form.get('type')?.setValue('income')">Income</button>
+        </div>
+
+        <div class="form-grid">
+          <app-input label="Description" formControlName="description" placeholder="What did you spend on?" [required]="true"></app-input>
+          <app-input label="Amount" type="number" formControlName="amount" placeholder="0.00" [required]="true"></app-input>
+          <app-input label="Date" type="date" formControlName="date" [required]="true"></app-input>
+          <app-select label="Category" formControlName="category" [options]="categoryOptions()">
+          </app-select>
+          <app-select label="Payment Method" formControlName="paymentMethod" [options]="paymentMethodOptions()">
+          </app-select>
+          <app-input label="Currency" formControlName="currency" placeholder="USD"></app-input>
+        </div>
+
+        <app-textarea label="Notes (optional)" formControlName="notes" placeholder="Any additional notes..."></app-textarea>
+
+        <div class="recurring-section">
+          <label class="toggle-label">
+            <input type="checkbox" formControlName="isRecurring" />
+            <span>Mark as recurring</span>
+          </label>
+          <div *ngIf="form.get('isRecurring')?.value" class="recurring-fields">
+            <app-select label="Frequency" formControlName="recurringFrequency">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </app-select>
+            <app-input label="End Date (optional)" type="date" formControlName="recurringEndDate"></app-input>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <app-button type="button" variant="ghost" (clicked)="goBack()">Cancel</app-button>
+          <app-button type="submit" [loading]="loading()">{{ form.get('type')?.value === 'income' ? 'Update Income' : 'Update Expense' }}</app-button>
+        </div>
+      </form>
+    </app-card-content>
+  </app-card>
+</div>

@@ -1,0 +1,223 @@
+﻿<div class="budget-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Budgets</h1>
+      <p class="page-subtitle">Monthly spending limits by category</p>
+    </div>
+    <div class="header-actions">
+      <div class="search-wrap">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" class="search-input" placeholder="Search category..."
+          [ngModel]="categorySearch()" (ngModelChange)="categorySearch.set($event)">
+      </div>
+      <input type="month" class="filter-month"
+        [ngModel]="filterMonthStr()"
+        (ngModelChange)="filterMonthStr.set($event); onFilterChange()">
+    </div>
+  </div>
+
+  <app-card>
+    <app-card-content>
+
+      <!-- Past-month notice -->
+      <div *ngIf="!loading() && !isEditable()" class="readonly-notice">
+        <i class="fa-solid fa-circle-info"></i>
+        Viewing historical data for {{ filterMonthStr() }} — editing is disabled.
+      </div>
+
+      <div class="budget-table-wrap">
+        <table class="budget-table">
+          <thead>
+            <tr>
+              <th class="col-expand"></th>
+              <th class="col-category">Category</th>
+              <th class="col-date">Effective Date</th>
+              <th class="col-amount">Budget Amount</th>
+              <th class="col-spent">Spent</th>
+              <th class="col-remaining">Remaining</th>
+              <th class="col-progress">Progress</th>
+              <th class="col-actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- Skeleton rows while loading -->
+            <ng-container *ngIf="loading()">
+              <tr *ngFor="let _ of skeletonRows" class="skeleton-row">
+                <td><div class="sk sk-icon"></div></td>
+                <td><div class="sk sk-text sk-w60"></div></td>
+                <td><div class="sk sk-text sk-w80"></div></td>
+                <td><div class="sk sk-text sk-w60"></div></td>
+                <td><div class="sk sk-text sk-w50"></div></td>
+                <td><div class="sk sk-text sk-w50"></div></td>
+                <td><div class="sk sk-bar"></div></td>
+                <td><div class="sk sk-text sk-w40"></div></td>
+              </tr>
+            </ng-container>
+
+            <!-- Data rows: one per category from settings -->
+            <ng-container *ngIf="!loading()">
+
+              <ng-container *ngFor="let row of tableRows()">
+
+                <!-- Main budget row -->
+                <tr class="budget-row" [class.row-editing]="editingCategory() === row.category">
+
+                  <!-- Expand toggle (only shown for rows with version history) -->
+                  <td class="col-expand">
+                    <button *ngIf="row.budget && row.budget.versions?.length"
+                      class="expand-btn" (click)="toggleExpand(row.budget.id)"
+                      [title]="isExpanded(row.budget.id) ? 'Hide history' : 'Show history'">
+                      <i class="fa-solid"
+                        [class.fa-chevron-right]="!isExpanded(row.budget.id)"
+                        [class.fa-chevron-down]="isExpanded(row.budget.id)"></i>
+                    </button>
+                  </td>
+
+                  <!-- Category -->
+                  <td class="col-category">
+                    <span class="cat-label">{{ row.category }}</span>
+                    <span class="version-badge" *ngIf="row.budget && row.budget.latestVersionNumber > 0">
+                      v{{ row.budget.latestVersionNumber }}
+                    </span>
+                  </td>
+
+                  <!-- Effective Date -->
+                  <td class="col-date">
+                    <input *ngIf="editingCategory() === row.category"
+                      type="date" class="cell-input"
+                      [ngModel]="editDate()" (ngModelChange)="editDate.set($event)">
+                    <span *ngIf="editingCategory() !== row.category" class="cell-text">
+                      {{ row.budget ? getEffectiveDateDisplay(row.budget) : '—' }}
+                    </span>
+                  </td>
+
+                  <!-- Budget Amount -->
+                  <td class="col-amount">
+                    <input *ngIf="editingCategory() === row.category"
+                      type="number" class="cell-input cell-input-num"
+                      [ngModel]="editAmount()" (ngModelChange)="editAmount.set(+$event)"
+                      min="0.01" step="0.01" placeholder="0.00">
+                    <span *ngIf="editingCategory() !== row.category && hasLimit(row.budget)" class="amount-text">
+                      {{ formatCurrency(row.budget!.amount, row.budget!.currency) }}
+                    </span>
+                    <span *ngIf="editingCategory() !== row.category && !hasLimit(row.budget) && row.budget" class="cell-text dim no-limit-tag">
+                      No limit
+                    </span>
+                    <span *ngIf="editingCategory() !== row.category && !row.budget" class="cell-text dim">
+                      {{ formatCurrency(0) }}
+                    </span>
+                  </td>
+
+                  <!-- Spent -->
+                  <td class="col-spent">
+                    <span *ngIf="row.budget"
+                      [class.over-budget]="(row.budget.spent || 0) > row.budget.amount">
+                      {{ formatCurrency(row.budget.spent || 0, row.budget.currency) }}
+                    </span>
+                    <span *ngIf="!row.budget" class="cell-text dim">{{ formatCurrency(0) }}</span>
+                  </td>
+
+                  <!-- Remaining -->
+                  <td class="col-remaining">
+                    <span *ngIf="row.budget"
+                      [class.over-budget]="(row.budget.spent || 0) > row.budget.amount">
+                      {{ (row.budget.spent || 0) > row.budget.amount ? '-' : '' }}{{ formatCurrency(getRemaining(row.budget), row.budget.currency) }}
+                    </span>
+                    <span *ngIf="!row.budget" class="cell-text dim">{{ formatCurrency(0) }}</span>
+                  </td>
+
+                  <!-- Progress -->
+                  <td class="col-progress">
+                    <div class="progress-cell">
+                      <div class="progress-track">
+                        <div class="progress-fill"
+                          [style.width.%]="row.budget ? getProgressPct(row.budget) : 0"
+                          [style.background]="row.budget ? getProgressColor(getProgressPct(row.budget)) : ''">
+                        </div>
+                      </div>
+                      <span class="progress-pct" [class.dim]="!row.budget">
+                        {{ row.budget ? getProgressPct(row.budget) : 0 }}%
+                      </span>
+                    </div>
+                  </td>
+
+                  <!-- Actions -->
+                  <td class="col-actions">
+                    <ng-container *ngIf="editingCategory() === row.category">
+                      <app-button size="sm" [loading]="saveLoading() === row.category" (clicked)="saveEdit(row)">Save</app-button>
+                      <app-button size="sm" variant="ghost" (clicked)="cancelEdit()">Cancel</app-button>
+                    </ng-container>
+                    <ng-container *ngIf="editingCategory() !== row.category">
+                      <app-button *ngIf="isEditable()" size="sm" variant="ghost" (clicked)="startEdit(row)">Edit</app-button>
+                      <app-button *ngIf="hasLimit(row.budget)" size="sm" variant="danger" (clicked)="openDeleteConfirm(row.budget!)">Delete</app-button>
+                    </ng-container>
+                  </td>
+                </tr>
+
+                <!-- Accordion: Version History -->
+                <tr *ngIf="row.budget && isExpanded(row.budget.id)" class="accordion-row">
+                  <td colspan="8" class="accordion-cell">
+                    <div class="accordion-content">
+                      <p class="accordion-title">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        Version History — {{ row.category }}
+                      </p>
+                      <table class="version-table">
+                        <thead>
+                          <tr>
+                            <th>Version</th>
+                            <th>Effective Date</th>
+                            <th>Budget Amount</th>
+                            <th>Created</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr *ngFor="let v of sortedVersions(row.budget)"
+                            [class.ver-latest]="v.versionNumber === row.budget.latestVersionNumber">
+                            <td>
+                              <span class="version-chip">v{{ v.versionNumber }}</span>
+                              <span *ngIf="v.versionNumber === row.budget.latestVersionNumber" class="latest-tag">current</span>
+                            </td>
+                            <td>{{ formatVersionDate(v.effectiveDate) }}</td>
+                            <td>{{ formatCurrency(v.amount, row.budget.currency) }}</td>
+                            <td>{{ formatVersionDate(v.createdAt || '') }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+
+              </ng-container>
+
+              <!-- No categories fallback -->
+              <tr *ngIf="tableRows().length === 0">
+                <td colspan="8" class="empty-row">
+                  No categories found. Add categories in Settings first.
+                </td>
+              </tr>
+
+            </ng-container>
+          </tbody>
+        </table>
+      </div>
+
+    </app-card-content>
+  </app-card>
+
+  <!-- Delete confirm dialog -->
+  <app-confirm-dialog
+    [isOpen]="showDeleteConfirm()"
+    title="Delete Budget"
+    [message]="'Delete the budget for &quot;' + (budgetToDelete()?.category || '') + '&quot;? All version history will be permanently removed.'"
+    confirmLabel="Delete"
+    confirmVariant="danger"
+    [loading]="deleteLoading"
+    (confirmed)="handleDelete()"
+    (cancelled)="showDeleteConfirm.set(false)">
+  </app-confirm-dialog>
+
+</div>

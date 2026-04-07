@@ -1,0 +1,172 @@
+<div class="dashboard">
+  <!-- Header -->
+  <div class="dashboard-header">
+    <div>
+      <h1 class="page-title">Dashboard</h1>
+      <p class="page-subtitle">Financial overview &amp; insights</p>
+    </div>
+    <div class="header-actions">
+      <app-date-range-picker [startDate]="dateStart()" [endDate]="dateEnd()" (rangeChange)="onDateRangeChange($event)"></app-date-range-picker>
+      <app-button variant="ghost" (clicked)="loadAll()">↻ Refresh</app-button>
+    </div>
+  </div>
+
+  <app-loading *ngIf="loading()" text="Loading dashboard..."></app-loading>
+
+  <ng-container *ngIf="!loading()">
+    <!-- Summary Cards -->
+    <div class="summary-cards" *ngIf="summary()">
+      <app-card class="summary-card">
+        <app-card-content>
+          <div class="card-icon card-icon-income">↑</div>
+          <div class="card-data">
+            <p class="card-label">Total Income</p>
+            <p class="card-value">{{ formatCurrency(summary()!.totalIncome, summary()!.currency) }}</p>
+          </div>
+        </app-card-content>
+      </app-card>
+      <app-card class="summary-card">
+        <app-card-content>
+          <div class="card-icon card-icon-expense">↓</div>
+          <div class="card-data">
+            <p class="card-label">Total Expenses</p>
+            <p class="card-value">{{ formatCurrency(summary()!.totalExpenses, summary()!.currency) }}</p>
+          </div>
+        </app-card-content>
+      </app-card>
+      <app-card class="summary-card">
+        <app-card-content>
+          <div class="card-icon card-icon-savings">≡</div>
+          <div class="card-data">
+            <p class="card-label">Net Savings</p>
+            <p class="card-value" [class.positive]="((summary()!.netSavings ?? summary()!.savings) ?? 0) >= 0" [class.negative]="((summary()!.netSavings ?? summary()!.savings) ?? 0) < 0">
+              {{ formatCurrency((summary()!.netSavings ?? summary()!.savings) ?? 0, summary()!.currency) }}
+            </p>
+          </div>
+        </app-card-content>
+      </app-card>
+      <app-card class="summary-card">
+        <app-card-content>
+          <div class="card-icon card-icon-txn">⟳</div>
+          <div class="card-data">
+            <p class="card-label">Transactions</p>
+            <p class="card-value">{{ summary()!.transactionCount }}</p>
+          </div>
+        </app-card-content>
+      </app-card>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+      <!-- Pie Chart: Category Spending -->
+      <app-card class="chart-card">
+        <app-card-header><app-card-title>Spending by Category</app-card-title></app-card-header>
+        <app-card-content>
+          <div *ngIf="pieData().datasets[0].data.length; else noData" class="chart-wrapper">
+            <div class="pie-canvas-wrap">
+              <canvas baseChart [data]="pieData()" [type]="'doughnut'" [options]="pieOptions"></canvas>
+            </div>
+            <div class="pie-legend">
+              <div *ngFor="let item of summary()?.categoryBreakdown; let i = index" class="legend-item">
+                <span class="legend-dot" [style.background]="GRADIENT_COLORS[i % 10]"></span>
+                <span class="legend-label">{{ item.category || 'Uncategorized' }}</span>
+                <span class="legend-value">{{ formatCurrency(item.amount, summary()!.currency) }}</span>
+              </div>
+            </div>
+          </div>
+          <ng-template #noData><app-empty-state title="No data" description="No category data for selected period" icon="🍩"></app-empty-state></ng-template>
+        </app-card-content>
+      </app-card>
+
+      <!-- Bar Chart: Daily -->
+      <app-card class="chart-card">
+        <app-card-header><app-card-title>Daily Transactions</app-card-title></app-card-header>
+        <app-card-content>
+          <div *ngIf="barData().datasets[0].data.length; else noBarData" class="chart-wrapper bar-chart-wrapper">
+            <canvas baseChart [data]="barData()" [type]="'bar'" [options]="barOptions"></canvas>
+          </div>
+          <ng-template #noBarData><app-empty-state title="No data" description="No transactions in selected period" icon="📊"></app-empty-state></ng-template>
+        </app-card-content>
+      </app-card>
+    </div>
+
+    <!-- Upcoming Payments -->
+    <app-card>
+      <app-card-header>
+        <app-card-title>Upcoming Payments</app-card-title>
+        <div class="header-right">
+          <app-button variant="ghost" size="sm" (clicked)="generateUpcoming()">Generate</app-button>
+        </div>
+      </app-card-header>
+      <app-card-content>
+        <app-loading *ngIf="upcomingLoading()" text="Loading..."></app-loading>
+        <app-empty-state *ngIf="!upcomingLoading() && upcomingPayments().length === 0" title="No upcoming payments" description="No recurring expenses due soon" icon="📅"></app-empty-state>
+        <div *ngIf="!upcomingLoading() && upcomingPayments().length > 0" class="payments-list">
+          <div *ngFor="let p of upcomingPayments()" class="payment-item" [class.overdue]="isOverdue(p.dueDate)">
+            <div class="payment-icon" [style.background]="getCategoryColor(p.category || '')"><i [class]="getCategoryIcon(p.category || '')"></i></div>
+            <div class="payment-info">
+              <p class="payment-name">{{ p.description }}</p>
+              <p class="payment-meta">{{ getCategoryName(p.category || '') }} · Due {{ formatDate(p.dueDate) }}</p>
+            </div>
+            <div class="payment-amount">{{ formatCurrency(p.amount, summary()?.currency) }}</div>
+            <app-button size="sm" variant="ghost" (clicked)="openMarkPaidModal(p)">Mark Paid</app-button>
+          </div>
+        </div>
+        <div *ngIf="upcomingTotal() > upcomingPayments().length" class="load-more">
+          <app-button variant="ghost" (clicked)="loadMoreUpcoming()">Load more</app-button>
+        </div>
+      </app-card-content>
+    </app-card>
+
+    <!-- Recent Transactions -->
+    <app-card>
+      <app-card-header><app-card-title>Recent Transactions</app-card-title></app-card-header>
+      <app-card-content>
+        <ng-container *ngIf="transactions().length > 0; else recentFallback">
+          <div *ngFor="let group of transactions()" class="txn-group">
+            <div class="txn-date-header">{{ group.dateLabel || formatDate(group.date) }}</div>
+            <div *ngFor="let t of group.transactions" class="txn-item">
+              <div class="txn-icon" [style.background]="getCategoryColor(t.category)"><i [class]="getCategoryIcon(t.category)"></i></div>
+              <div class="txn-info">
+                <p class="txn-desc">{{ t.description || t.category }}</p>
+                <p class="txn-meta">{{ t.category }} · {{ t.paymentMethod }}</p>
+              </div>
+              <p class="txn-amount" [class.income]="t.type === 'income'" [class.expense]="t.type !== 'income'">
+                {{ t.type === 'income' ? '+' : '-' }}{{ formatCurrency(t.amount, summary()?.currency) }}
+              </p>
+            </div>
+          </div>
+        </ng-container>
+        <ng-template #recentFallback>
+          <ng-container *ngIf="summary()?.recentTransactions?.length; else noTxns">
+            <div *ngFor="let t of summary()!.recentTransactions" class="txn-item">
+              <div class="txn-icon" [style.background]="getCategoryColor(t.category)"><i [class]="getCategoryIcon(t.category)"></i></div>
+              <div class="txn-info">
+                <p class="txn-desc">{{ t.description || t.category }}</p>
+                <p class="txn-meta">{{ t.category }} · {{ t.paymentMethod }}</p>
+              </div>
+              <p class="txn-amount" [class.income]="t.type === 'income'" [class.expense]="t.type !== 'income'">
+                {{ t.type === 'income' ? '+' : '-' }}{{ formatCurrency(t.amount, summary()?.currency) }}
+              </p>
+            </div>
+          </ng-container>
+          <ng-template #noTxns>
+            <app-empty-state title="No transactions" description="No transactions found" icon="💸"></app-empty-state>
+          </ng-template>
+        </ng-template>
+      </app-card-content>
+    </app-card>
+  </ng-container>
+
+  <!-- Mark Paid Modal -->
+  <app-modal [isOpen]="showMarkPaidModal()" title="Confirm Payment" (closed)="closeMarkPaidModal()">
+    <div *ngIf="selectedPayment()" class="mark-paid-form">
+      <p>Mark <strong>{{ selectedPayment()?.description }}</strong> as paid?</p>
+      <p class="mark-paid-amount">Amount: {{ formatCurrency(selectedPayment()?.amount ?? 0, summary()?.currency) }}</p>
+      <div class="modal-actions">
+        <app-button variant="ghost" (clicked)="closeMarkPaidModal()">Cancel</app-button>
+        <app-button [loading]="markPaidLoading" (clicked)="confirmMarkPaid()">Confirm</app-button>
+      </div>
+    </div>
+  </app-modal>
+</div>

@@ -1,0 +1,17 @@
+<div class="app-layout">
+  <app-sidebar
+    [isCollapsed]="isSidebarCollapsed"
+    [isMobile]="isMobile"
+    (collapsedChange)="isSidebarCollapsed = $event"
+    #sidebar
+  ></app-sidebar>
+  <app-topbar
+    [isSidebarCollapsed]="isSidebarCollapsed"
+    [isMobile]="isMobile"
+    [bookName]="bookName"
+  ></app-topbar>
+  <main class="main-content" [class.sidebar-collapsed]="isSidebarCollapsed && !isMobile">
+    <router-outlet></router-outlet>
+  </main>
+  <app-toast-container></app-toast-container>
+</div>

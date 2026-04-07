@@ -1,0 +1,16 @@
+.app-layout { min-height: 100vh; }
+.main-content {
+  margin-left: var(--sidebar-width);
+  margin-top: var(--topbar-height);
+  padding: var(--spacing-xl);
+  transition: margin-left var(--transition-base);
+  min-height: calc(100vh - var(--topbar-height));
+}
+.main-content.sidebar-collapsed { margin-left: var(--sidebar-width-collapsed); }
+@media (max-width: 767px) {
+  .main-content {
+    margin-left: 0 !important;
+    padding: var(--spacing-md);
+    padding-bottom: calc(var(--mobile-nav-height) + var(--spacing-md));
+  }
+}

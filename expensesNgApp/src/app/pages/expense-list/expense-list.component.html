@@ -1,0 +1,262 @@
+<div class="expense-list">
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Expenses</h1>
+      <p class="page-subtitle">{{ totalCount() }} transaction(s)</p>
+    </div>
+    <div class="header-actions">
+      <app-button (clicked)="openAddModal()">+ Add Transaction</app-button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <app-card>
+    <app-card-content>
+      <div class="filter-row">
+        <app-input placeholder="Search expenses..." [value]="searchQuery()" (valueChange)="onSearch($event)" class="search-input"></app-input>
+        <app-select [value]="filterType()" (valueChange)="filterType.set($event); loadExpenses()" label="">
+          <option value="">All Types</option>
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+        </app-select>
+        <app-select [options]="categoryOptions()" [value]="filterCategory()" (valueChange)="filterCategory.set($event); loadExpenses()" label="">
+        </app-select>
+        <app-select [options]="paymentMethodOptions()" [value]="filterPayment()" (valueChange)="filterPayment.set($event); loadExpenses()" label="">
+        </app-select>
+        <app-date-range-picker [startDate]="dateStart()" [endDate]="dateEnd()" (rangeChange)="onDateRangeChange($event)"></app-date-range-picker>
+      </div>
+    </app-card-content>
+  </app-card>
+
+  <!-- Table -->
+  <app-card>
+    <app-card-content>
+      <app-loading *ngIf="loading()" text="Loading expenses..."></app-loading>
+      <app-empty-state *ngIf="!loading() && expenses().length === 0" title="No transactions found" description="Try adjusting your filters or add a new transaction" icon="💸">
+        <app-button (clicked)="openAddModal()">Add First Transaction</app-button>
+      </app-empty-state>
+      <div *ngIf="!loading() && expenses().length > 0" class="table-container">
+        <table class="expense-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Date</th>
+              <th>Payment</th>
+              <th>Type</th>
+              <th class="text-right">Amount</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let e of expenses()">
+              <td>
+                <div class="expense-desc">
+                  <div class="expense-icon" [style.background]="getCategoryColor(getStr(e.category))"><i [class]="getCategoryIcon(getStr(e.category))"></i></div>
+                  <span>{{ e.description }}</span>
+                </div>
+              </td>
+              <td><span class="badge">{{ getCategoryName(getStr(e.category)) }}</span></td>
+              <td>{{ formatDate(e.date) }}</td>
+              <td><span class="badge badge-secondary">{{ getPaymentMethodName(getStr(e.paymentMethod)) }}</span></td>
+              <td><span class="badge" [class.income-badge]="e.type === 'income'" [class.expense-badge]="e.type === 'expense'">{{ e.type }}</span></td>
+              <td class="text-right" [class.income-text]="e.type === 'income'" [class.expense-text]="e.type === 'expense'">
+                {{ e.type === 'income' ? '+' : '-' }}{{ formatCurrency(e.amount, e.currency) }}
+              </td>
+              <td class="actions-cell">
+                <app-button size="sm" variant="ghost" (clicked)="navigateToEdit(e.id)">Edit</app-button>
+                <app-button size="sm" variant="danger" (clicked)="openDeleteConfirm(e)">Delete</app-button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div *ngIf="totalCount() > pageSize" class="pagination">
+        <app-button variant="ghost" size="sm" [disabled]="currentPage() <= 1" (clicked)="goToPage(currentPage() - 1)">← Prev</app-button>
+        <span class="page-info">Page {{ currentPage() }} of {{ totalPages() }}</span>
+        <app-button variant="ghost" size="sm" [disabled]="currentPage() >= totalPages()" (clicked)="goToPage(currentPage() + 1)">Next →</app-button>
+      </div>
+    </app-card-content>
+  </app-card>
+
+  <!-- Delete Confirm -->
+  <app-confirm-dialog
+    [isOpen]="showDeleteConfirm()"
+    title="Delete Expense"
+    [message]="'Are you sure you want to delete &quot;' + (expenseToDelete()?.description || '') + '&quot;? This cannot be undone.'"
+    confirmLabel="Delete"
+    confirmVariant="danger"
+    [loading]="deleteLoading"
+    (confirmed)="handleDelete()"
+    (cancelled)="showDeleteConfirm.set(false)">
+  </app-confirm-dialog>
+
+  <!-- Add Expense Modal -->
+  <app-modal [isOpen]="showAddModal()" title="Add Transaction" maxWidth="800px" (closed)="closeAddModal()">
+    <!-- Tabs -->
+    <div class="ae-tabs">
+      <button class="ae-tab" [class.ae-tab-active]="addActiveTab() === 'manual'" (click)="addActiveTab.set('manual')">
+        <i class="fa-solid fa-pencil"></i> Manual
+      </button>
+      <button class="ae-tab" [class.ae-tab-active]="addActiveTab() === 'upload'" (click)="addActiveTab.set('upload')">
+        <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+      </button>
+    </div>
+
+    <!-- Error banner -->
+    <div *ngIf="addError()" class="ae-error">{{ addError() }}</div>
+
+    <!-- Manual tab -->
+    <div *ngIf="addActiveTab() === 'manual'">
+      <form [formGroup]="addForm" (ngSubmit)="handleAddExpense()">
+        <!-- Type Toggle -->
+        <div class="ae-type-tabs">
+          <button type="button" class="ae-type-tab" [class.ae-type-tab-expense]="addForm.get('type')?.value === 'expense'" (click)="addForm.get('type')?.setValue('expense')">Expense</button>
+          <button type="button" class="ae-type-tab" [class.ae-type-tab-income]="addForm.get('type')?.value === 'income'" (click)="addForm.get('type')?.setValue('income')">Income</button>
+        </div>
+
+        <!-- Amount + Date -->
+        <div class="ae-row">
+          <div class="ae-field">
+            <label class="ae-label">Amount *</label>
+            <div class="ae-input-icon-wrap">
+              <span class="ae-input-icon">$</span>
+              <input class="ae-input ae-input-icon-pad" type="number" formControlName="amount" placeholder="0.00" step="0.01" min="0.01">
+            </div>
+          </div>
+          <div class="ae-field">
+            <label class="ae-label">Date *</label>
+            <input class="ae-input" type="date" formControlName="date">
+          </div>
+        </div>
+
+        <!-- Category + Payment Method -->
+        <div class="ae-row">
+          <div class="ae-field">
+            <label class="ae-label">Category <span class="ae-required">*</span></label>
+            <select class="ae-select" formControlName="category">
+              <option value="">Select an option</option>
+              <option *ngFor="let c of categories()" [value]="c.id">{{ c.name }}</option>
+            </select>
+          </div>
+          <div class="ae-field">
+            <label class="ae-label">Payment Method <span class="ae-required">*</span></label>
+            <select class="ae-select" formControlName="paymentMethod">
+              <option value="">Select an option</option>
+              <option *ngFor="let p of paymentMethods()" [value]="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="ae-field">
+          <label class="ae-label">Description *</label>
+          <input class="ae-input" type="text" formControlName="description" placeholder="Brief description of the expense">
+          <span *ngIf="addForm.get('description')?.invalid && addForm.get('description')?.touched" class="ae-field-error">Description is required</span>
+        </div>
+
+        <!-- Notes -->
+        <div class="ae-field">
+          <label class="ae-label">Notes (optional)</label>
+          <textarea class="ae-textarea" formControlName="notes" placeholder="Additional notes" rows="3"></textarea>
+        </div>
+
+        <!-- Recurring checkbox -->
+        <div class="ae-checkbox-row">
+          <label class="ae-checkbox">
+            <input type="checkbox" formControlName="isRecurring">
+            <span>This is a recurring transaction</span>
+          </label>
+        </div>
+
+        <!-- Recurring frequency (conditional) -->
+        <div *ngIf="addForm.get('isRecurring')?.value" class="ae-field">
+          <label class="ae-label">Frequency</label>
+          <select class="ae-select" formControlName="recurringFrequency">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </div>
+      </form>
+    </div>
+
+    <!-- Upload tab -->
+    <div *ngIf="addActiveTab() === 'upload'">
+      <!-- Drop zone -->
+      <div class="ae-dropzone" [class.ae-dragging]="addIsDragging()"
+        (dragover)="onAddDragOver($event)" (dragleave)="onAddDragLeave()" (drop)="onAddDrop($event)">
+        <i class="fa-solid fa-cloud-arrow-up ae-drop-icon"></i>
+        <p class="ae-drop-text">Drag &amp; drop CSV file here</p>
+        <p class="ae-drop-sub">or</p>
+        <label class="ae-file-label">
+          Browse File
+          <input type="file" accept=".csv" class="ae-file-input" (change)="onAddFileInput($event)">
+        </label>
+        <p *ngIf="addImportFile()" class="ae-file-name"><i class="fa-solid fa-file-csv"></i> {{ addImportFile()?.name }}</p>
+      </div>
+
+      <!-- Download template link -->
+      <div class="ae-template-row">
+        <button type="button" class="ae-template-btn" (click)="downloadExpenseTemplate()">
+          <i class="fa-solid fa-download"></i> Download Template
+        </button>
+      </div>
+
+      <!-- Parse errors -->
+      <div *ngIf="addImportErrors().length > 0" class="ae-import-errors">
+        <p class="ae-error-title">{{ addImportErrors().length }} row(s) had issues:</p>
+        <ul>
+          <li *ngFor="let err of addImportErrors()">{{ err }}</li>
+        </ul>
+      </div>
+
+      <!-- Preview table -->
+      <div *ngIf="addImportData().length > 0" class="ae-preview">
+        <p class="ae-preview-title">Preview ({{ addImportData().length }} row{{ addImportData().length !== 1 ? 's' : '' }})</p>
+        <div class="ae-preview-table-wrap">
+          <table class="ae-preview-table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Payment Method</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of addImportData()">
+                <td>{{ row.description }}</td>
+                <td>{{ row.amount }}</td>
+                <td>{{ row.date }}</td>
+                <td>{{ row.category }}</td>
+                <td>{{ row.paymentMethod }}</td>
+                <td>{{ row.notes }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sticky footer -->
+    <div modal-footer>
+      <ng-container *ngIf="addActiveTab() === 'manual'">
+        <app-button type="button" variant="ghost" (clicked)="closeAddModal()" [disabled]="addLoading()">Cancel</app-button>
+        <app-button type="button" (clicked)="handleAddExpense()" [disabled]="addLoading()">{{ addLoading() ? 'Saving...' : addForm.get('type')?.value === 'income' ? 'Save Income' : 'Save Expense' }}</app-button>
+      </ng-container>
+      <ng-container *ngIf="addActiveTab() === 'upload' && addImportData().length > 0">
+        <app-button type="button" variant="ghost" (clicked)="closeAddModal()">Cancel</app-button>
+        <app-button type="button" [disabled]="addImportLoading()" (clicked)="handleImportExpenses()">
+          {{ addImportLoading() ? 'Importing...' : 'Import ' + addImportData().length + ' Expense(s)' }}
+        </app-button>
+      </ng-container>
+    </div>
+  </app-modal>
+</div>

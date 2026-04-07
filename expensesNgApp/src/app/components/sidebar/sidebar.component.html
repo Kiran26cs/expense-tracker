@@ -1,0 +1,27 @@
+<aside class="sidebar" [class.collapsed]="isCollapsed && !isMobile">
+  <!-- Desktop header -->
+  <a routerLink="/" class="sidebar-header" *ngIf="!isMobile">
+    <div class="sidebar-logo">E</div>
+    <span class="sidebar-title" *ngIf="!isCollapsed">ExpenseTracker</span>
+  </a>
+
+  <!-- Nav items -->
+  <nav class="sidebar-nav">
+    <a
+      *ngFor="let item of navItems"
+      [routerLink]="'/' + bookId + '/' + item.path"
+      class="nav-item"
+      [class.active]="isActive(item.path)"
+    >
+      <span class="nav-icon" role="img" [attr.aria-label]="item.label">{{ item.icon }}</span>
+      <span class="nav-label" *ngIf="!isCollapsed || isMobile">{{ item.label }}</span>
+    </a>
+  </nav>
+
+  <!-- Collapse button (desktop only) -->
+  <div class="sidebar-footer" *ngIf="!isMobile">
+    <button class="collapse-btn" (click)="toggleCollapse()" [attr.aria-label]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+      {{ isCollapsed ? '→' : '←' }}
+    </button>
+  </div>
+</aside>

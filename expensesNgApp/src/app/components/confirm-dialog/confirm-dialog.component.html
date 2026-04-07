@@ -1,0 +1,11 @@
+<div *ngIf="isOpen" class="backdrop" (click)="cancelled.emit()">
+  <div class="dialog" (click)="$event.stopPropagation()">
+    <div class="dialog-icon">{{ icon }}</div>
+    <h3 class="dialog-title">{{ title }}</h3>
+    <p class="dialog-message">{{ message }}</p>
+    <div class="dialog-actions">
+      <button class="btn-cancel" (click)="cancelled.emit()">{{ cancelLabel }}</button>
+      <button class="btn-confirm" [class.danger]="danger" [disabled]="loading" (click)="confirmed.emit()">{{ loading ? '...' : confirmLabel }}</button>
+    </div>
+  </div>
+</div>

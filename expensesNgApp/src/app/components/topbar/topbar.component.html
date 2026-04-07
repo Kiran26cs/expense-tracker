@@ -1,0 +1,41 @@
+<header class="topbar" [class.sidebar-collapsed]="isSidebarCollapsed && !isMobile">
+  <div class="topbar-left">
+    <a routerLink="/" class="app-name-link">
+      <h2 class="app-name">{{ bookName || 'ExpenseTracker' }}</h2>
+    </a>
+  </div>
+
+  <div class="topbar-center" *ngIf="!isMobile">
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input
+        type="text"
+        class="search-input"
+        placeholder="Search expenses..."
+        (input)="onSearch($event)"
+      />
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <button class="icon-btn" (click)="themeService.toggle()" [title]="themeService.theme() === 'light' ? 'Dark mode' : 'Light mode'">
+      {{ themeService.theme() === 'light' ? '🌙' : '☀️' }}
+    </button>
+
+    <div class="user-menu-wrapper" #menuWrapper>
+      <button class="avatar-btn" (click)="toggleMenu()">
+        <div class="avatar">{{ getUserInitials() }}</div>
+      </button>
+      <div class="dropdown-menu" *ngIf="isMenuOpen">
+        <div class="dropdown-user-info">
+          <div class="dropdown-name">{{ authState.user()?.name }}</div>
+          <div class="dropdown-email">{{ authState.user()?.email || authState.user()?.phone }}</div>
+        </div>
+        <div class="dropdown-divider"></div>
+        <button class="dropdown-item logout-item" (click)="authState.logout()">
+          <i class="fa-solid fa-sign-out-alt"></i> Sign Out
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
