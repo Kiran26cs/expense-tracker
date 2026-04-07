@@ -12,11 +12,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊', path: 'dashboard' },
-  { id: 'expenses', label: 'Expenses', icon: '💰', path: 'expenses' },
-  { id: 'budget', label: 'Budget', icon: '🎯', path: 'budget' },
-  { id: 'insights', label: 'Insights', icon: '📈', path: 'insights' },
-  { id: 'settings', label: 'Settings', icon: '⚙️', path: 'settings' },
+  { id: 'dashboard', label: 'Dashboard', icon: 'fa-solid fa-chart-pie', path: 'dashboard' },
+  { id: 'expenses', label: 'Expenses', icon: 'fa-solid fa-receipt', path: 'expenses' },
+  { id: 'budget', label: 'Budget', icon: 'fa-solid fa-bullseye', path: 'budget' },
+  { id: 'insights', label: 'Insights', icon: 'fa-solid fa-chart-line', path: 'insights' },
+  { id: 'settings', label: 'Settings', icon: 'fa-solid fa-gear', path: 'settings' },
 ];
 
 @Component({

@@ -9,7 +9,7 @@ import { CommonModule } from '@angular/common';
   styleUrl: './empty-state.component.css'
 })
 export class EmptyStateComponent {
-  @Input() icon = '📭';
+  @Input() icon = 'fa-solid fa-inbox';
   @Input() title = 'No data found';
   @Input() description = '';
 }

@@ -66,7 +66,7 @@
         <app-loading *ngIf="paymentLoading()" text="Loading..."></app-loading>
         <div *ngIf="!paymentLoading()" class="tags-list">
           <div *ngFor="let p of paymentMethods()" class="tag-item">
-            <span class="tag-label">{{ p.icon || '💳' }} {{ p.name }}</span>
+            <span class="tag-label"><i [class]="p.icon || 'fa fa-credit-card'"></i> {{ p.name }}</span>
             <button class="tag-delete" (click)="deletePaymentMethod(p.id || p.name)" title="Remove">×</button>
           </div>
           <p *ngIf="!paymentMethods().length" class="empty-text">No payment methods yet</p>
@@ -83,14 +83,14 @@
           <div class="import-actions">
             <label class="file-upload-btn">
               <input type="file" accept=".csv" (change)="onCSVSelect($event)" style="display:none" />
-              📂 Choose CSV File
+              <i class="fa-solid fa-folder-open"></i> Choose CSV File
             </label>
             <span *ngIf="csvFileName()" class="file-name">{{ csvFileName() }}</span>
           </div>
           <app-button *ngIf="csvFile()" [loading]="importLoading" (clicked)="handleImport()">Import Expenses</app-button>
           <div *ngIf="importResult()" class="import-result">
-            <p class="result-success">✅ Imported {{ importResult()!.imported }} expenses</p>
-            <p *ngIf="importResult()!.skipped" class="result-warning">⚠️ Skipped {{ importResult()!.skipped }}</p>
+            <p class="result-success"><i class="fa-solid fa-circle-check"></i> Imported {{ importResult()!.imported }} expenses</p>
+            <p *ngIf="importResult()!.skipped" class="result-warning"><i class="fa-solid fa-triangle-exclamation"></i> Skipped {{ importResult()!.skipped }}</p>
           </div>
         </div>
       </app-card-content>
@@ -138,17 +138,27 @@
             <!-- Inline edit mode -->
             <ng-container *ngIf="editingCatId() === c.id">
               <div class="cat-edit-row">
+                <input class="cat-edit-input cat-edit-icon-input"
+                  [value]="editCatIcon()"
+                  (input)="editCatIcon.set($any($event.target).value)"
+                  placeholder="fa fa-tag"
+                  title="Icon class" />
                 <input class="cat-edit-input"
                   [value]="editCatName()"
                   (input)="editCatName.set($any($event.target).value)"
                   (keyup.enter)="confirmUpdateCategory()"
-                  (keyup.escape)="cancelEditCat()" />
+                  (keyup.escape)="cancelEditCat()"
+                  placeholder="Category name" />
                 <button class="cat-icon-btn" (click)="confirmUpdateCategory()" title="Save">
                   <i class="fa-solid fa-check" style="color:var(--color-success)"></i>
                 </button>
                 <button class="cat-icon-btn" (click)="cancelEditCat()" title="Cancel">
                   <i class="fa-solid fa-xmark" style="color:var(--color-danger)"></i>
                 </button>
+              </div>
+              <div class="cat-edit-icon-preview" [style.color]="c.color">
+                <i [class]="editCatIcon() || 'fa-solid fa-tag'"></i>
+                <span class="cat-edit-icon-hint">Icon preview</span>
               </div>
             </ng-container>
             <!-- Normal mode -->
@@ -332,7 +342,7 @@
   <app-modal [isOpen]="showPaymentModal()" title="Add Payment Method" (closed)="showPaymentModal.set(false)">
     <div class="quick-add-form">
       <app-input label="Payment Method Name" [value]="newPaymentName" (valueChange)="newPaymentName = $event" placeholder="e.g. Credit Card"></app-input>
-      <app-input label="Icon (emoji)" [value]="newPaymentIcon" (valueChange)="newPaymentIcon = $event" placeholder="💳"></app-input>
+      <app-input label="Icon (FA class)" [value]="newPaymentIcon" (valueChange)="newPaymentIcon = $event" placeholder="fa fa-credit-card"></app-input>
       <div class="modal-actions">
         <app-button variant="ghost" (clicked)="showPaymentModal.set(false)">Cancel</app-button>
         <app-button [loading]="addPaymentLoading" (clicked)="handleAddPayment()">Add Method</app-button>

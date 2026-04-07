@@ -7,7 +7,7 @@
 
   <div class="topbar-center" *ngIf="!isMobile">
     <div class="search-bar">
-      <span class="search-icon">🔍</span>
+      <span class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
       <input
         type="text"
         class="search-input"
@@ -19,7 +19,7 @@
 
   <div class="topbar-right">
     <button class="icon-btn" (click)="themeService.toggle()" [title]="themeService.theme() === 'light' ? 'Dark mode' : 'Light mode'">
-      {{ themeService.theme() === 'light' ? '🌙' : '☀️' }}
+      <i [class]="themeService.theme() === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'"></i>
     </button>
 
     <div class="user-menu-wrapper" #menuWrapper>

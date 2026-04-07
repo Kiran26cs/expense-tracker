@@ -5,9 +5,12 @@
     [class]="'toast toast-' + toast.type"
   >
     <span class="toast-icon">
-      {{ toast.type === 'success' ? '✅' : toast.type === 'error' ? '❌' : toast.type === 'warning' ? '⚠️' : 'ℹ️' }}
+      <i *ngIf="toast.type === 'success'" class="fa-solid fa-circle-check"></i>
+      <i *ngIf="toast.type === 'error'" class="fa-solid fa-circle-xmark"></i>
+      <i *ngIf="toast.type === 'warning'" class="fa-solid fa-triangle-exclamation"></i>
+      <i *ngIf="toast.type === 'info'" class="fa-solid fa-circle-info"></i>
     </span>
     <span class="toast-message">{{ toast.message }}</span>
-    <button class="toast-close" (click)="toastService.dismiss(toast.id)">✕</button>
+    <button class="toast-close" (click)="toastService.dismiss(toast.id)"><i class="fa-solid fa-xmark"></i></button>
   </div>
 </div>

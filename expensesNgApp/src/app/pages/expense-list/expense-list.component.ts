@@ -71,6 +71,14 @@ export class ExpenseListComponent implements OnInit {
   addImportErrors = signal<string[]>([]);
   addImportLoading = signal(false);
 
+  // Add Category Sub-modal
+  showAddCategoryModal = signal(false);
+  newCatName = signal('');
+  newCatIcon = signal('fa fa-tag');
+  newCatColor = signal('#6366f1');
+  addCatLoading = signal(false);
+  addCatError = signal('');
+
   private searchTimeout: any;
 
   private expenseService = inject(ExpenseService);
@@ -186,6 +194,41 @@ export class ExpenseListComponent implements OnInit {
   }
 
   closeAddModal() { this.showAddModal.set(false); }
+
+  openAddCategoryModal() {
+    this.newCatName.set('');
+    this.newCatIcon.set('fa fa-tag');
+    this.newCatColor.set('#6366f1');
+    this.addCatError.set('');
+    this.showAddCategoryModal.set(true);
+  }
+
+  closeAddCategoryModal() { this.showAddCategoryModal.set(false); }
+
+  async handleAddCategory() {
+    if (!this.newCatName().trim()) { this.addCatError.set('Category name is required'); return; }
+    this.addCatLoading.set(true);
+    this.addCatError.set('');
+    try {
+      const res = await this.settingsService.createCategory(this.bookId, {
+        name: this.newCatName().trim(),
+        icon: this.newCatIcon() || 'fa fa-tag',
+        color: this.newCatColor() || '#6366f1',
+      });
+      if (res.success && res.data) {
+        this.categories.update(cats => [...cats, res.data]);
+        this.addForm.get('category')?.setValue(res.data.id);
+        this.toast.success('Category added');
+        this.closeAddCategoryModal();
+      } else {
+        this.addCatError.set((res as any).error || 'Failed to create category');
+      }
+    } catch (e: any) {
+      this.addCatError.set(e.message || 'Failed to create category');
+    } finally {
+      this.addCatLoading.set(false);
+    }
+  }
 
   async handleAddExpense() {
     if (this.addForm.invalid) { this.addForm.markAllAsTouched(); return; }

@@ -33,7 +33,7 @@
   <app-card>
     <app-card-content>
       <app-loading *ngIf="loading()" text="Loading expenses..."></app-loading>
-      <app-empty-state *ngIf="!loading() && expenses().length === 0" title="No transactions found" description="Try adjusting your filters or add a new transaction" icon="💸">
+      <app-empty-state *ngIf="!loading() && expenses().length === 0" title="No transactions found" description="Try adjusting your filters or add a new transaction" icon="fa-solid fa-money-bill-wave">
         <app-button (clicked)="openAddModal()">Add First Transaction</app-button>
       </app-empty-state>
       <div *ngIf="!loading() && expenses().length > 0" class="table-container">
@@ -136,7 +136,10 @@
         <!-- Category + Payment Method -->
         <div class="ae-row">
           <div class="ae-field">
-            <label class="ae-label">Category <span class="ae-required">*</span></label>
+            <label class="ae-label">
+              Category <span class="ae-required">*</span>
+              <button type="button" class="ae-add-cat-btn" (click)="openAddCategoryModal()" title="Add new category">+</button>
+            </label>
             <select class="ae-select" formControlName="category">
               <option value="">Select an option</option>
               <option *ngFor="let c of categories()" [value]="c.id">{{ c.name }}</option>
@@ -259,4 +262,39 @@
       </ng-container>
     </div>
   </app-modal>
+
+  <!-- Add Category Sub-modal -->
+  <div *ngIf="showAddCategoryModal()" class="ac-overlay" (click)="closeAddCategoryModal()">
+    <div class="ac-modal" (click)="$event.stopPropagation()">
+      <div class="ac-header">
+        <h3 class="ac-title">Add New Category</h3>
+        <button type="button" class="ac-close" (click)="closeAddCategoryModal()">✕</button>
+      </div>
+      <div *ngIf="addCatError()" class="ae-error">{{ addCatError() }}</div>
+      <div class="ac-body">
+        <div class="ae-field">
+          <label class="ae-label">Category Name *</label>
+          <input class="ae-input" type="text" [value]="newCatName()" (input)="newCatName.set($any($event.target).value)" placeholder="e.g. Travel" maxlength="50">
+        </div>
+        <div class="ae-row">
+          <div class="ae-field">
+            <label class="ae-label">Icon (FA class)</label>
+            <input class="ae-input" type="text" [value]="newCatIcon()" (input)="newCatIcon.set($any($event.target).value)" placeholder="fa fa-tag" maxlength="50">
+          </div>
+          <div class="ae-field">
+            <label class="ae-label">Color</label>
+            <div class="ac-color-wrap">
+              <input class="ac-color-input" type="color" [value]="newCatColor()" (input)="newCatColor.set($any($event.target).value)">
+              <span class="ac-color-hex">{{ newCatColor() }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ac-footer">
+        <app-button type="button" variant="ghost" (clicked)="closeAddCategoryModal()" [disabled]="addCatLoading()">Cancel</app-button>
+        <app-button type="button" (clicked)="handleAddCategory()" [loading]="addCatLoading()">Add Category</app-button>
+      </div>
+    </div>
+  </div>
+
 </div>

@@ -29,7 +29,7 @@ export class ExpenseBookDashboardComponent implements OnInit {
   createLoading = false;
   deleteLoading = false;
   createError = '';
-  createForm: CreateExpenseBookRequest = { name: '', description: '', currency: 'USD', icon: '📖' };
+  createForm: CreateExpenseBookRequest = { name: '', description: '', currency: 'USD', icon: 'fa fa-book' };
 
   private bookService = inject(ExpenseBookService);
   private auth = inject(AuthStateService);
@@ -53,7 +53,7 @@ export class ExpenseBookDashboardComponent implements OnInit {
     this.router.navigate([`/${book.id}/dashboard`]);
   }
 
-  openCreateModal() { this.createForm = { name: '', description: '', currency: 'USD', icon: '📖' }; this.createError = ''; this.showCreateModal.set(true); }
+  openCreateModal() { this.createForm = { name: '', description: '', currency: 'USD', icon: 'fa fa-book' }; this.createError = ''; this.showCreateModal.set(true); }
   closeCreateModal() { this.showCreateModal.set(false); }
 
   async handleCreate() {

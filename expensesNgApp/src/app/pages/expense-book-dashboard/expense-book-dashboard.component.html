@@ -24,14 +24,14 @@
       *ngIf="books().length === 0"
       title="No expense books yet"
       description="Create your first expense book to start tracking"
-      icon="📚">
+      icon="fa-solid fa-book-open">
       <app-button (clicked)="openCreateModal()">Create First Book</app-button>
     </app-empty-state>
 
     <div *ngIf="books().length > 0" class="books-grid">
       <div *ngFor="let book of books()" class="book-card" (click)="navigateToBook(book)">
         <div class="book-icon" [style.background]="book.color || 'var(--gradient-primary)'">
-          {{ book.icon || '📖' }}
+          <i [class]="book.icon || 'fa fa-book'"></i>
         </div>
         <div class="book-info">
           <h3 class="book-name">{{ book.name }}</h3>
@@ -44,7 +44,7 @@
           </div>
         </div>
         <button class="book-delete" (click)="openDeleteConfirm(book, $event)" title="Delete book">
-          ✕
+          <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
     </div>
@@ -58,7 +58,7 @@
       <app-input label="Description (optional)" [value]="createForm.description || ''" (valueChange)="createForm.description = $event" placeholder="What is this book for?"></app-input>
       <div class="form-row">
         <app-input label="Currency" [value]="createForm.currency || 'USD'" (valueChange)="createForm.currency = $event" placeholder="USD"></app-input>
-        <app-input label="Icon (emoji)" [value]="createForm.icon || ''" (valueChange)="createForm.icon = $event" placeholder="📖"></app-input>
+        <app-input label="Icon (FA class)" [value]="createForm.icon || ''" (valueChange)="createForm.icon = $event" placeholder="fa fa-book"></app-input>
       </div>
       <div class="modal-actions">
         <app-button type="button" variant="ghost" (clicked)="closeCreateModal()">Cancel</app-button>

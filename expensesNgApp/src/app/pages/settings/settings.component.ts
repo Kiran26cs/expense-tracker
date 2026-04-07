@@ -81,6 +81,7 @@ export class SettingsComponent implements OnInit {
   // Inline edit
   editingCatId = signal<string | null>(null);
   editCatName = signal('');
+  editCatIcon = signal('');
   // Import
   importCatFile = signal<File | null>(null);
   importCatData = signal<Array<{ name: string; icon: string; color: string }>>([]);
@@ -180,7 +181,7 @@ export class SettingsComponent implements OnInit {
 
   backToMainView() { this.catView.set('main'); this.catError.set(''); }
 
-  startEditCat(cat: any) { this.editingCatId.set(cat.id); this.editCatName.set(cat.name); }
+  startEditCat(cat: any) { this.editingCatId.set(cat.id); this.editCatName.set(cat.name); this.editCatIcon.set(cat.icon || 'fa-solid fa-tag'); }
   cancelEditCat() { this.editingCatId.set(null); }
 
   async confirmUpdateCategory() {
@@ -190,7 +191,7 @@ export class SettingsComponent implements OnInit {
     if (!cat) return;
     this.catModalLoading.set(true);
     try {
-      const res = await this.settingsService.updateCategory(this.bookId, id, { name: this.editCatName(), icon: cat.icon, color: cat.color });
+      const res = await this.settingsService.updateCategory(this.bookId, id, { name: this.editCatName(), icon: this.editCatIcon() || cat.icon, color: cat.color });
       if (res.success) { this.editingCatId.set(null); this.showCatSuccess('Category updated!'); await this.loadCategories(); }
       else this.catError.set(res.error || 'Failed to update');
     } catch (e: any) { this.catError.set(e.message); }
@@ -304,7 +305,7 @@ export class SettingsComponent implements OnInit {
     if (!this.newPaymentName.trim()) return;
     this.addPaymentLoading = true;
     try {
-      const res = await this.settingsService.createPaymentMethod(this.bookId, { name: this.newPaymentName, icon: this.newPaymentIcon || '💳' });
+      const res = await this.settingsService.createPaymentMethod(this.bookId, { name: this.newPaymentName, icon: this.newPaymentIcon || 'fa fa-credit-card' });
       if (res.success) { this.toast.success('Payment method added'); this.loadPaymentMethods(); this.showPaymentModal.set(false); }
       else this.toast.error(res.error || 'Failed');
     } catch (e: any) { this.toast.error(e.message); }

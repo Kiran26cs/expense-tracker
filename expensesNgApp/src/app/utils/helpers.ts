@@ -56,9 +56,10 @@ export const debounce = <T extends (...args: any[]) => any>(func: T, wait: numbe
 
 export const getCategoryIcon = (category: string): string => {
   const icons: Record<string, string> = {
-    food: '🍔', transport: '🚗', shopping: '🛍️', bills: '📱', entertainment: '🎬',
+    food: 'fa-solid fa-utensils', transport: 'fa-solid fa-car', shopping: 'fa-solid fa-bag-shopping',
+    bills: 'fa-solid fa-file-invoice-dollar', entertainment: 'fa-solid fa-film',
   };
-  return icons[category?.toLowerCase()] || '💰';
+  return icons[category?.toLowerCase()] || 'fa-solid fa-tag';
 };
 
 export const getCategoryColor = (category: string): string => {

@@ -100,7 +100,7 @@
       </app-card-header>
       <app-card-content>
         <app-loading *ngIf="upcomingLoading()" text="Loading..."></app-loading>
-        <app-empty-state *ngIf="!upcomingLoading() && upcomingPayments().length === 0" title="No upcoming payments" description="No recurring expenses due soon" icon="📅"></app-empty-state>
+        <app-empty-state *ngIf="!upcomingLoading() && upcomingPayments().length === 0" title="No upcoming payments" description="No recurring expenses due soon" icon="fa-solid fa-calendar-days"></app-empty-state>
         <div *ngIf="!upcomingLoading() && upcomingPayments().length > 0" class="payments-list">
           <div *ngFor="let p of upcomingPayments()" class="payment-item" [class.overdue]="isOverdue(p.dueDate)">
             <div class="payment-icon" [style.background]="getCategoryColor(p.category || '')"><i [class]="getCategoryIcon(p.category || '')"></i></div>
@@ -151,7 +151,7 @@
             </div>
           </ng-container>
           <ng-template #noTxns>
-            <app-empty-state title="No transactions" description="No transactions found" icon="💸"></app-empty-state>
+            <app-empty-state title="No transactions" description="No transactions found" icon="fa-solid fa-receipt"></app-empty-state>
           </ng-template>
         </ng-template>
       </app-card-content>

@@ -82,6 +82,9 @@ app-card-content { display: block; }
 
 .cat-edit-row { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
 .cat-edit-input { flex: 1; padding: 0.4rem 0.75rem; border: 1px solid var(--color-primary); border-radius: 0.5rem; font-size: 0.9rem; outline: none; background: var(--color-surface); color: var(--color-text-primary); }
+.cat-edit-icon-input { flex: 0 0 160px; font-family: monospace; font-size: 0.8rem; }
+.cat-edit-icon-preview { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.35rem; font-size: 1.1rem; }
+.cat-edit-icon-hint { font-size: 0.72rem; color: var(--color-text-secondary); }
 
 /* ── Tabs ── */
 .cat-tabs { display: flex; border-bottom: 2px solid var(--color-border); margin-bottom: 1.5rem; }
