@@ -11,6 +11,7 @@ import { DateRangePicker } from '@/components/DateRangePicker/DateRangePicker';
 import { expenseApi } from '@/services/expense.api';
 import { dashboardApi } from '@/services/dashboard.api';
 import { formatCurrency, formatDate } from '@/utils/helpers';
+import { useCategories } from '@/hooks/useCategories';
 import type { Expense } from '@/types';
 import styles from './ExpenseList.module.css';
 
@@ -31,6 +32,7 @@ export const ExpenseListPage = () => {
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const dateFilterButtonRef = useRef<HTMLButtonElement>(null);
+  const { categoryFilterOptions, getCategoryColor: getCatColor, getCategoryIcon: getCatIcon, getCategoryName } = useCategories();
 
   const handleDateRangeChange = (start: string, end: string) => {
     setStartDate(start);
@@ -174,14 +176,7 @@ export const ExpenseListPage = () => {
   }
 
   const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      food: '#f59e0b',
-      transport: '#6366f1',
-      shopping: '#ec4899',
-      bills: '#10b981',
-      entertainment: '#8b5cf6',
-    };
-    return colors[category] || '#6366f1';
+    return getCatColor(category);
   };
 
   return (
@@ -190,7 +185,7 @@ export const ExpenseListPage = () => {
         <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Expenses</h1>
         <Button variant="primary" onClick={() => setImportModalOpen(true)}>
           <i className="fa-solid fa-plus" style={{ marginRight: '0.5rem' }}></i>
-          Add Expense
+          Add Transaction
         </Button>
       </div>
 
@@ -220,14 +215,7 @@ export const ExpenseListPage = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <Select
-              options={[
-                { value: 'all', label: 'All Categories' },
-                { value: 'food', label: '🍔 Food & Dining' },
-                { value: 'transport', label: '🚗 Transportation' },
-                { value: 'shopping', label: '🛍️ Shopping' },
-                { value: 'bills', label: '📱 Bills & Utilities' },
-                { value: 'entertainment', label: '🎬 Entertainment' },
-              ]}
+              options={categoryFilterOptions}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="Filter by category"
@@ -602,14 +590,5 @@ function getCategoryIcon(category: any): string {
   if (typeof category === 'object' && category.icon) {
     return category.icon;
   }
-  
-  const categoryIcons: Record<string, string> = {
-    food: '🍔',
-    transport: '🚗',
-    shopping: '🛍️',
-    bills: '📱',
-    entertainment: '🎬',
-  };
-  
-  return categoryIcons[category] || '💰';
+  return 'fa-solid fa-receipt';
 }

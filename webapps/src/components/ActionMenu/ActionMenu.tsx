@@ -44,7 +44,7 @@ export const ActionMenu = ({ onAddExpense, onImportCSV }: ActionMenuProps) => {
         onClick={() => setIsOpen(!isOpen)}
         title="Action menu"
       >
-        + Add Expense
+        + Add Transaction
         <span className={styles['dropdown-icon']}>▼</span>
       </button>
 
@@ -66,8 +66,8 @@ export const ActionMenu = ({ onAddExpense, onImportCSV }: ActionMenuProps) => {
           >
             <span className={styles.icon}><i className="fa-solid fa-plus" /></span>
             <div className={styles['item-content']}>
-              <div className={styles['item-title']}>Add Expense</div>
-              <div className={styles['item-description']}>Add a single expense</div>
+              <div className={styles['item-title']}>Add Transaction</div>
+              <div className={styles['item-description']}>Add a single expense or income</div>
             </div>
           </button>
 

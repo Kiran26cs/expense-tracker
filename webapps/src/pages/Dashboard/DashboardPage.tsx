@@ -11,6 +11,7 @@ import { useApi } from '@/hooks/useApi';
 import { useToast } from '@/hooks/useToast';
 import { dashboardApi } from '@/services/dashboard.api';
 import { formatCurrency, formatDate } from '@/utils/helpers';
+import { useCategories } from '@/hooks/useCategories';
 import type { UpcomingPayment } from '@/types';
 import styles from './Dashboard.module.css';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -27,29 +28,7 @@ const GRADIENT_COLORS = [
   { start: '#fdba74', end: '#f97316' },
 ];
 
-// Helper to get category icon
-function getCategoryIcon(category: string): string {
-  const categoryIcons: Record<string, string> = {
-    food: '🍔',
-    transport: '🚗',
-    shopping: '🛍️',
-    bills: '📱',
-    entertainment: '🎬',
-  };
-  return categoryIcons[category] || '💰';
-}
-
-// Helper to get category color for charts
-function getCategoryColor(category: string): string {
-  const categoryColors: Record<string, string> = {
-    food: '#6366f1',
-    transport: '#ef4444',
-    shopping: '#f97316',
-    bills: '#8b5cf6',
-    entertainment: '#ec4899',
-  };
-  return categoryColors[category] || '#6366f1';
-}
+// Category helpers are now provided by useCategories hook (used inside the component)
 
 // Custom label for pie chart with amount and percentage
 const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }: any) => {
@@ -118,6 +97,9 @@ export const DashboardPage = () => {
   const [selectedPayment, setSelectedPayment] = useState<UpcomingPayment | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isPaymentModalLoading, setIsPaymentModalLoading] = useState(false);
+
+  // Dynamic categories
+  const { getCategoryIcon, getCategoryColor, getCategoryName } = useCategories();
 
   // Extract bookId from URL params
   const { bookId } = useParams<{ bookId: string }>();

@@ -8,6 +8,7 @@ import { EmptyState, Loading, ErrorState } from '@/components/Loading/Loading';
 import { budgetApi } from '@/services/budget.api';
 import { expenseApi } from '@/services/expense.api';
 import { formatCurrency } from '@/utils/helpers';
+import { useCategories } from '@/hooks/useCategories';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import type { Budget } from '@/types';
 import styles from './BudgetPage.module.css';
@@ -21,6 +22,7 @@ interface BudgetModalProps {
 }
 
 const BudgetModal = ({ isOpen, onClose, onSuccess, editBudget, bookId }: BudgetModalProps) => {
+  const { categoryOptions } = useCategories();
   const [category, setCategory] = useState('');
   const [plannedAmount, setPlannedAmount] = useState('');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -87,13 +89,7 @@ const BudgetModal = ({ isOpen, onClose, onSuccess, editBudget, bookId }: BudgetM
         <form onSubmit={handleSubmit} className={styles.modalForm}>
           <Select
             label="Category"
-            options={[
-              { value: 'food', label: '🍔 Food & Dining' },
-              { value: 'transport', label: '🚗 Transportation' },
-              { value: 'shopping', label: '🛍️ Shopping' },
-              { value: 'bills', label: '📱 Bills & Utilities' },
-              { value: 'entertainment', label: '🎬 Entertainment' },
-            ]}
+            options={categoryOptions}
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             required
@@ -199,6 +195,7 @@ const ChartModal = ({ isOpen, onClose, budgets, month }: ChartModalProps) => {
 export const BudgetPage = () => {
   const navigate = useNavigate();
   const { bookId } = useParams<{ bookId: string }>();
+  const { getCategoryIcon: getCatIcon, getCategoryColor, getCategoryName } = useCategories();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -273,14 +270,7 @@ export const BudgetPage = () => {
   };
 
   const getCategoryIcon = (categoryId: string) => {
-    const icons: Record<string, string> = {
-      food: '🍔',
-      transport: '🚗',
-      shopping: '🛍️',
-      bills: '📱',
-      entertainment: '🎬',
-    };
-    return icons[categoryId] || '💰';
+    return getCatIcon(categoryId);
   };
 
   if (loading) {

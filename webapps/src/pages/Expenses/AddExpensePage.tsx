@@ -7,12 +7,14 @@ import { Select } from '@/components/Select/Select';
 import { Textarea } from '@/components/Input/Input';
 import ToastContainer from '@/components/Toast/ToastContainer';
 import { expenseApi } from '@/services/expense.api';
+import { useCategories } from '@/hooks/useCategories';
 import { useToast } from '@/hooks/useToast';
 
 export const AddExpensePage = () => {
   const navigate = useNavigate();
   const { bookId } = useParams<{ bookId: string }>();
   const { toasts, dismissToast, success: showSuccess, error: showError } = useToast();
+  const { categoryOptions, paymentMethodOptions } = useCategories();
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [category, setCategory] = useState('');
@@ -117,13 +119,7 @@ export const AddExpensePage = () => {
 
           <Select
             label="Category"
-            options={[
-              { value: 'food', label: '🍔 Food & Dining' },
-              { value: 'transport', label: '🚗 Transportation' },
-              { value: 'shopping', label: '🛍️ Shopping' },
-              { value: 'bills', label: '📱 Bills & Utilities' },
-              { value: 'entertainment', label: '🎬 Entertainment' },
-            ]}
+            options={categoryOptions}
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             required
@@ -131,12 +127,7 @@ export const AddExpensePage = () => {
 
           <Select
             label="Payment Method"
-            options={[
-              { value: 'cash', label: 'Cash' },
-              { value: 'card', label: 'Credit/Debit Card' },
-              { value: 'upi', label: 'UPI' },
-              { value: 'bank', label: 'Bank Transfer' },
-            ]}
+            options={paymentMethodOptions}
             value={paymentMethod}
             onChange={(e) => setPaymentMethod(e.target.value)}
             required

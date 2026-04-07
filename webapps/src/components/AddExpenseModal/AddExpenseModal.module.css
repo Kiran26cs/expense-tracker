@@ -100,6 +100,47 @@
   gap: 20px;
 }
 
+.typeTabs {
+  display: flex;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.typeTab {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 0.2s;
+}
+
+.typeTab:hover {
+  background: #f9fafb;
+}
+
+.typeTabExpense {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.typeTabExpense:hover {
+  background: #fecaca;
+}
+
+.typeTabIncome {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.typeTabIncome:hover {
+  background: #bbf7d0;
+}
+
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr;

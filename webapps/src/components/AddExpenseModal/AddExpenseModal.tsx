@@ -3,6 +3,7 @@ import { Input, Textarea } from '@/components/Input/Input';
 import { Select } from '@/components/Select/Select';
 import { Button } from '@/components/Button/Button';
 import { expenseApi } from '@/services/expense.api';
+import { useCategories } from '@/hooks/useCategories';
 import styles from './AddExpenseModal.module.css';
 
 interface AddExpenseModalProps {
@@ -12,6 +13,8 @@ interface AddExpenseModalProps {
 }
 
 export const AddExpenseModal = ({ isOpen, onClose, onSuccess }: AddExpenseModalProps) => {
+  const { categoryOptions, paymentMethodOptions } = useCategories();
+  const [type, setType] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [category, setCategory] = useState('');
@@ -24,6 +27,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onSuccess }: AddExpenseModalP
   const [error, setError] = useState('');
 
   const resetForm = () => {
+    setType('expense');
     setAmount('');
     setDate(new Date().toISOString().split('T')[0]);
     setCategory('');
@@ -47,6 +51,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onSuccess }: AddExpenseModalP
     
     try {
       const expenseData: any = {
+        type,
         amount: parseFloat(amount),
         date: new Date(date).toISOString(),
         category,
@@ -71,10 +76,10 @@ export const AddExpenseModal = ({ isOpen, onClose, onSuccess }: AddExpenseModalP
         onSuccess();
         onClose();
       } else {
-        setError(response.error || 'Failed to create expense');
+        setError(response.error || `Failed to create ${type}`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create expense');
+      setError(err instanceof Error ? err.message : `Failed to create ${type}`);
     } finally {
       setLoading(false);
     }
@@ -86,7 +91,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onSuccess }: AddExpenseModalP
     <div className={styles.overlay} onClick={handleClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2 className={styles.title}>Add Expense</h2>
+          <h2 className={styles.title}>Add Transaction</h2>
           <button className={styles.closeButton} onClick={handleClose}>
             ✕
           </button>
@@ -99,6 +104,23 @@ export const AddExpenseModal = ({ isOpen, onClose, onSuccess }: AddExpenseModalP
         )}
 
         <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.typeTabs}>
+            <button
+              type="button"
+              className={`${styles.typeTab} ${type === 'expense' ? styles.typeTabExpense : ''}`}
+              onClick={() => setType('expense')}
+            >
+              Expense
+            </button>
+            <button
+              type="button"
+              className={`${styles.typeTab} ${type === 'income' ? styles.typeTabIncome : ''}`}
+              onClick={() => setType('income')}
+            >
+              Income
+            </button>
+          </div>
+
           <div className={styles.row}>
             <Input
               label="Amount"
@@ -123,13 +145,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onSuccess }: AddExpenseModalP
           <div className={styles.row}>
             <Select
               label="Category"
-              options={[
-                { value: 'food', label: '🍔 Food & Dining' },
-                { value: 'transport', label: '🚗 Transportation' },
-                { value: 'shopping', label: '🛍️ Shopping' },
-                { value: 'bills', label: '📱 Bills & Utilities' },
-                { value: 'entertainment', label: '🎬 Entertainment' },
-              ]}
+              options={categoryOptions}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               required
@@ -137,12 +153,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onSuccess }: AddExpenseModalP
 
             <Select
               label="Payment Method"
-              options={[
-                { value: 'cash', label: 'Cash' },
-                { value: 'card', label: 'Credit/Debit Card' },
-                { value: 'upi', label: 'UPI' },
-                { value: 'bank', label: 'Bank Transfer' },
-              ]}
+              options={paymentMethodOptions}
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
               required
@@ -197,7 +208,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onSuccess }: AddExpenseModalP
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : 'Save Expense'}
+              {loading ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </form>

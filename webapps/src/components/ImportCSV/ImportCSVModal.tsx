@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Modal } from '@/components/Modal/Modal';
 import { Button } from '@/components/Button/Button';
 import { Input } from '@/components/Input/Input';
 import { Select } from '@/components/Select/Select';
 import { expenseApi } from '@/services/expense.api';
+import { settingsApi } from '@/services/settings.api';
 import styles from './ImportCSVModal.module.css';
 
 interface ImportCSVModalProps {
@@ -37,6 +38,24 @@ export const ImportCSVModal = ({ isOpen, onClose, onSuccess, expenseBookId }: Im
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // ── Lookup data ──
+  const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    settingsApi.getCategories().then(res => {
+      if (res.success && res.data) {
+        setCategories(res.data.map((c: any) => ({ value: c.name, label: c.name })));
+      }
+    }).catch(() => {});
+    settingsApi.getPaymentMethods().then(res => {
+      if (res.success && res.data) {
+        setPaymentMethods(res.data.map((p: any) => ({ value: p.type ?? p.name, label: p.name })));
+      }
+    }).catch(() => {});
+  }, [isOpen]);
 
   // ──────────────── Manual – Submit ────────────────
   const handleManualSubmit = async (e: React.FormEvent) => {
@@ -288,30 +307,14 @@ export const ImportCSVModal = ({ isOpen, onClose, onSuccess, expenseBookId }: Im
               <div className={styles.formRow}>
                 <Select
                   label="Category"
-                  options={[
-                    { value: 'food', label: 'Food & Dining' },
-                    { value: 'transport', label: 'Transportation' },
-                    { value: 'shopping', label: 'Shopping' },
-                    { value: 'bills', label: 'Bills & Utilities' },
-                    { value: 'entertainment', label: 'Entertainment' },
-                    { value: 'health', label: 'Health' },
-                    { value: 'education', label: 'Education' },
-                    { value: 'rent', label: 'Rent' },
-                    { value: 'groceries', label: 'Groceries' },
-                    { value: 'other', label: 'Other' },
-                  ]}
+                  options={categories}
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   required
                 />
                 <Select
                   label="Payment Method"
-                  options={[
-                    { value: 'cash', label: 'Cash' },
-                    { value: 'card', label: 'Credit/Debit Card' },
-                    { value: 'upi', label: 'UPI' },
-                    { value: 'bank', label: 'Bank Transfer' },
-                  ]}
+                  options={paymentMethods}
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   required
