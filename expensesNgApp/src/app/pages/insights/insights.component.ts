@@ -46,6 +46,43 @@ export class InsightsComponent implements OnInit {
   recurringToDelete = signal<any>(null);
   deleteRecurringLoading = false;
 
+  // Loan Calculator
+  loanTotalValue = signal(0);
+  loanROI = signal(18);
+  loanDownPaymentPct = signal(10);
+  loanYears = signal(2);
+
+  loanDownPaymentAmt  = computed(() => this.loanTotalValue() * (this.loanDownPaymentPct() / 100));
+  loanPrincipal       = computed(() => Math.max(0, this.loanTotalValue() - this.loanDownPaymentAmt()));
+  loanMonthlyRate     = computed(() => this.loanROI() / 100 / 12);
+  loanMonths          = computed(() => this.loanYears() * 12);
+  loanEMI = computed(() => {
+    const P = this.loanPrincipal(), r = this.loanMonthlyRate(), n = this.loanMonths();
+    if (!P || !n) return 0;
+    if (r === 0) return P / n;
+    return (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+  });
+  loanTotalPayment  = computed(() => this.loanEMI() * this.loanMonths());
+  loanTotalInterest = computed(() => this.loanTotalPayment() - this.loanPrincipal());
+  loanInterestPct   = computed(() => {
+    const p = this.loanPrincipal();
+    return p > 0 ? Math.round((this.loanTotalInterest() / p) * 100) : 0;
+  });
+
+  // EMI Affordability indicator (expense+EMI / income * 100)
+  loanAffordabilityRatio = computed(() => {
+    const inc = this.avgMonthlyIncome();
+    if (!inc || !this.loanEMI()) return null;
+    return ((this.avgMonthlyExpenses() + this.loanEMI()) / inc) * 100;
+  });
+  loanAffordability = computed(() => {
+    const r = this.loanAffordabilityRatio();
+    if (r === null) return null;
+    if (r >= 50) return { level: 'high',   icon: 'fa-solid fa-face-sad-tear',    color: '#ef4444', label: 'High Risk',    tooltip: `Your expense-to-income ratio would be ${r.toFixed(1)}% — this EMI is likely unaffordable. Consider a longer tenure or a higher down payment.` };
+    if (r >= 40) return { level: 'medium', icon: 'fa-solid fa-face-meh',         color: '#f59e0b', label: 'Medium Risk',  tooltip: `Your expense-to-income ratio would be ${r.toFixed(1)}% — this EMI is manageable but stretches your budget.` };
+    return             { level: 'low',    icon: 'fa-solid fa-face-smile-beam',   color: '#10b981', label: 'Comfortable', tooltip: `Your expense-to-income ratio would be ${r.toFixed(1)}% — this EMI fits comfortably within your income.` };
+  });
+
   protected readonly formatCurrency = formatCurrency;
   protected readonly formatDate = formatDate;
 

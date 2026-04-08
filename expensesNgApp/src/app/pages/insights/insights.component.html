@@ -95,6 +95,90 @@
         </div>
       </app-card-content>
     </app-card>
+
+    <!-- ── Loan Calculator ── -->
+    <app-card class="loan-card">
+      <app-card-header>
+        <app-card-title><i class="fa-solid fa-calculator"></i> Loan Calculator</app-card-title>
+      </app-card-header>
+      <app-card-content>
+        <!-- Inputs: all on one row -->
+        <div class="loan-row">
+          <div class="loan-field loan-field--primary">
+            <label class="loan-label">Asset Value <span class="loan-req">*</span></label>
+            <div class="loan-input-wrap">
+              <span class="loan-currency-sym">{{ currency() }}</span>
+              <input class="loan-input loan-input--primary" type="number" placeholder="e.g. 500000" min="0"
+                [value]="loanTotalValue() || ''"
+                (input)="loanTotalValue.set(+$any($event.target).value || 0)" />
+            </div>
+          </div>
+          <div class="loan-field">
+            <label class="loan-label">ROI (%)</label>
+            <input class="loan-input" type="number" min="0.1" max="100" step="0.1"
+              [value]="loanROI()" (input)="loanROI.set(+$any($event.target).value || 18)" />
+          </div>
+          <div class="loan-field">
+            <label class="loan-label">Down Pmt (%)</label>
+            <input class="loan-input" type="number" min="0" max="99" step="1"
+              [value]="loanDownPaymentPct()" (input)="loanDownPaymentPct.set(+$any($event.target).value || 0)" />
+            <span *ngIf="loanTotalValue() > 0" class="loan-hint">{{ formatCurrency(loanDownPaymentAmt(), currency()) }} upfront</span>
+          </div>
+          <div class="loan-field">
+            <label class="loan-label">Tenure (Yrs)</label>
+            <input class="loan-input" type="number" min="1" max="30" step="1"
+              [value]="loanYears()" (input)="loanYears.set(+$any($event.target).value || 1)" />
+            <span class="loan-hint">{{ loanMonths() }} months</span>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <ng-container *ngIf="loanTotalValue() > 0; else loanEmpty">
+          <div class="loan-results">
+            <div class="loan-result-card loan-result--emi">
+              <div class="loan-result-top">
+                <div>
+                  <p class="loan-result-label">Monthly EMI</p>
+                  <p class="loan-result-value">{{ formatCurrency(loanEMI(), currency()) }}</p>
+                  <p class="loan-result-sub">{{ loanMonths() }} months</p>
+                </div>
+                <div class="loan-afford-side">
+                  <ng-container *ngIf="loanAffordability() as aff">
+                    <div class="loan-afford-badge" [style.color]="aff.color" [style.border-color]="aff.color">
+                      <i [class]="aff.icon"></i><span>{{ aff.label }}</span>
+                      <div class="loan-afford-tooltip">{{ aff.tooltip }}</div>
+                    </div>
+                  </ng-container>
+                  <ng-container *ngIf="!loanAffordability()">
+                    <span class="loan-afford-na" title="Add income transactions to see affordability">
+                      <i class="fa-solid fa-circle-info"></i>
+                    </span>
+                  </ng-container>
+                </div>
+              </div>
+            </div>
+            <div class="loan-result-card loan-result--principal">
+              <p class="loan-result-label">Principal</p>
+              <p class="loan-result-value">{{ formatCurrency(loanPrincipal(), currency()) }}</p>
+              <p class="loan-result-sub">after {{ loanDownPaymentPct() }}% down</p>
+            </div>
+            <div class="loan-result-card loan-result--interest">
+              <p class="loan-result-label">Total Interest</p>
+              <p class="loan-result-value loan-result-value--interest">{{ formatCurrency(loanTotalInterest(), currency()) }}</p>
+              <p class="loan-result-sub">{{ loanInterestPct() }}% over principal · outflow {{ formatCurrency(loanTotalPayment(), currency()) }}</p>
+            </div>
+          </div>
+        </ng-container>
+        <ng-template #loanEmpty>
+          <div class="loan-empty">
+            <i class="fa-solid fa-calculator loan-empty-icon"></i>
+            <p>Enter a value above to see your EMI breakdown</p>
+          </div>
+        </ng-template>
+
+      </app-card-content>
+    </app-card>
+
   </ng-container>
 </div>
 
