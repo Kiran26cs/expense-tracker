@@ -27,16 +27,30 @@ export class AuthStateService {
 
   clearToken(): void {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
+  }
+
+  private persistUser(user: User): void {
+    console.log('persisted user...', user);
+    localStorage.setItem('authUser', JSON.stringify(user));
+    this.userSignal.set(user);
   }
 
   async checkAuth(): Promise<void> {
     const token = this.getToken();
     if (token) {
+      // Restore from localStorage immediately so UI shows correct name/email right away
+      const cached = localStorage.getItem('authUser');
+      if (cached) {
+        try { this.userSignal.set(JSON.parse(cached)); } catch { /* ignore */ }
+      }
       try {
         const response = await firstValueFrom(this.api.get<ApiResponse<User>>('/Auth/me'));
-        if (response.success && response.data) {
-          this.userSignal.set(response.data);
-        } else {
+        // Guard against race condition: if the user logged in while this call was in-flight
+        // the token has changed and this stale response must not overwrite the fresh login.
+        if (this.getToken() === token && response.success && response.data) {
+          this.persistUser(response.data);
+        } else if (!cached) {
           this.clearToken();
         }
       } catch {
@@ -52,9 +66,11 @@ export class AuthStateService {
     const response = await firstValueFrom(
       this.api.post<ApiResponse<{ token: string; user: User }>>(`/Auth/login?otp=${otp}`, { email, phone })
     );
+    
     if (response.success && response.data) {
+      console.log('email...', email, response.data.user);
       this.setToken(response.data.token);
-      this.userSignal.set(response.data.user);
+      this.persistUser(response.data.user);
     } else {
       throw new Error(response.error || 'Login failed');
     }
@@ -70,7 +86,7 @@ export class AuthStateService {
     );
     if (response.success && response.data) {
       this.setToken(response.data.token);
-      this.userSignal.set(response.data.user);
+      this.persistUser(response.data.user);
     } else {
       throw new Error(response.error || 'Signup failed');
     }
@@ -82,7 +98,7 @@ export class AuthStateService {
     );
     if (response.success && response.data) {
       this.setToken(response.data.token);
-      this.userSignal.set(response.data.user);
+      this.persistUser(response.data.user);
     } else {
       throw new Error(response.error || 'Google login failed');
     }

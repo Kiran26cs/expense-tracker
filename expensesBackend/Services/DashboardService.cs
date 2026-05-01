@@ -17,20 +17,22 @@ public class DashboardService : IDashboardService
         _expenseService = expenseService;
     }
 
-    public async Task<DashboardSummary> GetSummaryAsync(string userId, string? expenseBookId, DateTime? startDate, DateTime? endDate)
+    public async Task<DashboardSummary> GetSummaryAsync(string userId, string? expenseBookId, DateTime? startDate, DateTime? endDate, List<string>? allowedCategoryIds = null)
     {
-        var start = startDate ?? DateTime.UtcNow.AddMonths(-1);
-        var end = endDate ?? DateTime.UtcNow;
+        var start = startDate ?? DateTime.UtcNow.AddMonths(-1).Date;
+        var end   = endDate   ?? DateTime.UtcNow.Date.AddHours(23).AddMinutes(59).AddSeconds(59);
 
         var filterBuilder = Builders<Domain.Entities.Expense>.Filter;
-        var filter = filterBuilder.Eq(e => e.UserId, userId) &
-                    filterBuilder.Gte(e => e.Date, start) &
+        var filter = filterBuilder.Gte(e => e.Date, start) &
                     filterBuilder.Lte(e => e.Date, end);
-        
+
         if (!string.IsNullOrEmpty(expenseBookId))
-        {
             filter &= filterBuilder.Eq(e => e.ExpenseBookId, expenseBookId);
-        }
+        else
+            filter &= filterBuilder.Eq(e => e.UserId, userId);
+
+        if (allowedCategoryIds is { Count: > 0 })
+            filter &= filterBuilder.In(e => e.Category, allowedCategoryIds);
 
         var expenses = await _context.Expenses
             .Find(filter)
@@ -106,22 +108,25 @@ public class DashboardService : IDashboardService
             TransactionCount = expenses.Count,
             Currency = (await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync())?.Currency ?? "INR",
             CategoryBreakdown = categoryBreakdown,
-            RecentTransactions = recentTransactions
+            RecentTransactions = recentTransactions,
+            IsRestricted = allowedCategoryIds is { Count: > 0 }
         };
     }
 
-    public async Task<List<MonthlyTrend>> GetMonthlyTrendsAsync(string userId, string? expenseBookId, int months)
+    public async Task<List<MonthlyTrend>> GetMonthlyTrendsAsync(string userId, string? expenseBookId, int months, List<string>? allowedCategoryIds = null)
     {
         var startDate = DateTime.UtcNow.AddMonths(-months);
-        
+
         var filterBuilder = Builders<Domain.Entities.Expense>.Filter;
-        var filter = filterBuilder.Eq(e => e.UserId, userId) &
-                    filterBuilder.Gte(e => e.Date, startDate);
-        
+        var filter = filterBuilder.Gte(e => e.Date, startDate);
+
         if (!string.IsNullOrEmpty(expenseBookId))
-        {
             filter &= filterBuilder.Eq(e => e.ExpenseBookId, expenseBookId);
-        }
+        else
+            filter &= filterBuilder.Eq(e => e.UserId, userId);
+
+        if (allowedCategoryIds is { Count: > 0 })
+            filter &= filterBuilder.In(e => e.Category, allowedCategoryIds);
 
         var expenses = await _context.Expenses
             .Find(filter)
@@ -144,18 +149,22 @@ public class DashboardService : IDashboardService
         return trends;
     }
 
-    public async Task<List<DailyTransactionGroup>> GetGroupedTransactionsAsync(string userId, string? expenseBookId, DateTime? startDate = null, DateTime? endDate = null)
+    public async Task<List<DailyTransactionGroup>> GetGroupedTransactionsAsync(string userId, string? expenseBookId, DateTime? startDate = null, DateTime? endDate = null, List<string>? allowedCategoryIds = null)
     {
         var start = startDate ?? DateTime.UtcNow.AddDays(-30);
         var end = endDate ?? DateTime.UtcNow;
 
         var filterBuilder = Builders<Domain.Entities.Expense>.Filter;
-        var filter = filterBuilder.Eq(e => e.UserId, userId) &
-                     filterBuilder.Gte(e => e.Date, start) &
+        var filter = filterBuilder.Gte(e => e.Date, start) &
                      filterBuilder.Lte(e => e.Date, end);
 
         if (!string.IsNullOrEmpty(expenseBookId))
             filter &= filterBuilder.Eq(e => e.ExpenseBookId, expenseBookId);
+        else
+            filter &= filterBuilder.Eq(e => e.UserId, userId);
+
+        if (allowedCategoryIds is { Count: > 0 })
+            filter &= filterBuilder.In(e => e.Category, allowedCategoryIds);
 
         var expenses = await _context.Expenses
             .Find(filter)

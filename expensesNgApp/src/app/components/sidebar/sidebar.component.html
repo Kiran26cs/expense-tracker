@@ -8,7 +8,7 @@
   <!-- Nav items -->
   <nav class="sidebar-nav">
     <a
-      *ngFor="let item of navItems"
+      *ngFor="let item of navItems()"
       [routerLink]="'/' + bookId + '/' + item.path"
       class="nav-item"
       [class.active]="isActive(item.path)"

@@ -1,0 +1,17 @@
+<div class="accept-invite-page">
+  <div class="invite-card">
+    <!-- Loading / accepting -->
+    <div *ngIf="state() === 'loading'" class="state-content">
+      <div class="spinner"></div>
+      <p>Accepting your invite…</p>
+    </div>
+
+    <!-- Error -->
+    <div *ngIf="state() === 'error'" class="state-content">
+      <div class="icon icon-error">✕</div>
+      <h1>Invite Failed</h1>
+      <p>{{ errorMessage() }}</p>
+      <a routerLink="/" class="home-link">Go Home</a>
+    </div>
+  </div>
+</div>

@@ -12,10 +12,22 @@ namespace ExpensesBackend.API.Controllers;
 public class DashboardController : ControllerBase
 {
     private readonly IDashboardService _dashboardService;
+    private readonly IMemberService    _memberService;
 
-    public DashboardController(IDashboardService dashboardService)
+    public DashboardController(IDashboardService dashboardService, IMemberService memberService)
     {
         _dashboardService = dashboardService;
+        _memberService    = memberService;
+    }
+
+    private string GetUserId() =>
+        User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+
+    private async Task<List<string>> GetAllowedCategoryIdsAsync(string? expenseBookId)
+    {
+        if (string.IsNullOrEmpty(expenseBookId)) return [];
+        var perms = await _memberService.GetResolvedPermissionsAsync(expenseBookId, GetUserId());
+        return perms.AllowedCategoryIds;
     }
 
     [HttpGet("summary")]
@@ -26,8 +38,10 @@ public class DashboardController : ControllerBase
     {
         try
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
-            var summary = await _dashboardService.GetSummaryAsync(userId, expenseBookId, startDate, endDate);
+            var normalizedStart = startDate.HasValue ? startDate.Value.Date : (DateTime?)null;
+            var normalizedEnd   = endDate.HasValue   ? endDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59) : (DateTime?)null;
+            var allowedCategories = await GetAllowedCategoryIdsAsync(expenseBookId);
+            var summary = await _dashboardService.GetSummaryAsync(GetUserId(), expenseBookId, normalizedStart, normalizedEnd, allowedCategories);
             return Ok(ApiResponse<DashboardSummary>.SuccessResponse(summary));
         }
         catch (Exception ex)
@@ -43,8 +57,8 @@ public class DashboardController : ControllerBase
     {
         try
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
-            var trends = await _dashboardService.GetMonthlyTrendsAsync(userId, expenseBookId, months);
+            var allowedCategories = await GetAllowedCategoryIdsAsync(expenseBookId);
+            var trends = await _dashboardService.GetMonthlyTrendsAsync(GetUserId(), expenseBookId, months, allowedCategories);
             return Ok(ApiResponse<List<MonthlyTrend>>.SuccessResponse(trends));
         }
         catch (Exception ex)
@@ -61,8 +75,8 @@ public class DashboardController : ControllerBase
     {
         try
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
-            var transactions = await _dashboardService.GetGroupedTransactionsAsync(userId, expenseBookId, startDate, endDate);
+            var allowedCategories = await GetAllowedCategoryIdsAsync(expenseBookId);
+            var transactions = await _dashboardService.GetGroupedTransactionsAsync(GetUserId(), expenseBookId, startDate, endDate, allowedCategories);
             return Ok(ApiResponse<List<DailyTransactionGroup>>.SuccessResponse(transactions));
         }
         catch (Exception ex)

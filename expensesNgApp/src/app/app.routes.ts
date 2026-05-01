@@ -13,6 +13,10 @@ export const routes: Routes = [
     canActivate: [publicGuard]
   },
   {
+    path: 'accept-invite',
+    loadComponent: () => import('./pages/accept-invite/accept-invite.component').then(m => m.AcceptInviteComponent),
+  },
+  {
     path: '',
     loadComponent: () => import('./pages/expense-book-dashboard/expense-book-dashboard.component').then(m => m.ExpenseBookDashboardComponent),
     canActivate: [authGuard]
@@ -30,7 +34,9 @@ export const routes: Routes = [
       { path: 'budget', loadComponent: () => import('./pages/budget/budget.component').then(m => m.BudgetComponent) },
       { path: 'insights', loadComponent: () => import('./pages/insights/insights.component').then(m => m.InsightsComponent) },
       { path: 'settings', loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent) },
+      { path: 'members', loadComponent: () => import('./pages/members/members.component').then(m => m.MembersComponent) },
     ]
   },
   { path: '**', redirectTo: '' }
 ];
+

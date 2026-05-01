@@ -77,7 +77,12 @@ export class LoginComponent {
       const verify = await this.auth.verifyOTP(this.emailOrPhone(), this.otp);
       if (!verify.success) { this.error.set('Invalid verification code'); return; }
       await this.auth.login(this.emailOrPhone(), this.otp);
-      this.router.navigate(['/']);
+      const pendingToken = sessionStorage.getItem('pendingInviteToken');
+      if (pendingToken) {
+        this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
+      } else {
+        this.router.navigate(['/']);
+      }
     } catch (e: any) {
       this.error.set(e.message || 'Login failed');
     } finally {

@@ -1,5 +1,6 @@
 using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Domain.Entities;
+using ExpensesBackend.API.Infrastructure.Cache;
 using ExpensesBackend.API.Infrastructure.Data;
 using ExpensesBackend.API.Services.Interfaces;
 using MongoDB.Driver;
@@ -9,32 +10,43 @@ namespace ExpensesBackend.API.Services;
 public class CategoryService : ICategoryService
 {
     private readonly MongoDbContext _context;
+    private readonly ICacheService _cache;
+    private static readonly TimeSpan CategoryCacheTtl = TimeSpan.FromMinutes(30);
 
-    public CategoryService(MongoDbContext context)
+    public CategoryService(MongoDbContext context, ICacheService cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<List<CategoryDto>> GetCategoriesAsync(string expenseBookId)
     {
-        var filter = Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId);
-        var categories = await _context.Categories
-            .Find(filter)
-            .SortBy(c => c.Name)
-            .ToListAsync();
-        return categories.Select(MapToDto).ToList();
+        var cacheKey = CacheKeys.Categories(expenseBookId);
+        return await _cache.GetOrSetAsync(cacheKey, async () =>
+        {
+            var filter = Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId);
+            var categories = await _context.Categories
+                .Find(filter)
+                .SortBy(c => c.Name)
+                .ToListAsync();
+            return categories.Select(MapToDto).ToList();
+        }, CategoryCacheTtl) ?? [];
     }
 
     public async Task<CategoryDto> GetCategoryByIdAsync(string expenseBookId, string categoryId)
     {
-        var filter = Builders<Category>.Filter.And(
-            Builders<Category>.Filter.Eq(c => c.Id, categoryId),
-            Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId)
-        );
-        var category = await _context.Categories.Find(filter).FirstOrDefaultAsync();
-        if (category == null)
-            throw new KeyNotFoundException("Category not found");
-        return MapToDto(category);
+        var cacheKey = CacheKeys.CategoryById(expenseBookId, categoryId);
+        return await _cache.GetOrSetAsync(cacheKey, async () =>
+        {
+            var filter = Builders<Category>.Filter.And(
+                Builders<Category>.Filter.Eq(c => c.Id, categoryId),
+                Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId)
+            );
+            var category = await _context.Categories.Find(filter).FirstOrDefaultAsync();
+            if (category == null)
+                throw new KeyNotFoundException("Category not found");
+            return MapToDto(category);
+        }, CategoryCacheTtl) ?? throw new KeyNotFoundException("Category not found");
     }
 
     public async Task<CategoryDto> CreateCategoryAsync(string expenseBookId, CreateCategoryRequest request)
@@ -61,6 +73,7 @@ public class CategoryService : ICategoryService
         };
 
         await _context.Categories.InsertOneAsync(category);
+        await _cache.RemoveAsync(CacheKeys.Categories(expenseBookId));
         return MapToDto(category);
     }
 
@@ -99,6 +112,11 @@ public class CategoryService : ICategoryService
         if (updates.Count > 0)
             await _context.Categories.UpdateOneAsync(filter, Builders<Category>.Update.Combine(updates));
 
+        await Task.WhenAll(
+            _cache.RemoveAsync(CacheKeys.Categories(expenseBookId)),
+            _cache.RemoveAsync(CacheKeys.CategoryById(expenseBookId, categoryId))
+        );
+
         return MapToDto((await _context.Categories.Find(filter).FirstOrDefaultAsync())!);
     }
 
@@ -112,6 +130,11 @@ public class CategoryService : ICategoryService
         var result = await _context.Categories.DeleteOneAsync(filter);
         if (result.DeletedCount == 0)
             throw new InvalidOperationException("Category not found or is a default category");
+
+        await Task.WhenAll(
+            _cache.RemoveAsync(CacheKeys.Categories(expenseBookId)),
+            _cache.RemoveAsync(CacheKeys.CategoryById(expenseBookId, categoryId))
+        );
 
         return true;
     }
@@ -134,6 +157,7 @@ public class CategoryService : ICategoryService
             }
         }
 
+        await _cache.RemoveAsync(CacheKeys.Categories(expenseBookId));
         return response;
     }
 

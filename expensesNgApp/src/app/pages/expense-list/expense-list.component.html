@@ -6,7 +6,7 @@
       <p class="page-subtitle">{{ totalCount() }} transaction(s)</p>
     </div>
     <div class="header-actions">
-      <app-button (clicked)="openAddModal()">+ Add Transaction</app-button>
+      <app-button *ngIf="bookAccess.canWriteExpenses()" (clicked)="openAddModal()">+ Add Transaction</app-button>
     </div>
   </div>
 
@@ -15,14 +15,14 @@
     <app-card-content>
       <div class="filter-row">
         <app-input placeholder="Search expenses..." [value]="searchQuery()" (valueChange)="onSearch($event)" class="search-input"></app-input>
-        <app-select [value]="filterType()" (valueChange)="filterType.set($event); loadExpenses()" label="">
+        <app-select [value]="filterType()" (valueChange)="filterType.set($event); onFilterChange()" label="">
           <option value="">All Types</option>
           <option value="expense">Expense</option>
           <option value="income">Income</option>
         </app-select>
-        <app-select [options]="categoryOptions()" [value]="filterCategory()" (valueChange)="filterCategory.set($event); loadExpenses()" label="">
+        <app-select [options]="categoryOptions()" [value]="filterCategory()" (valueChange)="filterCategory.set($event); onFilterChange()" label="">
         </app-select>
-        <app-select [options]="paymentMethodOptions()" [value]="filterPayment()" (valueChange)="filterPayment.set($event); loadExpenses()" label="">
+        <app-select [options]="paymentMethodOptions()" [value]="filterPayment()" (valueChange)="filterPayment.set($event); onFilterChange()" label="">
         </app-select>
         <app-date-range-picker [startDate]="dateStart()" [endDate]="dateEnd()" (rangeChange)="onDateRangeChange($event)"></app-date-range-picker>
       </div>
@@ -34,7 +34,7 @@
     <app-card-content>
       <app-loading *ngIf="loading()" text="Loading expenses..."></app-loading>
       <app-empty-state *ngIf="!loading() && expenses().length === 0" title="No transactions found" description="Try adjusting your filters or add a new transaction" icon="fa-solid fa-money-bill-wave">
-        <app-button (clicked)="openAddModal()">Add First Transaction</app-button>
+        <app-button *ngIf="bookAccess.canWriteExpenses()" (clicked)="openAddModal()">Add First Transaction</app-button>
       </app-empty-state>
       <div *ngIf="!loading() && expenses().length > 0" class="table-container">
         <table class="expense-table">
@@ -42,10 +42,14 @@
             <tr>
               <th>Description</th>
               <th>Category</th>
-              <th>Date</th>
+              <th class="th-sortable" (click)="toggleSort('date')">
+                Date <i [class]="sortIcon('date')" [class.sort-active]="isSortedBy('date')"></i>
+              </th>
               <th>Payment</th>
               <th>Type</th>
-              <th class="text-right">Amount</th>
+              <th class="th-sortable text-right" (click)="toggleSort('amount')">
+                Amount <i [class]="sortIcon('amount')" [class.sort-active]="isSortedBy('amount')"></i>
+              </th>
               <th></th>
             </tr>
           </thead>
@@ -65,8 +69,8 @@
                 {{ e.type === 'income' ? '+' : '-' }}{{ formatCurrency(e.amount, e.currency) }}
               </td>
               <td class="actions-cell">
-                <app-button size="sm" variant="ghost" (clicked)="navigateToEdit(e.id)">Edit</app-button>
-                <app-button size="sm" variant="danger" (clicked)="openDeleteConfirm(e)">Delete</app-button>
+                <app-button *ngIf="bookAccess.canWriteExpenses()" size="sm" variant="ghost" (clicked)="navigateToEdit(e.id)">Edit</app-button>
+                <app-button *ngIf="bookAccess.canDeleteExpenses()" size="sm" variant="danger" (clicked)="openDeleteConfirm(e)">Delete</app-button>
               </td>
             </tr>
           </tbody>
@@ -74,10 +78,10 @@
       </div>
 
       <!-- Pagination -->
-      <div *ngIf="totalCount() > pageSize" class="pagination">
-        <app-button variant="ghost" size="sm" [disabled]="currentPage() <= 1" (clicked)="goToPage(currentPage() - 1)">← Prev</app-button>
+      <div *ngIf="totalCount() > pageSize || currentPage() > 1" class="pagination">
+        <app-button variant="ghost" size="sm" [disabled]="currentPage() <= 1" (clicked)="goPrev()">← Prev</app-button>
         <span class="page-info">Page {{ currentPage() }} of {{ totalPages() }}</span>
-        <app-button variant="ghost" size="sm" [disabled]="currentPage() >= totalPages()" (clicked)="goToPage(currentPage() + 1)">Next →</app-button>
+        <app-button variant="ghost" size="sm" [disabled]="!nextCursor()" (clicked)="nextCursor() && goNext(nextCursor()!)">Next →</app-button>
       </div>
     </app-card-content>
   </app-card>

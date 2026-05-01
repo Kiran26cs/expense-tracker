@@ -12,17 +12,22 @@ namespace ExpensesBackend.API.Controllers;
 public class ExpenseBooksController : ControllerBase
 {
     private readonly IExpenseBookService _expenseBookService;
+    private readonly IMemberService _memberService;
     private readonly ILogger<ExpenseBooksController> _logger;
 
-    public ExpenseBooksController(IExpenseBookService expenseBookService, ILogger<ExpenseBooksController> logger)
+    public ExpenseBooksController(
+        IExpenseBookService expenseBookService,
+        IMemberService memberService,
+        ILogger<ExpenseBooksController> logger)
     {
         _expenseBookService = expenseBookService;
-        _logger = logger;
+        _memberService       = memberService;
+        _logger              = logger;
     }
 
     private string GetUserId()
     {
-        return User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+        return User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? throw new UnauthorizedAccessException("User ID not found in token");
     }
 
@@ -127,9 +132,18 @@ public class ExpenseBooksController : ControllerBase
         try
         {
             var userId = GetUserId();
+
+            // ACL: owner OR admin/canModifyBook may update
+            var perms = await _memberService.GetResolvedPermissionsAsync(id, userId);
+            if (!perms.CanModifyBook)
+                return StatusCode(403, ApiResponse<ExpenseBookResponse>.ErrorResponse("You do not have permission to modify this expense book."));
+
             var expenseBook = await _expenseBookService.UpdateExpenseBookAsync(userId, id, request);
-            
             return Ok(ApiResponse<ExpenseBookResponse>.SuccessResponse(expenseBook));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<ExpenseBookResponse>.ErrorResponse(ex.Message));
         }
         catch (KeyNotFoundException)
         {

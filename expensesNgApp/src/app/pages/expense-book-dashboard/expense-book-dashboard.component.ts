@@ -3,9 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ExpenseBookService } from '../../services/expense-book.service';
+import { MemberService } from '../../services/member.service';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ToastService } from '../../services/toast.service';
 import { ExpenseBook, CreateExpenseBookRequest } from '../../models/expense-book.model';
+import { PendingInvite } from '../../models/member.model';
 import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent } from '../../components/input/input.component';
 import { ModalComponent } from '../../components/modal/modal.component';
@@ -20,40 +22,98 @@ import { formatCurrency } from '../../utils/helpers';
   styleUrl: './expense-book-dashboard.component.css'
 })
 export class ExpenseBookDashboardComponent implements OnInit {
-  books = signal<ExpenseBook[]>([]);
-  loading = signal(true);
-  error = signal('');
+  books          = signal<ExpenseBook[]>([]);
+  pendingInvites = signal<PendingInvite[]>([]);
+  loading        = signal(true);
+  error          = signal('');
+
   showCreateModal = signal(false);
   showDeleteModal = signal(false);
-  bookToDelete = signal<ExpenseBook | null>(null);
-  createLoading = false;
-  deleteLoading = false;
-  createError = '';
+  bookToDelete    = signal<ExpenseBook | null>(null);
+  createLoading   = false;
+  deleteLoading   = false;
+  createError     = '';
   createForm: CreateExpenseBookRequest = { name: '', description: '', currency: 'USD', icon: 'fa fa-book' };
 
-  private bookService = inject(ExpenseBookService);
-  private auth = inject(AuthStateService);
-  private toast = inject(ToastService);
-  private router = inject(Router);
+  acceptingToken  = signal<string | null>(null);
+  decliningToken  = signal<string | null>(null);
 
-  ngOnInit() { this.loadBooks(); }
+  readonly hasContent = computed(() => this.books().length > 0 || this.pendingInvites().length > 0);
 
-  async loadBooks() {
+  private bookService   = inject(ExpenseBookService);
+  private memberService = inject(MemberService);
+  private auth          = inject(AuthStateService);
+  private toast         = inject(ToastService);
+  private router        = inject(Router);
+
+  ngOnInit() { this.loadAll(); }
+
+  async loadAll() {
     this.loading.set(true);
     this.error.set('');
     try {
-      const res = await this.bookService.getExpenseBooks();
-      if (res.success) this.books.set(res.data || []);
-      else this.error.set(res.error || 'Failed to load expense books');
-    } catch (e: any) { this.error.set(e.message || 'Failed to load'); }
-    finally { this.loading.set(false); }
+      const [booksRes, pendingRes] = await Promise.all([
+        this.bookService.getExpenseBooks(),
+        this.memberService.getPendingInvites(),
+      ]);
+      if (booksRes.success)   this.books.set(booksRes.data || []);
+      else this.error.set(booksRes.error || 'Failed to load expense books');
+      if (pendingRes.success) this.pendingInvites.set(pendingRes.data || []);
+    } catch (e: any) {
+      this.error.set(e.message || 'Failed to load');
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   navigateToBook(book: ExpenseBook) {
     this.router.navigate([`/${book.id}/dashboard`]);
   }
 
-  openCreateModal() { this.createForm = { name: '', description: '', currency: 'USD', icon: 'fa fa-book' }; this.createError = ''; this.showCreateModal.set(true); }
+  isShared(book: ExpenseBook): boolean {
+    return book.memberRole != null;
+  }
+
+  roleLabel(book: ExpenseBook): string {
+    return book.memberRole ?? 'owner';
+  }
+
+  // ── Pending invite actions ────────────────────────────────────────────────
+
+  async acceptPendingInvite(invite: PendingInvite) {
+    this.acceptingToken.set(invite.inviteToken);
+    try {
+      const res = await this.memberService.acceptInvite(invite.inviteToken);
+      if (res.success && res.data) {
+        this.pendingInvites.update(list => list.filter(i => i.inviteToken !== invite.inviteToken));
+        this.router.navigate(['/', res.data.expenseBookId, 'dashboard']);
+      } else {
+        this.toast.error(res.error || 'Failed to accept invite.');
+      }
+    } catch (e: any) {
+      const msg = e?.error?.error || e?.error?.message || e?.message || 'Failed to accept invite.';
+      this.toast.error(msg);
+    } finally {
+      this.acceptingToken.set(null);
+    }
+  }
+
+  async declinePendingInvite(invite: PendingInvite) {
+    this.decliningToken.set(invite.inviteToken);
+    try {
+      await this.memberService.declineInvite(invite.inviteToken);
+      this.pendingInvites.update(list => list.filter(i => i.inviteToken !== invite.inviteToken));
+    } catch (e: any) {
+      const msg = e?.error?.error || e?.error?.message || e?.message || 'Failed to decline invite.';
+      this.toast.error(msg);
+    } finally {
+      this.decliningToken.set(null);
+    }
+  }
+
+  // ── Create / Delete ───────────────────────────────────────────────────────
+
+  openCreateModal()  { this.createForm = { name: '', description: '', currency: 'USD', icon: 'fa fa-book' }; this.createError = ''; this.showCreateModal.set(true); }
   closeCreateModal() { this.showCreateModal.set(false); }
 
   async handleCreate() {

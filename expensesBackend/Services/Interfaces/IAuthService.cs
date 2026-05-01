@@ -10,6 +10,7 @@ public interface IAuthService
     Task<AuthResponse> SignupAsync(SignupRequest request, string otp);
     Task<AuthResponse> LoginAsync(string? email, string? phone, string otp);
     Task<AuthResponse> GoogleLoginAsync(string credential);
+    Task<UserDto?> GetUserByIdAsync(string userId);
     string GenerateJwtToken(User user);
     string GenerateRefreshToken();
 }

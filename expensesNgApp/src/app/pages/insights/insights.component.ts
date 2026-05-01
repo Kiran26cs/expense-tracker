@@ -179,7 +179,7 @@ export class InsightsComponent implements OnInit {
 
   async loadExpenses() {
     try {
-      const res = await this.expenseService.getExpenses(this.bookId, { limit: 500, startDate: this.dateStart(), endDate: this.dateEnd() });
+      const res = await this.expenseService.getExpenses(this.bookId, { pageSize: 500, startDate: this.dateStart(), endDate: this.dateEnd() });
       if (res.success && res.data) {
         const items = (res.data as any).items || (Array.isArray(res.data) ? res.data : []);
         this.expenses.set(items);

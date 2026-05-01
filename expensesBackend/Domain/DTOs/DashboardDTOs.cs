@@ -10,6 +10,8 @@ public class DashboardSummary
     public string Currency { get; set; } = "USD";
     public List<CategoryBreakdown> CategoryBreakdown { get; set; } = new();
     public List<ExpenseDto> RecentTransactions { get; set; } = new();
+    /// <summary>True when the caller has category restrictions — frontend shows "Restricted view" badge.</summary>
+    public bool IsRestricted { get; set; }
 }
 
 public class CategoryBreakdown

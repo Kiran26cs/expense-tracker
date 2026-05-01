@@ -93,13 +93,16 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpGet("me")]
-    public ActionResult<ApiResponse<UserDto>> GetCurrentUser()
+    public async Task<ActionResult<ApiResponse<UserDto>>> GetCurrentUser()
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized(ApiResponse<UserDto>.ErrorResponse("User not authenticated"));
 
-        // TODO: Fetch user from database
-        return Ok(ApiResponse<UserDto>.SuccessResponse(new UserDto { Id = userId }));
+        var user = await _authService.GetUserByIdAsync(userId);
+        if (user == null)
+            return NotFound(ApiResponse<UserDto>.ErrorResponse("User not found"));
+
+        return Ok(ApiResponse<UserDto>.SuccessResponse(user));
     }
 }

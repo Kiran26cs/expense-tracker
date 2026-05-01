@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ExpenseService } from '../../services/expense.service';
 import { ToastService } from '../../services/toast.service';
 import { SettingsService } from '../../services/settings.service';
+import { BookAccessService } from '../../services/book-access.service';
 import { Expense } from '../../models/expense.model';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent } from '../../components/card/card.component';
 import { ButtonComponent } from '../../components/button/button.component';
@@ -14,6 +15,17 @@ import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-
 import { DateRangePickerComponent } from '../../components/date-range-picker/date-range-picker.component';
 import { ModalComponent } from '../../components/modal/modal.component';
 import { formatCurrency, formatDate } from '../../utils/helpers';
+
+const SESSION_KEY = (bookId: string) => `expense-filters-${bookId}`;
+
+interface FilterState {
+  searchQuery: string;
+  filterType: string;
+  filterCategory: string;
+  filterPayment: string;
+  dateStart: string;
+  dateEnd: string;
+}
 
 @Component({
   selector: 'app-expense-list',
@@ -25,9 +37,10 @@ import { formatCurrency, formatDate } from '../../utils/helpers';
 export class ExpenseListComponent implements OnInit {
   expenses = signal<Expense[]>([]);
   totalCount = signal(0);
+  nextCursor = signal<string | null>(null);
   loading = signal(true);
   currentPage = signal(1);
-  pageSize = 20;
+  readonly pageSize = 50;
   totalPages = computed(() => Math.max(1, Math.ceil(this.totalCount() / this.pageSize)));
   categories = signal<any[]>([]);
   paymentMethods = signal<any[]>([]);
@@ -55,6 +68,14 @@ export class ExpenseListComponent implements OnInit {
   filterPayment = signal('');
   dateStart = signal('');
   dateEnd = signal('');
+
+  // Sort state
+  sortField = signal<'date' | 'amount'>('date');
+  sortDir = signal<'asc' | 'desc'>('desc');
+
+  // Cursor stack: index 0 = first page cursor (undefined), each push = next page cursor
+  private cursorStack: (string | undefined)[] = [undefined];
+
   showDeleteConfirm = signal(false);
   expenseToDelete = signal<Expense | null>(null);
   deleteLoading = false;
@@ -87,6 +108,7 @@ export class ExpenseListComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private fb = inject(FormBuilder);
+  protected bookAccess = inject(BookAccessService);
 
   addForm: FormGroup = this.fb.group({
     type: ['expense'],
@@ -103,6 +125,67 @@ export class ExpenseListComponent implements OnInit {
 
   protected readonly formatCurrency = formatCurrency;
   protected readonly formatDate = formatDate;
+
+  // ── Sort helpers ────────────────────────────────────────────────────────────
+
+  isSortedBy(field: 'date' | 'amount'): boolean { return this.sortField() === field; }
+
+  sortIcon(field: 'date' | 'amount'): string {
+    if (this.sortField() !== field) return 'fa-solid fa-sort';
+    return this.sortDir() === 'desc' ? 'fa-solid fa-sort-down' : 'fa-solid fa-sort-up';
+  }
+
+  toggleSort(field: 'date' | 'amount') {
+    if (this.sortField() === field) {
+      this.sortDir.set(this.sortDir() === 'desc' ? 'asc' : 'desc');
+    } else {
+      this.sortField.set(field);
+      this.sortDir.set('desc');
+    }
+    this.resetCursors();
+    this.loadExpenses();
+  }
+
+  // ── Session filter persistence ──────────────────────────────────────────────
+
+  private saveFilters() {
+    const state: FilterState = {
+      searchQuery:    this.searchQuery(),
+      filterType:     this.filterType(),
+      filterCategory: this.filterCategory(),
+      filterPayment:  this.filterPayment(),
+      dateStart:      this.dateStart(),
+      dateEnd:        this.dateEnd(),
+    };
+    sessionStorage.setItem(SESSION_KEY(this.bookId), JSON.stringify(state));
+  }
+
+  private restoreFilters() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY(this.bookId));
+      if (!raw) return;
+      const state: FilterState = JSON.parse(raw);
+      this.searchQuery.set(state.searchQuery || '');
+      this.filterType.set(state.filterType || '');
+      this.filterCategory.set(state.filterCategory || '');
+      this.filterPayment.set(state.filterPayment || '');
+      this.dateStart.set(state.dateStart || '');
+      this.dateEnd.set(state.dateEnd || '');
+    } catch { /* ignore malformed */ }
+  }
+
+  // ── Cursor navigation ────────────────────────────────────────────────────────
+
+  private resetCursors() {
+    this.cursorStack = [undefined];
+    this.currentPage.set(1);
+  }
+
+  private currentCursor(): string | undefined {
+    return this.cursorStack[this.cursorStack.length - 1];
+  }
+
+  // ── Data loading ─────────────────────────────────────────────────────────────
 
   getCategoryName(idOrName: string): string {
     const cat = this.categories().find(c => c.id === idOrName || c.name === idOrName);
@@ -125,6 +208,7 @@ export class ExpenseListComponent implements OnInit {
   ngOnInit() {
     this.route.parent?.params.subscribe(p => {
       this.bookId = p['bookId'] || '';
+      this.restoreFilters();
       this.loadExpenses();
       this.loadFilters();
     });
@@ -145,18 +229,21 @@ export class ExpenseListComponent implements OnInit {
     this.loading.set(true);
     try {
       const res = await this.expenseService.getExpenses(this.bookId, {
-        page: this.currentPage(), limit: this.pageSize,
-        search: this.searchQuery() || undefined,
-        type: this.filterType() || undefined,
-        category: this.filterCategory() || undefined,
+        search:        this.searchQuery() || undefined,
+        type:          this.filterType() || undefined,
+        category:      this.filterCategory() || undefined,
         paymentMethod: this.filterPayment() || undefined,
-        startDate: this.dateStart() || undefined,
-        endDate: this.dateEnd() || undefined,
+        startDate:     this.dateStart() || undefined,
+        endDate:       this.dateEnd() || undefined,
+        sortField:     this.sortField(),
+        sortDir:       this.sortDir(),
+        cursor:        this.currentCursor(),
+        pageSize:      this.pageSize,
       });
       if (res.success && res.data) {
-        const data = res.data as any;
-        this.expenses.set(data.items || (Array.isArray(data) ? data : []));
-        this.totalCount.set(data.total ?? (Array.isArray(data) ? data.length : 0));
+        this.expenses.set(res.data.items || []);
+        this.totalCount.set(res.data.total ?? 0);
+        this.nextCursor.set(res.data.nextCursor ?? null);
       }
     } catch (e: any) { this.toast.error(e.message || 'Failed to load expenses'); }
     finally { this.loading.set(false); }
@@ -164,18 +251,39 @@ export class ExpenseListComponent implements OnInit {
 
   onSearch(val: string) {
     this.searchQuery.set(val);
+    this.saveFilters();
     clearTimeout(this.searchTimeout);
-    this.searchTimeout = setTimeout(() => { this.currentPage.set(1); this.loadExpenses(); }, 400);
+    this.searchTimeout = setTimeout(() => { this.resetCursors(); this.loadExpenses(); }, 400);
+  }
+
+  onFilterChange() {
+    this.saveFilters();
+    this.resetCursors();
+    this.loadExpenses();
   }
 
   onDateRangeChange(range: { start: string; end: string }) {
     this.dateStart.set(range.start);
     this.dateEnd.set(range.end);
-    this.currentPage.set(1);
+    this.saveFilters();
+    this.resetCursors();
     this.loadExpenses();
   }
 
-  goToPage(page: number) { this.currentPage.set(page); this.loadExpenses(); }
+  goNext(nextCursor: string) {
+    this.cursorStack.push(nextCursor);
+    this.currentPage.update(p => p + 1);
+    this.loadExpenses();
+  }
+
+  goPrev() {
+    if (this.cursorStack.length > 1) this.cursorStack.pop();
+    this.currentPage.update(p => Math.max(1, p - 1));
+    this.loadExpenses();
+  }
+
+  // kept for template compatibility (delete/add reload resets to page 1)
+  goToPage(_page: number) { this.resetCursors(); this.loadExpenses(); }
 
   openAddModal() {
     this.addForm.reset({

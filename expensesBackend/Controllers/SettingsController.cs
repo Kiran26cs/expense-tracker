@@ -1,4 +1,5 @@
 using ExpensesBackend.API.Domain.DTOs;
+using ExpensesBackend.API.Infrastructure.Cache;
 using ExpensesBackend.API.Infrastructure.Data;
 using ExpensesBackend.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -16,12 +17,15 @@ public class SettingsController : ControllerBase
     private readonly ICategoryService _categoryService;
     private readonly IExpenseBookService _expenseBookService;
     private readonly MongoDbContext _context;
+    private readonly ICacheService _cache;
+    private static readonly TimeSpan SettingsCacheTtl = TimeSpan.FromMinutes(30);
 
-    public SettingsController(ICategoryService categoryService, IExpenseBookService expenseBookService, MongoDbContext context)
+    public SettingsController(ICategoryService categoryService, IExpenseBookService expenseBookService, MongoDbContext context, ICacheService cache)
     {
         _categoryService = categoryService;
         _expenseBookService = expenseBookService;
         _context = context;
+        _cache = cache;
     }
 
     private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
@@ -37,6 +41,11 @@ public class SettingsController : ControllerBase
     public async Task<ActionResult<ApiResponse<UserSettingsDto>>> GetSettings()
     {
         var userId = GetUserId();
+        var cacheKey = CacheKeys.UserSettings(userId);
+        var cached = await _cache.GetAsync<UserSettingsDto>(cacheKey);
+        if (cached is not null)
+            return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(cached));
+
         var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
         if (user == null)
             return NotFound(ApiResponse<UserSettingsDto>.ErrorResponse("User not found"));
@@ -46,6 +55,7 @@ public class SettingsController : ControllerBase
             DefaultCurrency = user.Currency,
             MonthlySavingsGoal = user.MonthlySavingsGoal
         };
+        await _cache.SetAsync(cacheKey, dto, SettingsCacheTtl);
         return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(dto));
     }
 
@@ -78,6 +88,7 @@ public class SettingsController : ControllerBase
             DefaultCurrency = updated!.Currency,
             MonthlySavingsGoal = updated.MonthlySavingsGoal
         };
+        await _cache.RemoveAsync(CacheKeys.UserSettings(userId));
         return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(dto));
     }
 

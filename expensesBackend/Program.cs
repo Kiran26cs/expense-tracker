@@ -2,6 +2,7 @@ using ExpensesBackend.API.Infrastructure.Data;
 using ExpensesBackend.API.Middleware;
 using ExpensesBackend.API.Services;
 using ExpensesBackend.API.Services.Interfaces;
+using ExpensesBackend.API.Services.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -45,6 +46,23 @@ builder.Services.AddScoped<IExpenseBookDependencyService, ExpenseBookDependencyS
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IMemberService, MemberService>();
+
+// Messaging Service — switch provider via Messaging:Provider in appsettings.json
+builder.Services.AddHttpClient("MSG91");
+var messagingProvider = builder.Configuration["Messaging:Provider"] ?? "MSG91";
+if (messagingProvider.Equals("TwilioSendGrid", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddScoped<IMessagingService, TwilioSendGridMessagingService>();
+else
+    builder.Services.AddScoped<IMessagingService, Msg91MessagingService>();
+
+// Redis Distributed Cache
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration["Redis:ConnectionString"];
+    options.InstanceName = builder.Configuration["Redis:InstanceName"];
+});
+builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
 // JWT Authentication
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "your-super-secret-key-min-32-chars-long";

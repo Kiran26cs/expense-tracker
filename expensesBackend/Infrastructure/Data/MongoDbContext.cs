@@ -33,6 +33,8 @@ public class MongoDbContext
         _database.GetCollection<DailyExpenseSummary>("dailyExpenseSummaries");
     public IMongoCollection<UpcomingPayment> UpcomingPayments => 
         _database.GetCollection<UpcomingPayment>("upcomingPayments");
+    public IMongoCollection<ExpenseBookMember> ExpenseBookMembers =>
+        _database.GetCollection<ExpenseBookMember>("expenseBookMembers");
 
     private void CreateIndexes()
     {
@@ -91,5 +93,41 @@ public class MongoDbContext
             .Ascending(u => u.UserId)
             .Ascending(u => u.RecurringExpenseId);
         UpcomingPayments.Indexes.CreateOne(new CreateIndexModel<UpcomingPayment>(upcomingRecurringIndexKeys));
+
+        // ExpenseBookMember indexes
+        // 1. Permission lookup: find a specific user's membership in a book
+        var memberBookUserIndex = Builders<ExpenseBookMember>.IndexKeys
+            .Ascending(m => m.ExpenseBookId)
+            .Ascending(m => m.UserId);
+        ExpenseBookMembers.Indexes.CreateOne(new CreateIndexModel<ExpenseBookMember>(
+            memberBookUserIndex,
+            new CreateIndexOptions { Name = "idx_member_book_user" }));
+
+        // 2. All books for a user (member list view)
+        var memberUserIndex = Builders<ExpenseBookMember>.IndexKeys.Ascending(m => m.UserId);
+        ExpenseBookMembers.Indexes.CreateOne(new CreateIndexModel<ExpenseBookMember>(
+            memberUserIndex,
+            new CreateIndexOptions { Name = "idx_member_user" }));
+
+        // 3. Invite token lookup — sparse+unique so null tokens don't conflict
+        var memberTokenIndex = Builders<ExpenseBookMember>.IndexKeys.Ascending(m => m.InviteToken);
+        ExpenseBookMembers.Indexes.CreateOne(new CreateIndexModel<ExpenseBookMember>(
+            memberTokenIndex,
+            new CreateIndexOptions { Name = "idx_member_token", Sparse = true, Unique = true }));
+
+        // 4. Prevent duplicate pending invites to the same email per book
+        //    Partial index: only applies when inviteStatus == "pending"
+        var memberEmailIndex = Builders<ExpenseBookMember>.IndexKeys
+            .Ascending(m => m.ExpenseBookId)
+            .Ascending(m => m.InvitedEmail);
+        var memberEmailFilter = Builders<ExpenseBookMember>.Filter.Eq(m => m.InviteStatus, "pending");
+        ExpenseBookMembers.Indexes.CreateOne(new CreateIndexModel<ExpenseBookMember>(
+            memberEmailIndex,
+            new CreateIndexOptions<ExpenseBookMember>
+            {
+                Name = "idx_member_book_email_pending",
+                Unique = true,
+                PartialFilterExpression = memberEmailFilter
+            }));
     }
 }

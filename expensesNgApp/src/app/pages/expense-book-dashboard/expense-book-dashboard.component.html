@@ -14,40 +14,100 @@
     </div>
   </div>
 
-  <!-- Loading/Error/Empty states -->
+  <!-- Loading / Error -->
   <app-loading *ngIf="loading()" text="Loading expense books..."></app-loading>
   <app-error-state *ngIf="!loading() && error()" [message]="error()"></app-error-state>
 
-  <!-- Books grid -->
-  <div *ngIf="!loading() && !error()" class="books-section">
+  <div *ngIf="!loading() && !error()">
+
+    <!-- Empty state -->
     <app-empty-state
-      *ngIf="books().length === 0"
+      *ngIf="!hasContent()"
       title="No expense books yet"
       description="Create your first expense book to start tracking"
       icon="fa-solid fa-book-open">
       <app-button (clicked)="openCreateModal()">Create First Book</app-button>
     </app-empty-state>
 
-    <div *ngIf="books().length > 0" class="books-grid">
-      <div *ngFor="let book of books()" class="book-card" (click)="navigateToBook(book)">
-        <div class="book-icon" [style.background]="book.color || 'var(--gradient-primary)'">
-          <i [class]="book.icon || 'fa fa-book'"></i>
-        </div>
-        <div class="book-info">
-          <h3 class="book-name">{{ book.name }}</h3>
-          <p class="book-description" *ngIf="book.description">{{ book.description }}</p>
-          <div class="book-stats">
-            <span class="stat">
-              <span class="stat-label">Currency:</span>
-              <span class="stat-value">{{ book.currency || 'USD' }}</span>
-            </span>
+    <!-- Pending invites section -->
+    <div *ngIf="pendingInvites().length > 0" class="section">
+      <h2 class="section-title">
+        <i class="fa-solid fa-envelope-open-text"></i>
+        Pending Invites
+      </h2>
+      <div class="books-grid">
+        <div *ngFor="let invite of pendingInvites()" class="book-card invite-card">
+          <div class="book-icon" [style.background]="invite.expenseBookColor || 'var(--gradient-secondary)'">
+            <i [class]="invite.expenseBookIcon || 'fa fa-book'"></i>
+          </div>
+          <div class="book-info">
+            <h3 class="book-name">{{ invite.expenseBookName }}</h3>
+            <p class="book-role-badge invite-badge">
+              <i class="fa-solid fa-user-plus"></i>
+              Invited as <strong>{{ invite.role }}</strong>
+            </p>
+            <p class="book-currency" *ngIf="invite.expenseBookCurrency">
+              Currency: {{ invite.expenseBookCurrency }}
+            </p>
+          </div>
+          <div class="invite-actions">
+            <app-button
+              variant="primary"
+              [loading]="acceptingToken() === invite.inviteToken"
+              (clicked)="acceptPendingInvite(invite)">
+              Accept
+            </app-button>
+            <app-button
+              variant="ghost"
+              [loading]="decliningToken() === invite.inviteToken"
+              (clicked)="declinePendingInvite(invite)">
+              Decline
+            </app-button>
           </div>
         </div>
-        <button class="book-delete" (click)="openDeleteConfirm(book, $event)" title="Delete book">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
       </div>
     </div>
+
+    <!-- My books section -->
+    <div *ngIf="books().length > 0" class="section">
+      <h2 class="section-title" *ngIf="pendingInvites().length > 0">
+        <i class="fa-solid fa-book"></i>
+        My Books
+      </h2>
+      <div class="books-grid">
+        <div *ngFor="let book of books()" class="book-card" (click)="navigateToBook(book)">
+          <div class="book-icon" [style.background]="book.color || 'var(--gradient-primary)'">
+            <i [class]="book.icon || 'fa fa-book'"></i>
+          </div>
+          <div class="book-info">
+            <div class="book-name-row">
+              <h3 class="book-name">{{ book.name }}</h3>
+              <!-- Shared indicator -->
+              <span *ngIf="isShared(book)" class="shared-badge" [title]="'Shared — your role: ' + roleLabel(book)">
+                <i class="fa-solid fa-users"></i>
+                {{ roleLabel(book) }}
+              </span>
+            </div>
+            <p class="book-description" *ngIf="book.description">{{ book.description }}</p>
+            <div class="book-stats">
+              <span class="stat">
+                <span class="stat-label">Currency:</span>
+                <span class="stat-value">{{ book.currency || 'USD' }}</span>
+              </span>
+            </div>
+          </div>
+          <!-- Only show delete button for owned books -->
+          <button
+            *ngIf="!isShared(book)"
+            class="book-delete"
+            (click)="openDeleteConfirm(book, $event)"
+            title="Delete book">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Create Modal -->

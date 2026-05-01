@@ -88,3 +88,53 @@ public class UpdateRecurringExpenseRequest
     public string? Description { get; set; }
 }
 
+// ── Paged expense query ───────────────────────────────────────────────────────
+
+public class ExpensePagedRequest
+{
+    public string? ExpenseBookId { get; set; }
+    public string? Search { get; set; }
+    public string? Type { get; set; }
+    public string? Category { get; set; }
+    public string? PaymentMethod { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+
+    /// <summary>"date" or "amount". Defaults to "date".</summary>
+    public string SortField { get; set; } = "date";
+
+    /// <summary>"asc" or "desc". Defaults to "desc" (newest first).</summary>
+    public string SortDir { get; set; } = "desc";
+
+    /// <summary>Base64-encoded cursor from the previous response.</summary>
+    public string? Cursor { get; set; }
+
+    public int PageSize { get; set; } = 50;
+
+    /// <summary>
+    /// When non-empty, restricts results to expenses whose category is in this list.
+    /// Populated by the controller from the caller's ACL-resolved category restrictions.
+    /// </summary>
+    public List<string> AllowedCategoryIds { get; set; } = [];
+}
+
+public class ExpensePagedResponse
+{
+    public List<ExpenseDto> Items { get; set; } = [];
+    public long Total { get; set; }
+    public string? NextCursor { get; set; }
+    public string? PrevCursor { get; set; }
+    public bool HasNext { get; set; }
+    public bool HasPrev { get; set; }
+}
+
+/// <summary>Cursor model — serialised as Base64 JSON on the wire.</summary>
+public class ExpenseCursor
+{
+    public string Field { get; set; } = "date";
+    public string Dir { get; set; } = "desc";
+    /// <summary>ISO-8601 for date field, decimal string for amount field.</summary>
+    public string Value { get; set; } = "";
+    public string Id { get; set; } = "";
+}
+

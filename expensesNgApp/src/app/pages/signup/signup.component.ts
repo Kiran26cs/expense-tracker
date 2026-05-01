@@ -70,7 +70,12 @@ export class SignupComponent {
       const verifyRes = await this.auth.verifyOTP(this.emailOrPhone(), this.otp);
       if (!verifyRes.success) { this.error.set('Invalid verification code'); return; }
       await this.auth.signup(this.name(), this.emailOrPhone(), this.otp);
-      this.router.navigate(['/']);
+      const pendingToken = sessionStorage.getItem('pendingInviteToken');
+      if (pendingToken) {
+        this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
+      } else {
+        this.router.navigate(['/']);
+      }
     } catch (e: any) { this.error.set(e.message || 'Signup failed'); }
     finally { this.loading.set(false); }
   }

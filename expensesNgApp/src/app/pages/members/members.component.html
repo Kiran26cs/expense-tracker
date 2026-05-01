@@ -1,0 +1,97 @@
+<div class="members-page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Members</h1>
+      <p class="page-subtitle">Manage who has access to this expense book</p>
+    </div>
+  </div>
+
+  <!-- Invite Section (owners/admins only) -->
+  <app-card *ngIf="canManage()">
+    <app-card-header>
+      <app-card-title>Invite a Member</app-card-title>
+    </app-card-header>
+    <app-card-content>
+      <div class="invite-form">
+        <app-input
+          label="Email address"
+          type="email"
+          placeholder="colleague@example.com"
+          [value]="inviteEmail()"
+          (valueChange)="inviteEmail.set($event)"
+        ></app-input>
+        <app-select
+          label="Role"
+          [options]="roleOptions"
+          [value]="inviteRole()"
+          (valueChange)="setInviteRole($event)"
+        ></app-select>
+        <app-button (clicked)="invite()" [disabled]="inviteLoading()">
+          {{ inviteLoading() ? 'Sending…' : 'Generate Invite Link' }}
+        </app-button>
+      </div>
+
+      <!-- Invite link result -->
+      <div class="invite-result" *ngIf="showInviteResult()">
+        <p class="invite-result-label">Share this link with the invitee:</p>
+        <div class="invite-link-row">
+          <code class="invite-link">{{ inviteLink() }}</code>
+          <app-button size="sm" variant="ghost" (clicked)="copyLink()">Copy</app-button>
+        </div>
+      </div>
+    </app-card-content>
+  </app-card>
+
+  <!-- Members list -->
+  <app-card>
+    <app-card-header>
+      <app-card-title>Members</app-card-title>
+    </app-card-header>
+    <app-card-content>
+      <app-loading *ngIf="loading()" text="Loading members…"></app-loading>
+
+      <div *ngIf="!loading() && members().length === 0" class="empty-state">
+        <p>No members yet. Invite someone to get started.</p>
+      </div>
+
+      <table class="members-table" *ngIf="!loading() && members().length > 0">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Added</th>
+            <th *ngIf="canManage()"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of members()">
+            <td>{{ m.invitedEmail }}</td>
+            <td><span class="badge badge-role" [class]="'role-' + m.role">{{ m.role }}</span></td>
+            <td><span class="badge" [class]="'status-' + m.inviteStatus">{{ statusLabel[m.inviteStatus] }}</span></td>
+            <td>{{ m.addedAt | date:'mediumDate' }}</td>
+            <td *ngIf="canManage()">
+              <app-button
+                *ngIf="m.role !== 'owner'"
+                size="sm"
+                variant="danger"
+                (clicked)="openRemoveConfirm(m)"
+              >Remove</app-button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </app-card-content>
+  </app-card>
+</div>
+
+<app-confirm-dialog
+  [isOpen]="showRemoveConfirm()"
+  title="Remove Member"
+  [message]="'Remove ' + (memberToRemove()?.invitedEmail || '') + ' from this book?'"
+  confirmLabel="Remove"
+  confirmVariant="danger"
+  [loading]="removeLoading"
+  (confirmed)="confirmRemove()"
+  (cancelled)="showRemoveConfirm.set(false)">
+</app-confirm-dialog>

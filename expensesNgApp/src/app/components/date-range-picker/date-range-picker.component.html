@@ -1,9 +1,9 @@
-<div class="drp-wrapper" style="position:relative">
-  <button type="button" class="drp-trigger" (click)="open = !open">
+<div class="drp-wrapper">
+  <button type="button" class="drp-trigger" (click)="toggle()">
     📅 {{ displayLabel }}
   </button>
   <div class="drp-backdrop" *ngIf="open" (click)="open = false"></div>
-  <div class="drp-container" *ngIf="open" (click)="$event.stopPropagation()">
+  <div class="drp-container" *ngIf="open" [ngStyle]="popoverStyle" (click)="$event.stopPropagation()">
     <h4 class="drp-title">Select Date Range</h4>
     <div class="drp-fields">
       <div class="drp-field">

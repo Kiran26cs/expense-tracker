@@ -6,6 +6,7 @@ namespace ExpensesBackend.API.Services.Interfaces;
 public interface IExpenseService
 {
     Task<List<ExpenseDto>> GetExpensesAsync(string userId, string? expenseBookId, DateTime? startDate, DateTime? endDate, string? category);
+    Task<ExpensePagedResponse> GetExpensesPagedAsync(string userId, ExpensePagedRequest request);
     Task<ExpenseDto> GetExpenseByIdAsync(string userId, string expenseId);
     Task<ExpenseDto> CreateExpenseAsync(string userId, CreateExpenseRequest request);
     Task<ExpenseDto> UpdateExpenseAsync(string userId, string expenseId, UpdateExpenseRequest request);

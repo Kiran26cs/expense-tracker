@@ -1,4 +1,5 @@
 ﻿using ExpensesBackend.API.Domain.Entities;
+using ExpensesBackend.API.Infrastructure.Cache;
 using ExpensesBackend.API.Infrastructure.Data;
 using ExpensesBackend.API.Services.Interfaces;
 using MongoDB.Driver;
@@ -8,14 +9,23 @@ namespace ExpensesBackend.API.Services;
 public class BudgetService : IBudgetService
 {
     private readonly MongoDbContext _context;
+    private readonly ICacheService _cache;
+    private static readonly TimeSpan BudgetCacheTtl = TimeSpan.FromMinutes(5);
 
-    public BudgetService(MongoDbContext context)
+    public BudgetService(MongoDbContext context, ICacheService cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<List<Budget>> GetBudgetsAsync(string userId, string? expenseBookId, string? month = null)
     {
+        var monthKey = string.IsNullOrEmpty(month) ? CacheKeys.CurrentMonthKey() : month;
+        var cacheKey = CacheKeys.UserBudgets(userId, expenseBookId, monthKey);
+        var cached = await _cache.GetAsync<List<Budget>>(cacheKey);
+        if (cached is not null)
+            return cached;
+
         // ── Date range ──────────────────────────────────────────────────────────
         DateTime monthStart;
         string requestedPeriod;
@@ -45,19 +55,20 @@ public class BudgetService : IBudgetService
         var nameById = allCategories.ToDictionary(c => c.Id, c => c.Name, StringComparer.OrdinalIgnoreCase);
 
         // ── Load all existing budget records ────────────────────────────────────
-        var budgetFilter = Builders<Budget>.Filter.Eq(b => b.UserId, userId);
-        if (!string.IsNullOrEmpty(expenseBookId))
-            budgetFilter &= Builders<Budget>.Filter.Eq(b => b.ExpenseBookId, expenseBookId);
+        var budgetFilter = !string.IsNullOrEmpty(expenseBookId)
+            ? Builders<Budget>.Filter.Eq(b => b.ExpenseBookId, expenseBookId)
+            : Builders<Budget>.Filter.Eq(b => b.UserId, userId);
         var allBudgets = await _context.Budgets.Find(budgetFilter).ToListAsync();
         var budgetByName = allBudgets.ToDictionary(b => b.Category, b => b, StringComparer.OrdinalIgnoreCase);
 
         // ── Load all expenses for this month in one query (avoid N+1) ───────────
-        var expFilter = Builders<Expense>.Filter.Eq(e => e.UserId, userId)
-            & Builders<Expense>.Filter.Gte(e => e.Date, monthStart)
+        var expFilter = Builders<Expense>.Filter.Gte(e => e.Date, monthStart)
             & Builders<Expense>.Filter.Lte(e => e.Date, monthEnd)
             & Builders<Expense>.Filter.Ne(e => e.Type, "income");   // only count expenses
         if (!string.IsNullOrEmpty(expenseBookId))
             expFilter &= Builders<Expense>.Filter.Eq(e => e.ExpenseBookId, expenseBookId);
+        else
+            expFilter &= Builders<Expense>.Filter.Eq(e => e.UserId, userId);
         var allExpenses = await _context.Expenses.Find(expFilter).ToListAsync();
 
         // Group spending by raw category value (could be an ID or a name)
@@ -110,7 +121,9 @@ public class BudgetService : IBudgetService
             }
         }
 
-        return result.OrderBy(b => b.Category).ToList();
+        var ordered = result.OrderBy(b => b.Category).ToList();
+        await _cache.SetAsync(cacheKey, ordered, BudgetCacheTtl);
+        return ordered;
     }
 
     /// <summary>
@@ -151,6 +164,7 @@ public class BudgetService : IBudgetService
         budget.UpdatedAt = DateTime.UtcNow;
         budget.Spent = 0;
         await _context.Budgets.InsertOneAsync(budget);
+        await _cache.RemoveAsync(CacheKeys.UserBudgets(budget.UserId, budget.ExpenseBookId, CacheKeys.CurrentMonthKey()));
         return budget;
     }
 
@@ -170,13 +184,19 @@ public class BudgetService : IBudgetService
         await _context.Budgets.ReplaceOneAsync(
             b => b.Id == budgetId && b.UserId == userId, budget);
 
+        await _cache.RemoveAsync(CacheKeys.UserBudgets(userId, budget.ExpenseBookId, CacheKeys.CurrentMonthKey()));
         return budget;
     }
 
     public async Task<bool> DeleteBudgetAsync(string userId, string budgetId)
     {
+        var existing = await _context.Budgets
+            .Find(b => b.Id == budgetId && b.UserId == userId)
+            .FirstOrDefaultAsync();
         var result = await _context.Budgets.DeleteOneAsync(
             b => b.Id == budgetId && b.UserId == userId);
+        if (result.DeletedCount > 0 && existing != null)
+            await _cache.RemoveAsync(CacheKeys.UserBudgets(userId, existing.ExpenseBookId, CacheKeys.CurrentMonthKey()));
         return result.DeletedCount > 0;
     }
 
@@ -221,6 +241,7 @@ public class BudgetService : IBudgetService
                 UpdatedAt = DateTime.UtcNow
             };
             await _context.Budgets.InsertOneAsync(newBudget);
+            await _cache.RemoveAsync(CacheKeys.UserBudgets(userId, expenseBookId, effectivePeriod ?? CacheKeys.CurrentMonthKey()));
             return newBudget;
         }
         else
@@ -247,6 +268,7 @@ public class BudgetService : IBudgetService
             existing.Versions.Add(newVersion);
             existing.LatestVersionNumber = nextVersionNumber;
             existing.Amount = amount;
+            await _cache.RemoveAsync(CacheKeys.UserBudgets(userId, expenseBookId, effectivePeriod ?? CacheKeys.CurrentMonthKey()));
             return existing;
         }
     }

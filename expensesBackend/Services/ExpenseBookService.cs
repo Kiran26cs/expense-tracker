@@ -19,25 +19,61 @@ public class ExpenseBookService : IExpenseBookService
 
     public async Task<List<ExpenseBookResponse>> GetExpenseBooksAsync(string userId)
     {
-        var expenseBooks = await _context.ExpenseBooks
+        // Books the user owns
+        var ownedBooks = await _context.ExpenseBooks
             .Find(eb => eb.UserId == userId)
-            .SortByDescending(eb => eb.IsDefault)
-            .ThenByDescending(eb => eb.CreatedAt)
             .ToListAsync();
 
-        return expenseBooks.Select(MapToExpenseBookResponse).ToList();
+        // Member records for accepted memberships (not owner)
+        var memberRecords = await _context.ExpenseBookMembers
+            .Find(m => m.UserId == userId && m.InviteStatus == "accepted" && !m.IsDeleted)
+            .ToListAsync();
+
+        var memberBookIds = memberRecords.Select(m => m.ExpenseBookId).ToList();
+        var roleByBookId  = memberRecords.ToDictionary(m => m.ExpenseBookId, m => m.Role);
+
+        var memberBooks = memberBookIds.Count > 0
+            ? await _context.ExpenseBooks
+                .Find(eb => memberBookIds.Contains(eb.Id) && eb.UserId != userId)
+                .ToListAsync()
+            : [];
+
+        var allBooks = ownedBooks
+            .Select(b => MapToExpenseBookResponse(b, memberRole: null))
+            .Concat(memberBooks.Select(b =>
+                MapToExpenseBookResponse(b, roleByBookId.TryGetValue(b.Id, out var r) ? r : "member")))
+            .OrderByDescending(eb => eb.IsDefault)
+            .ThenByDescending(eb => eb.CreatedAt)
+            .ToList();
+
+        return allBooks;
     }
 
     public async Task<ExpenseBookResponse> GetExpenseBookByIdAsync(string userId, string expenseBookId)
     {
         var expenseBook = await _context.ExpenseBooks
-            .Find(eb => eb.Id == expenseBookId && eb.UserId == userId)
+            .Find(eb => eb.Id == expenseBookId)
             .FirstOrDefaultAsync();
 
         if (expenseBook == null)
             throw new KeyNotFoundException("Expense book not found");
 
-        return MapToExpenseBookResponse(expenseBook);
+        // Allow owner or accepted member
+        string? memberRole = null;
+        if (expenseBook.UserId != userId)
+        {
+            var member = await _context.ExpenseBookMembers
+                .Find(m => m.ExpenseBookId == expenseBookId
+                        && m.UserId == userId
+                        && m.InviteStatus == "accepted"
+                        && !m.IsDeleted)
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Expense book not found");
+
+            memberRole = member.Role;
+        }
+
+        return MapToExpenseBookResponse(expenseBook, memberRole);
     }
 
     public async Task<ExpenseBookResponse> CreateExpenseBookAsync(string userId, CreateExpenseBookRequest request)
@@ -73,18 +109,19 @@ public class ExpenseBookService : IExpenseBookService
 
     public async Task<ExpenseBookResponse> UpdateExpenseBookAsync(string userId, string expenseBookId, UpdateExpenseBookRequest request)
     {
+        // Find by book ID only — caller is trusted to have been ACL-checked at controller level
         var expenseBook = await _context.ExpenseBooks
-            .Find(eb => eb.Id == expenseBookId && eb.UserId == userId)
+            .Find(eb => eb.Id == expenseBookId)
             .FirstOrDefaultAsync();
 
         if (expenseBook == null)
             throw new KeyNotFoundException("Expense book not found");
 
-        // If setting as default, unset any existing default
+        // If setting as default, unset any existing default for the book's owner
         if (request.IsDefault && !expenseBook.IsDefault)
         {
             var update = Builders<ExpenseBook>.Update.Set(eb => eb.IsDefault, false);
-            await _context.ExpenseBooks.UpdateManyAsync(eb => eb.UserId == userId && eb.IsDefault, update);
+            await _context.ExpenseBooks.UpdateManyAsync(eb => eb.UserId == expenseBook.UserId && eb.IsDefault, update);
         }
 
         expenseBook.Name = request.Name;
@@ -97,7 +134,7 @@ public class ExpenseBookService : IExpenseBookService
         expenseBook.UpdatedAt = DateTime.UtcNow;
 
         await _context.ExpenseBooks.ReplaceOneAsync(
-            eb => eb.Id == expenseBookId && eb.UserId == userId,
+            eb => eb.Id == expenseBookId,
             expenseBook
         );
 
@@ -180,7 +217,7 @@ public class ExpenseBookService : IExpenseBookService
         await _context.ExpenseBooks.UpdateOneAsync(eb => eb.Id == expenseBookId, update);
     }
 
-    private static ExpenseBookResponse MapToExpenseBookResponse(ExpenseBook expenseBook)
+    private static ExpenseBookResponse MapToExpenseBookResponse(ExpenseBook expenseBook, string? memberRole = null)
     {
         return new ExpenseBookResponse
         {
@@ -196,7 +233,8 @@ public class ExpenseBookService : IExpenseBookService
             TotalExpenses = expenseBook.TotalExpenses,
             ExpenseCount = expenseBook.ExpenseCount,
             CreatedAt = expenseBook.CreatedAt,
-            UpdatedAt = expenseBook.UpdatedAt
+            UpdatedAt = expenseBook.UpdatedAt,
+            MemberRole = memberRole
         };
     }
 }
