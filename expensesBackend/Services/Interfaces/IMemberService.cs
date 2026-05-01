@@ -39,4 +39,10 @@ public interface IMemberService
 
     /// <summary>Declines (revokes) a pending invite by token. Validates the token belongs to userEmail.</summary>
     Task DeclineInviteAsync(string token, string userEmail);
+
+    /// <summary>
+    /// Returns categories for the book filtered by the requesting user's allowed category access.
+    /// Owners receive all categories; other roles receive only their explicitly allowed categories.
+    /// </summary>
+    Task<List<CategoryDto>> GetAccessibleCategoriesAsync(string bookId, string requestingUserId);
 }

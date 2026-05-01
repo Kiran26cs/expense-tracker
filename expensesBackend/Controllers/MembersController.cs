@@ -29,6 +29,25 @@ public class MembersController : ControllerBase
             ?? User.FindFirst(ClaimTypes.Email)?.Value
             ?? string.Empty;
 
+    /// <summary>Returns categories accessible to the current user for this book (used to populate invite/edit modal).</summary>
+    [HttpGet("categories")]
+    public async Task<ActionResult<ApiResponse<List<CategoryDto>>>> GetAccessibleCategories(string bookId)
+    {
+        try
+        {
+            var categories = await _memberService.GetAccessibleCategoriesAsync(bookId, GetUserId());
+            return Ok(ApiResponse<List<CategoryDto>>.SuccessResponse(categories));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<List<CategoryDto>>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<List<CategoryDto>>.ErrorResponse(ex.Message));
+        }
+    }
+
     /// <summary>List all members of an expense book.</summary>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<ExpenseBookMemberDto>>>> GetMembers(string bookId)

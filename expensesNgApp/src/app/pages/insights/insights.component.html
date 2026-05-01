@@ -1,8 +1,8 @@
 <div class="insights-page">
   <div class="page-header">
     <div>
-      <h1 class="page-title">Insights</h1>
-      <p class="page-subtitle">Financial intelligence &amp; trends</p>
+      <h1 class="page-title">Finance Tools</h1>
+      <p class="page-subtitle">Recurring payments &amp; loan calculator</p>
     </div>
     <app-date-range-picker [startDate]="dateStart()" [endDate]="dateEnd()" (rangeChange)="onDateRangeChange($event)"></app-date-range-picker>
   </div>
@@ -10,59 +10,6 @@
   <app-loading *ngIf="loading()" text="Analyzing your finances..."></app-loading>
 
   <ng-container *ngIf="!loading()">
-    <!-- Cash Runway -->
-    <app-card class="runway-card">
-      <app-card-header><app-card-title>Cash Runway</app-card-title></app-card-header>
-      <app-card-content>
-        <div class="runway-content">
-          <div class="runway-stat">
-            <p class="stat-label">Avg Monthly Expenses</p>
-            <p class="stat-value">{{ formatCurrency(avgMonthlyExpenses(), currency()) }}</p>
-          </div>
-          <div class="runway-stat">
-            <p class="stat-label">Avg Monthly Income</p>
-            <p class="stat-value income">{{ formatCurrency(avgMonthlyIncome(), currency()) }}</p>
-          </div>
-          <div class="runway-stat">
-            <p class="stat-label">Savings Rate</p>
-            <p class="stat-value" [class.positive]="savingsRate() > 0" [class.negative]="savingsRate() <= 0">{{ savingsRate() }}%</p>
-          </div>
-        </div>
-      </app-card-content>
-    </app-card>
-
-    <!-- Spending Trend Chart -->
-    <div class="charts-row">
-      <app-card>
-        <app-card-header><app-card-title>Spending Trend</app-card-title></app-card-header>
-        <app-card-content>
-          <div *ngIf="trendData().datasets[0].data.length; else noTrend" class="chart-wrap">
-            <canvas baseChart [data]="trendData()" [type]="'line'" [options]="lineOptions"></canvas>
-          </div>
-          <ng-template #noTrend><app-empty-state title="No data" description="Add expenses to see trends" icon="📈"></app-empty-state></ng-template>
-        </app-card-content>
-      </app-card>
-
-      <!-- Category comparison -->
-      <app-card>
-        <app-card-header><app-card-title>Top Spending Categories</app-card-title></app-card-header>
-        <app-card-content>
-          <div *ngIf="topCategories().length; else noCats" class="categories-list">
-            <div *ngFor="let c of topCategories(); let i = index" class="category-row">
-              <span class="cat-rank">{{ i + 1 }}</span>
-              <span class="cat-name">{{ c.name }}</span>
-              <div class="cat-bar-wrap">
-                <div class="cat-bar" [style.width.%]="c.percent" [style.background]="'hsl(' + (200 + i * 30) + ', 70%, 55%)'"></div>
-              </div>
-              <span class="cat-amount">{{ formatCurrency(c.total, currency()) }}</span>
-              <span class="cat-pct">{{ c.percent }}%</span>
-            </div>
-          </div>
-          <ng-template #noCats><app-empty-state title="No data" description="No spending data for period" icon="🏷️"></app-empty-state></ng-template>
-        </app-card-content>
-      </app-card>
-    </div>
-
     <!-- Recurring Expenses -->
     <app-card>
       <app-card-header>
@@ -91,6 +38,72 @@
           <div class="recurring-total">
             <span>Estimated Monthly Recurring Total</span>
             <span class="total-amount">{{ formatCurrency(recurringTotal(), currency()) }}</span>
+          </div>
+        </div>
+      </app-card-content>
+    </app-card>
+
+    <!-- ── Lendings ── -->
+    <app-card>
+      <app-card-header>
+        <app-card-title><i class="fa-solid fa-hand-holding-dollar"></i> Lendings</app-card-title>
+        <div class="lending-header-actions">
+          <div class="lending-filters">
+            <button class="filter-btn" [class.active]="lendingStatusFilter() === 'active'" (click)="setLendingFilter('active')">Active</button>
+            <button class="filter-btn" [class.active]="lendingStatusFilter() === 'settled'" (click)="setLendingFilter('settled')">Settled</button>
+            <button class="filter-btn" [class.active]="lendingStatusFilter() === 'all'" (click)="setLendingFilter('all')">All</button>
+          </div>
+          <app-button size="sm" (clicked)="showAddLending.set(true)">+ New Lending</app-button>
+        </div>
+      </app-card-header>
+      <app-card-content>
+        <!-- Summary strip -->
+        <div class="lending-summary" *ngIf="lendings().length > 0">
+          <div class="ls-item">
+            <span class="ls-label">Total Lent</span>
+            <span class="ls-value">{{ formatCurrency(lendingStats().totalLent, currency()) }}</span>
+          </div>
+          <div class="ls-item">
+            <span class="ls-label">Outstanding</span>
+            <span class="ls-value ls-outstanding">{{ formatCurrency(lendingStats().totalOutstanding, currency()) }}</span>
+          </div>
+          <div class="ls-item" *ngIf="lendingStats().totalInterest > 0">
+            <span class="ls-label">Accrued Interest</span>
+            <span class="ls-value ls-interest">{{ formatCurrency(lendingStats().totalInterest, currency()) }}</span>
+          </div>
+          <div class="ls-item" *ngIf="getOverdueCount() > 0">
+            <span class="ls-label">Overdue</span>
+            <span class="ls-value ls-overdue">{{ getOverdueCount() }}</span>
+          </div>
+        </div>
+
+        <app-empty-state *ngIf="!lendingLoading() && lendings().length === 0"
+          title="No lendings" description="Track money you've lent out — click '+ New Lending' to get started" icon="💸"></app-empty-state>
+
+        <div *ngIf="lendingLoading() && lendings().length === 0" class="lending-loading">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+        </div>
+
+        <div *ngIf="lendings().length > 0" class="lending-list">
+          <div *ngFor="let l of lendings()" class="lending-row" (click)="openLendingPanel(l)" [class.lending-overdue]="l.isOverdue" [class.lending-settled]="l.status === 'settled'">
+            <div class="lending-avatar">{{ l.borrowerName.charAt(0).toUpperCase() }}</div>
+            <div class="lending-info">
+              <p class="lending-name">{{ l.borrowerName }}</p>
+              <p class="lending-meta">
+                <span *ngIf="l.borrowerContact">{{ l.borrowerContact }} · </span>
+                <span>Since {{ formatDate(l.startDate) }}</span>
+                <span *ngIf="l.dueDate"> · Due {{ formatDate(l.dueDate) }}</span>
+              </p>
+            </div>
+            <div class="lending-amounts">
+              <span class="lending-principal">{{ formatCurrency(l.principalAmount, currency()) }}</span>
+              <span class="lending-outstanding" *ngIf="l.status !== 'settled'">{{ formatCurrency(l.outstandingPrincipal, currency()) }} left</span>
+              <span class="lending-badge" *ngIf="l.status === 'settled'">Settled</span>
+              <span class="lending-badge lending-badge--overdue" *ngIf="l.isOverdue">Overdue</span>
+            </div>
+            <button class="lending-delete-btn" *ngIf="l.status !== 'settled'" title="Delete" (click)="openDeleteLendingConfirm(l, $event)">
+              <i class="fa-solid fa-trash"></i>
+            </button>
           </div>
         </div>
       </app-card-content>
@@ -233,13 +246,43 @@
       <label class="rec-label">End Date (optional)</label>
       <input class="rec-input" type="date" formControlName="endDate">
     </div>
-    <p class="rec-info"><i class="fa-solid fa-circle-info"></i> This will register a recurring expense tracked in the Insights tab. Mark it paid from this screen when due.</p>
+    <p class="rec-info"><i class="fa-solid fa-circle-info"></i> This will register a recurring expense tracked in Finance Tools. Mark it paid from this screen when due.</p>
   </form>
   <div modal-footer>
     <app-button variant="ghost" (clicked)="showAddRecurringModal.set(false)" [disabled]="recurringLoading()">Cancel</app-button>
     <app-button (clicked)="handleAddRecurring()" [loading]="recurringLoading()">Save Recurring Expense</app-button>
   </div>
 </app-modal>
+
+<!-- Lending Slide Panel -->
+<ng-container *ngIf="showLendingPanel()">
+  <app-lending-panel
+    [bookId]="bookId"
+    [lending]="activeLending()"
+    [currency]="currency()"
+    (closed)="closeLendingPanel()"
+    (updated)="onLendingUpdated()">
+  </app-lending-panel>
+</ng-container>
+
+<!-- Add Lending Modal -->
+<app-add-lending-modal
+  [bookId]="bookId"
+  [isOpen]="showAddLending()"
+  (closed)="showAddLending.set(false)"
+  (created)="onLendingCreated($event)">
+</app-add-lending-modal>
+
+<!-- Delete Lending Confirm -->
+<app-confirm-dialog
+  [isOpen]="showDeleteLendingConfirm()"
+  title="Delete Lending"
+  [message]="'Delete lending for &quot;' + (lendingToDelete()?.borrowerName || '') + '&quot;? All repayment records will also be removed.'"
+  confirmLabel="Delete"
+  [loading]="deleteLendingLoading()"
+  (confirmed)="handleDeleteLending()"
+  (cancelled)="showDeleteLendingConfirm.set(false)">
+</app-confirm-dialog>
 
 <!-- Delete Recurring Confirm -->
 <app-confirm-dialog

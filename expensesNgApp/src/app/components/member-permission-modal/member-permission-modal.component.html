@@ -1,0 +1,100 @@
+<app-modal [isOpen]="isOpen" [title]="title" maxWidth="600px" (closed)="closed.emit()">
+  <div class="modal-body">
+
+    <!-- Email -->
+    <div class="field" *ngIf="mode === 'add'">
+      <app-input label="Email address" type="email" placeholder="colleague@example.com"
+        [value]="email" (valueChange)="email = $event">
+      </app-input>
+    </div>
+    <div class="field email-display" *ngIf="mode === 'edit'">
+      <span class="field-label">Email</span>
+      <span class="email-value">{{ email }}</span>
+    </div>
+
+    <!-- Role -->
+    <div class="field">
+      <app-select label="Role" [options]="roleOptions" [value]="role"
+        (valueChange)="onRoleChange($event)">
+      </app-select>
+    </div>
+
+    <!-- Page Permissions -->
+    <div class="section">
+      <div class="section-title">Page Permissions</div>
+      <table class="perm-table">
+        <thead>
+          <tr>
+            <th>Page</th>
+            <th>Access</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of pageRows">
+            <td class="page-label">{{ row.label }}</td>
+            <td>
+              <div class="access-pills">
+                <button *ngFor="let opt of row.options"
+                  class="pill"
+                  [class.active]="getPermValue(row.key) === opt.value"
+                  [disabled]="isOwnerRole"
+                  (click)="setPermValue(row.key, opt.value)">
+                  {{ opt.label }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Can Delete Expenses -->
+    <div class="section">
+      <div class="section-title">Actions</div>
+      <label class="toggle-row" [class.disabled]="isOwnerRole">
+        <div class="toggle-info">
+          <span class="toggle-label">Can delete expenses</span>
+          <span class="toggle-desc">Allow this member to permanently delete expense entries</span>
+        </div>
+        <div class="toggle-switch" [class.on]="canDeleteExpenses" (click)="!isOwnerRole && (canDeleteExpenses = !canDeleteExpenses)">
+          <div class="toggle-thumb"></div>
+        </div>
+      </label>
+    </div>
+
+    <!-- Categories -->
+    <div class="section" *ngIf="!isOwnerRole">
+      <div class="section-header">
+        <span class="section-title">Category Access</span>
+        <button class="link-btn" (click)="toggleAllCategories()">
+          {{ allCategoriesChecked ? 'Deselect all' : 'Select all' }}
+        </button>
+      </div>
+      <div class="category-list" *ngIf="categories.length > 0; else noCategories">
+        <label class="category-row" *ngFor="let cat of categories">
+          <input type="checkbox"
+            [checked]="allowedCategoryIds.has(cat.id)"
+            (change)="toggleCategory(cat.id)">
+          <i [class]="cat.icon" class="cat-icon"></i>
+          <span class="cat-name">{{ cat.name }}</span>
+        </label>
+      </div>
+      <ng-template #noCategories>
+        <p class="no-cats">No categories found for this expense book.</p>
+      </ng-template>
+    </div>
+    <div class="section owner-cats" *ngIf="isOwnerRole">
+      <div class="section-title">Category Access</div>
+      <p class="owner-note">Owners have access to all categories automatically.</p>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="modal-footer">
+    <app-button variant="ghost" (clicked)="closed.emit()" [disabled]="loading">Cancel</app-button>
+    <app-button (clicked)="save()" [disabled]="loading">
+      {{ loading ? 'Saving…' : (mode === 'add' ? 'Send Invite' : 'Save Changes') }}
+    </app-button>
+  </div>
+</app-modal>

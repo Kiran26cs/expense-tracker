@@ -12,6 +12,7 @@ public class MemberService : IMemberService
 {
     private readonly MongoDbContext _context;
     private readonly ICacheService _cache;
+    private readonly ICategoryService _categoryService;
     private static readonly TimeSpan PermissionCacheTtl = TimeSpan.FromMinutes(10);
 
     // Role defaults: defines what each role can do without per-member overrides
@@ -23,10 +24,11 @@ public class MemberService : IMemberService
         ["viewer"] = new() { Role = "viewer", Dashboard = "view", Expenses = "view",  Budgets = "none",  Settings = "none",  Insights = "view", CanDeleteExpenses = false, CanManageMembers = false, CanModifyBook = false, IsOwner = false },
     };
 
-    public MemberService(MongoDbContext context, ICacheService cache)
+    public MemberService(MongoDbContext context, ICacheService cache, ICategoryService categoryService)
     {
-        _context = context;
-        _cache   = cache;
+        _context         = context;
+        _cache           = cache;
+        _categoryService = categoryService;
     }
 
     // ── Permission resolution ─────────────────────────────────────────────────
@@ -64,8 +66,12 @@ public class MemberService : IMemberService
 
         if (member == null) return NonePermissions();
 
-        // Start from role defaults
         var role = member.Role.ToLowerInvariant();
+
+        // Promoted owners get full permissions — AllowedCategoryIds empty = all categories
+        if (role == "owner")
+            return Clone(RoleDefaults["owner"]);
+
         var defaults = RoleDefaults.TryGetValue(role, out var rd) ? rd : RoleDefaults["viewer"];
         var resolved = Clone(defaults);
 
@@ -83,7 +89,7 @@ public class MemberService : IMemberService
         }
 
         // Explicit overrides (never derived from role)
-        resolved.CanDeleteExpenses = member.CanDeleteExpenses;
+        resolved.CanDeleteExpenses  = member.CanDeleteExpenses;
         resolved.AllowedCategoryIds = member.AllowedCategoryIds ?? [];
 
         return resolved;
@@ -211,8 +217,16 @@ public class MemberService : IMemberService
             .FirstOrDefaultAsync()
             ?? throw new KeyNotFoundException("Member not found.");
 
-        if (member.Role == "owner")
-            throw new InvalidOperationException("Cannot change the owner's role or permissions.");
+        // Resolve requester's role to enforce edit hierarchy
+        var requesterMember = await _context.ExpenseBookMembers
+            .Find(m => m.ExpenseBookId == bookId && m.UserId == requestingUserId
+                    && m.InviteStatus == "accepted" && !m.IsDeleted)
+            .FirstOrDefaultAsync();
+        var requesterRole = requesterMember?.Role?.ToLowerInvariant() ?? "owner";
+
+        // Admins cannot edit owners
+        if (requesterRole == "admin" && member.Role == "owner")
+            throw new UnauthorizedAccessException("Admins cannot edit owners.");
 
         var update = Builders<ExpenseBookMember>.Update
             .Set(m => m.UpdatedAt, DateTime.UtcNow);
@@ -257,8 +271,21 @@ public class MemberService : IMemberService
             .FirstOrDefaultAsync()
             ?? throw new KeyNotFoundException("Member not found.");
 
-        if (member.Role == "owner")
-            throw new InvalidOperationException("Cannot remove the book owner.");
+        // Nobody can remove themselves
+        if (member.UserId == requestingUserId)
+            throw new InvalidOperationException("You cannot remove yourself from the expense book.");
+
+        // Resolve requester's role for hierarchy check
+        var requesterMember = await _context.ExpenseBookMembers
+            .Find(m => m.ExpenseBookId == bookId && m.UserId == requestingUserId
+                    && m.InviteStatus == "accepted" && !m.IsDeleted)
+            .FirstOrDefaultAsync();
+
+        var requesterRole = requesterMember?.Role?.ToLowerInvariant() ?? "owner";
+
+        // Admins cannot remove owners
+        if (requesterRole == "admin" && member.Role == "owner")
+            throw new UnauthorizedAccessException("Admins cannot remove owners.");
 
         var update = Builders<ExpenseBookMember>.Update
             .Set(m => m.IsDeleted,    true)
@@ -375,6 +402,29 @@ public class MemberService : IMemberService
             .Unset(m => m.InviteToken);
 
         await _context.ExpenseBookMembers.UpdateOneAsync(m => m.Id == member.Id, update);
+    }
+
+    // ── Category access ───────────────────────────────────────────────────────
+
+    public async Task<List<CategoryDto>> GetAccessibleCategoriesAsync(string bookId, string requestingUserId)
+    {
+        await EnsureHasAccessAsync(bookId, requestingUserId, "expenses:view");
+
+        var allCategories = await _categoryService.GetCategoriesAsync(bookId);
+        var perms = await GetResolvedPermissionsAsync(bookId, requestingUserId);
+
+        // Owner (IsOwner flag or empty AllowedCategoryIds on owner role) — return all
+        if (perms.IsOwner || perms.Role == "owner")
+            return allCategories;
+
+        // Non-owner with no explicit list — no categories granted
+        if (perms.AllowedCategoryIds.Count == 0)
+            return [];
+
+        // Filter to only what the requester is allowed
+        return allCategories
+            .Where(c => perms.AllowedCategoryIds.Contains(c.Id))
+            .ToList();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

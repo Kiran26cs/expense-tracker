@@ -36,27 +36,50 @@ public class SettingsController : ControllerBase
         await _expenseBookService.GetExpenseBookByIdAsync(userId, expenseBookId);
     }
 
-    // GET api/settings
+    // GET api/settings?expenseBookId=...
     [HttpGet("")]
-    public async Task<ActionResult<ApiResponse<UserSettingsDto>>> GetSettings()
+    public async Task<ActionResult<ApiResponse<UserSettingsDto>>> GetSettings([FromQuery] string? expenseBookId)
     {
         var userId = GetUserId();
-        var cacheKey = CacheKeys.UserSettings(userId);
-        var cached = await _cache.GetAsync<UserSettingsDto>(cacheKey);
-        if (cached is not null)
-            return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(cached));
 
-        var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
-        if (user == null)
-            return NotFound(ApiResponse<UserSettingsDto>.ErrorResponse("User not found"));
-
-        var dto = new UserSettingsDto
+        if (!string.IsNullOrEmpty(expenseBookId))
         {
-            DefaultCurrency = user.Currency,
-            MonthlySavingsGoal = user.MonthlySavingsGoal
-        };
-        await _cache.SetAsync(cacheKey, dto, SettingsCacheTtl);
-        return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(dto));
+            var cacheKey = CacheKeys.BookSettings(expenseBookId);
+            var cached = await _cache.GetAsync<UserSettingsDto>(cacheKey);
+            if (cached is not null)
+                return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(cached));
+
+            var book = await _context.ExpenseBooks.Find(b => b.Id == expenseBookId).FirstOrDefaultAsync();
+            if (book == null)
+                return NotFound(ApiResponse<UserSettingsDto>.ErrorResponse("Expense book not found"));
+
+            var dto = new UserSettingsDto
+            {
+                DefaultCurrency = book.Currency,
+                MonthlySavingsGoal = book.MonthlySavingsGoal
+            };
+            await _cache.SetAsync(cacheKey, dto, SettingsCacheTtl);
+            return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(dto));
+        }
+        else
+        {
+            var cacheKey = CacheKeys.UserSettings(userId);
+            var cached = await _cache.GetAsync<UserSettingsDto>(cacheKey);
+            if (cached is not null)
+                return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(cached));
+
+            var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+            if (user == null)
+                return NotFound(ApiResponse<UserSettingsDto>.ErrorResponse("User not found"));
+
+            var dto = new UserSettingsDto
+            {
+                DefaultCurrency = user.Currency,
+                MonthlySavingsGoal = user.MonthlySavingsGoal
+            };
+            await _cache.SetAsync(cacheKey, dto, SettingsCacheTtl);
+            return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(dto));
+        }
     }
 
     // PUT api/settings
@@ -64,32 +87,66 @@ public class SettingsController : ControllerBase
     public async Task<ActionResult<ApiResponse<UserSettingsDto>>> UpdateSettings([FromBody] UpdateUserSettingsRequest request)
     {
         var userId = GetUserId();
-        var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
-        if (user == null)
-            return NotFound(ApiResponse<UserSettingsDto>.ErrorResponse("User not found"));
 
-        var updateDef = Builders<Domain.Entities.User>.Update
-            .Set(u => u.UpdatedAt, DateTime.UtcNow);
-
-        if (!string.IsNullOrEmpty(request.DefaultCurrency))
-            updateDef = updateDef.Set(u => u.Currency, request.DefaultCurrency);
-
-        if (request.MonthlySavingsGoal.HasValue)
-            updateDef = updateDef.Set(u => u.MonthlySavingsGoal, request.MonthlySavingsGoal.Value);
-
-        await _context.Users.UpdateOneAsync(
-            Builders<Domain.Entities.User>.Filter.Eq(u => u.Id, userId),
-            updateDef
-        );
-
-        var updated = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
-        var dto = new UserSettingsDto
+        if (!string.IsNullOrEmpty(request.ExpenseBookId))
         {
-            DefaultCurrency = updated!.Currency,
-            MonthlySavingsGoal = updated.MonthlySavingsGoal
-        };
-        await _cache.RemoveAsync(CacheKeys.UserSettings(userId));
-        return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(dto));
+            var book = await _context.ExpenseBooks.Find(b => b.Id == request.ExpenseBookId).FirstOrDefaultAsync();
+            if (book == null)
+                return NotFound(ApiResponse<UserSettingsDto>.ErrorResponse("Expense book not found"));
+
+            var updateDef = Builders<Domain.Entities.ExpenseBook>.Update
+                .Set(b => b.UpdatedAt, DateTime.UtcNow);
+
+            if (!string.IsNullOrEmpty(request.DefaultCurrency))
+                updateDef = updateDef.Set(b => b.Currency, request.DefaultCurrency);
+
+            if (request.MonthlySavingsGoal.HasValue)
+                updateDef = updateDef.Set(b => b.MonthlySavingsGoal, request.MonthlySavingsGoal.Value);
+
+            await _context.ExpenseBooks.UpdateOneAsync(
+                Builders<Domain.Entities.ExpenseBook>.Filter.Eq(b => b.Id, request.ExpenseBookId),
+                updateDef
+            );
+
+            var updated = await _context.ExpenseBooks.Find(b => b.Id == request.ExpenseBookId).FirstOrDefaultAsync();
+            var dto = new UserSettingsDto
+            {
+                DefaultCurrency = updated!.Currency,
+                MonthlySavingsGoal = updated.MonthlySavingsGoal
+            };
+            await _cache.RemoveAsync(CacheKeys.BookSettings(request.ExpenseBookId));
+            await _cache.RemoveAsync(CacheKeys.UserExpenseBooks(userId));
+            return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(dto));
+        }
+        else
+        {
+            var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+            if (user == null)
+                return NotFound(ApiResponse<UserSettingsDto>.ErrorResponse("User not found"));
+
+            var updateDef = Builders<Domain.Entities.User>.Update
+                .Set(u => u.UpdatedAt, DateTime.UtcNow);
+
+            if (!string.IsNullOrEmpty(request.DefaultCurrency))
+                updateDef = updateDef.Set(u => u.Currency, request.DefaultCurrency);
+
+            if (request.MonthlySavingsGoal.HasValue)
+                updateDef = updateDef.Set(u => u.MonthlySavingsGoal, request.MonthlySavingsGoal.Value);
+
+            await _context.Users.UpdateOneAsync(
+                Builders<Domain.Entities.User>.Filter.Eq(u => u.Id, userId),
+                updateDef
+            );
+
+            var updated = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+            var dto = new UserSettingsDto
+            {
+                DefaultCurrency = updated!.Currency,
+                MonthlySavingsGoal = updated.MonthlySavingsGoal
+            };
+            await _cache.RemoveAsync(CacheKeys.UserSettings(userId));
+            return Ok(ApiResponse<UserSettingsDto>.SuccessResponse(dto));
+        }
     }
 
     // GET api/settings/payment-methods

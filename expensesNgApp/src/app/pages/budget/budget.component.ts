@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BudgetService } from '../../services/budget.service';
 import { SettingsService } from '../../services/settings.service';
+import { MemberService } from '../../services/member.service';
 import { ToastService } from '../../services/toast.service';
 import { Budget, BudgetVersion } from '../../models/budget.model';
 import { CardComponent, CardContentComponent } from '../../components/card/card.component';
@@ -26,6 +27,7 @@ interface BudgetRow {
 export class BudgetComponent implements OnInit {
   budgets = signal<Budget[]>([]);
   categories = signal<any[]>([]);
+  currency = signal('INR');
   loading = signal(true);
   bookId = '';
 
@@ -61,11 +63,27 @@ export class BudgetComponent implements OnInit {
   budgetToDelete = signal<Budget | null>(null);
   deleteLoading = false;
 
+  showCopyConfirm = signal(false);
+  copyLoading = signal(false);
+
+  prevMonthStr = computed(() => {
+    const parts = this.filterMonthStr().split('-');
+    const prev = new Date(Number(parts[0]), Number(parts[1]) - 2, 1);
+    return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  formatMonthLabel(monthStr: string): string {
+    const [y, m] = monthStr.split('-');
+    const d = new Date(Number(y), Number(m) - 1, 1);
+    return d.toLocaleString('default', { month: 'short' }) + "'" + y.slice(2);
+  }
+
   readonly skeletonRows = Array.from({ length: 6 });
   protected readonly formatCurrency = formatCurrency;
 
   private budgetService = inject(BudgetService);
   private settingsService = inject(SettingsService);
+  private memberService = inject(MemberService);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
 
@@ -79,12 +97,15 @@ export class BudgetComponent implements OnInit {
   async loadData() {
     this.loading.set(true);
     try {
-      const [catRes, budgetRes] = await Promise.all([
-        this.settingsService.getCategories(this.bookId),
-        this.budgetService.getBudgets(this.bookId, this.filterMonthStr())
+      const [catRes, budgetRes, settingsRes] = await Promise.all([
+        this.memberService.getAccessibleCategories(this.bookId),
+        this.budgetService.getBudgets(this.bookId, this.filterMonthStr()),
+        this.settingsService.getSettings(this.bookId)
       ]);
       if (catRes.success) this.categories.set(catRes.data || []);
       if (budgetRes.success) this.budgets.set(budgetRes.data || []);
+      if (settingsRes.success && settingsRes.data?.defaultCurrency)
+        this.currency.set(settingsRes.data.defaultCurrency);
     } catch {
       this.toast.error('Failed to load data');
     } finally {
@@ -167,6 +188,44 @@ export class BudgetComponent implements OnInit {
       this.toast.error(e.message);
     } finally {
       this.deleteLoading = false;
+    }
+  }
+
+  async copyFromPreviousMonth() {
+    this.copyLoading.set(true);
+    try {
+      const res = await this.budgetService.getBudgets(this.bookId, this.prevMonthStr());
+      if (!res.success) { this.toast.error('Failed to load previous month budgets'); return; }
+
+      const prevWithLimits = (res.data || []).filter(b => b.versions?.length);
+      if (prevWithLimits.length === 0) {
+        this.toast.error(`No budget limits were set in ${this.formatMonthLabel(this.prevMonthStr())} — nothing to copy`);
+        return;
+      }
+
+      const existingLimitCategories = new Set(
+        this.budgets().filter(b => b.versions?.length).map(b => b.category)
+      );
+      const toCopy = prevWithLimits.filter(b => !existingLimitCategories.has(b.category));
+
+      if (toCopy.length === 0) {
+        this.toast.error(`All categories from ${this.formatMonthLabel(this.prevMonthStr())} already have limits set in ${this.formatMonthLabel(this.filterMonthStr())}`);
+        return;
+      }
+      const effectiveDate = `${this.filterMonthStr()}-01`;
+      const results = await Promise.allSettled(
+        toCopy.map(b => this.budgetService.upsertVersion(this.bookId, b.category, b.amount, effectiveDate, this.filterMonthStr()))
+      );
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (succeeded > 0) this.toast.success(`Copied ${succeeded} budget${succeeded > 1 ? 's' : ''} from ${this.formatMonthLabel(this.prevMonthStr())}`);
+      if (failed > 0) this.toast.error(`${failed} budget${failed > 1 ? 's' : ''} failed to copy`);
+      await this.loadBudgets();
+    } catch (e: any) {
+      this.toast.error(e.message || 'Failed to copy budgets');
+    } finally {
+      this.copyLoading.set(false);
+      this.showCopyConfirm.set(false);
     }
   }
 

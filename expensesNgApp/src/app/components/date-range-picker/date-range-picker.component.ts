@@ -10,8 +10,8 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './date-range-picker.component.css'
 })
 export class DateRangePickerComponent {
-  @Input() set startDate(v: string) { this.localStart = v || ''; }
-  @Input() set endDate(v: string) { this.localEnd = v || ''; }
+  @Input() set startDate(v: string) { this.localStart = (v || '').split('T')[0]; }
+  @Input() set endDate(v: string) { this.localEnd = (v || '').split('T')[0]; }
   @Output() rangeChange = new EventEmitter<{ start: string; end: string }>();
 
   open = false;
@@ -48,7 +48,9 @@ export class DateRangePickerComponent {
   }
 
   apply() {
-    this.rangeChange.emit({ start: this.localStart, end: this.localEnd });
+    const start = this.localStart ? `${this.localStart}T00:00:00` : '';
+    const end = this.localEnd ? `${this.localEnd}T23:59:59` : '';
+    this.rangeChange.emit({ start, end });
     this.open = false;
   }
 

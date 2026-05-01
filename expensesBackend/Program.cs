@@ -47,6 +47,7 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
+builder.Services.AddScoped<ILendingService, LendingService>();
 
 // Messaging Service — switch provider via Messaging:Provider in appsettings.json
 builder.Services.AddHttpClient("MSG91");

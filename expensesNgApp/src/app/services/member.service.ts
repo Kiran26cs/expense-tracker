@@ -11,6 +11,7 @@ import {
   ResolvedPermissions,
   PendingInvite,
 } from '../models/member.model';
+import { Category } from '../models/expense.model';
 
 @Injectable({ providedIn: 'root' })
 export class MemberService {
@@ -73,6 +74,12 @@ export class MemberService {
         `/members/decline?token=${encodeURIComponent(token)}`,
         {}
       )
+    );
+  }
+
+  getAccessibleCategories(bookId: string) {
+    return firstValueFrom(
+      this.api.get<ApiResponse<Category[]>>(`/expensebooks/${bookId}/members/categories`)
     );
   }
 }

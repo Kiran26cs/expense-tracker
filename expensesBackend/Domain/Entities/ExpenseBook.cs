@@ -31,6 +31,9 @@ public class ExpenseBook
     [BsonElement("icon")]
     public string? Icon { get; set; }
 
+    [BsonElement("monthlySavingsGoal")]
+    public decimal MonthlySavingsGoal { get; set; } = 0;
+
     [BsonElement("isDefault")]
     public bool IsDefault { get; set; } = false; // One default book per user
 

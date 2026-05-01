@@ -4,43 +4,18 @@
       <h1 class="page-title">Members</h1>
       <p class="page-subtitle">Manage who has access to this expense book</p>
     </div>
+    <app-button *ngIf="canManage" (clicked)="openAddModal()">+ Invite Member</app-button>
   </div>
 
-  <!-- Invite Section (owners/admins only) -->
-  <app-card *ngIf="canManage()">
-    <app-card-header>
-      <app-card-title>Invite a Member</app-card-title>
-    </app-card-header>
-    <app-card-content>
-      <div class="invite-form">
-        <app-input
-          label="Email address"
-          type="email"
-          placeholder="colleague@example.com"
-          [value]="inviteEmail()"
-          (valueChange)="inviteEmail.set($event)"
-        ></app-input>
-        <app-select
-          label="Role"
-          [options]="roleOptions"
-          [value]="inviteRole()"
-          (valueChange)="setInviteRole($event)"
-        ></app-select>
-        <app-button (clicked)="invite()" [disabled]="inviteLoading()">
-          {{ inviteLoading() ? 'Sending…' : 'Generate Invite Link' }}
-        </app-button>
-      </div>
-
-      <!-- Invite link result -->
-      <div class="invite-result" *ngIf="showInviteResult()">
-        <p class="invite-result-label">Share this link with the invitee:</p>
-        <div class="invite-link-row">
-          <code class="invite-link">{{ inviteLink() }}</code>
-          <app-button size="sm" variant="ghost" (clicked)="copyLink()">Copy</app-button>
-        </div>
-      </div>
-    </app-card-content>
-  </app-card>
+  <!-- Invite link result banner -->
+  <div class="invite-result" *ngIf="showInviteResult()">
+    <p class="invite-result-label">Share this link with the invitee:</p>
+    <div class="invite-link-row">
+      <code class="invite-link">{{ inviteLink() }}</code>
+      <app-button size="sm" variant="ghost" (clicked)="copyLink()">Copy</app-button>
+      <app-button size="sm" variant="ghost" (clicked)="showInviteResult.set(false)">Dismiss</app-button>
+    </div>
+  </div>
 
   <!-- Members list -->
   <app-card>
@@ -61,22 +36,34 @@
             <th>Role</th>
             <th>Status</th>
             <th>Added</th>
-            <th *ngIf="canManage()"></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let m of members()">
             <td>{{ m.invitedEmail }}</td>
-            <td><span class="badge badge-role" [class]="'role-' + m.role">{{ m.role }}</span></td>
-            <td><span class="badge" [class]="'status-' + m.inviteStatus">{{ statusLabel[m.inviteStatus] }}</span></td>
+            <td>
+              <span class="badge" [class]="'role-' + m.role">{{ m.role }}</span>
+            </td>
+            <td>
+              <span class="badge" [class]="'status-' + m.inviteStatus">{{ statusLabel[m.inviteStatus] }}</span>
+            </td>
             <td>{{ m.addedAt | date:'mediumDate' }}</td>
-            <td *ngIf="canManage()">
+            <td class="actions-cell">
               <app-button
-                *ngIf="m.role !== 'owner'"
+                *ngIf="canEdit(m)"
+                size="sm"
+                variant="ghost"
+                (clicked)="openEditModal(m)">
+                Edit
+              </app-button>
+              <app-button
+                *ngIf="canRemove(m)"
                 size="sm"
                 variant="danger"
-                (clicked)="openRemoveConfirm(m)"
-              >Remove</app-button>
+                (clicked)="openRemoveConfirm(m)">
+                Remove
+              </app-button>
             </td>
           </tr>
         </tbody>
@@ -85,6 +72,18 @@
   </app-card>
 </div>
 
+<!-- Add / Edit member modal -->
+<app-member-permission-modal
+  [isOpen]="showModal()"
+  [mode]="modalMode()"
+  [member]="modalMember()"
+  [categories]="categories()"
+  [loading]="modalLoading()"
+  (closed)="closeModal()"
+  (saved)="onModalSave($event)">
+</app-member-permission-modal>
+
+<!-- Remove confirm -->
 <app-confirm-dialog
   [isOpen]="showRemoveConfirm()"
   title="Remove Member"

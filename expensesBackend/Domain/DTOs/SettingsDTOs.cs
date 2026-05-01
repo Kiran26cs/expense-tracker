@@ -25,6 +25,7 @@ public class UserSettingsDto
 
 public class UpdateUserSettingsRequest
 {
+    public string? ExpenseBookId { get; set; }
     public string? DefaultCurrency { get; set; }
     public decimal? MonthlySavingsGoal { get; set; }
 }

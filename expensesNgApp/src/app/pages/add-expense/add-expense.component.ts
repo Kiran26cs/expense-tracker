@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ExpenseService } from '../../services/expense.service';
 import { SettingsService } from '../../services/settings.service';
+import { MemberService } from '../../services/member.service';
 import { ToastService } from '../../services/toast.service';
 import { CurrentBookService } from '../../services/current-book.service';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent } from '../../components/card/card.component';
@@ -35,6 +36,7 @@ export class AddExpenseComponent implements OnInit {
   private fb = inject(FormBuilder);
   private expenseService = inject(ExpenseService);
   private settingsService = inject(SettingsService);
+  private memberService = inject(MemberService);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -62,7 +64,7 @@ export class AddExpenseComponent implements OnInit {
 
   async loadFilters() {
     const [catsResult, methodsResult] = await Promise.allSettled([
-      this.settingsService.getCategories(this.bookId),
+      this.memberService.getAccessibleCategories(this.bookId),
       this.settingsService.getPaymentMethods(this.bookId)
     ]);
     if (catsResult.status === 'fulfilled' && catsResult.value.success)

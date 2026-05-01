@@ -104,6 +104,21 @@ public class ExpenseBookService : IExpenseBookService
         await _context.ExpenseBooks.InsertOneAsync(expenseBook);
         await _dependencyService.CopyDefaultCategoriesToBookAsync(expenseBook.Id);
 
+        // Auto-add creator as owner member
+        var creator = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+        var ownerMember = new ExpenseBookMember
+        {
+            ExpenseBookId     = expenseBook.Id,
+            UserId            = userId,
+            InvitedEmail      = creator?.Email ?? string.Empty,
+            InviteStatus      = "accepted",
+            Role              = "owner",
+            CanDeleteExpenses = true,
+            AllowedCategoryIds = [],
+            AddedBy           = userId,
+        };
+        await _context.ExpenseBookMembers.InsertOneAsync(ownerMember);
+
         return MapToExpenseBookResponse(expenseBook);
     }
 

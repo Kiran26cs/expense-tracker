@@ -1,0 +1,181 @@
+<div class="panel-backdrop" (click)="closed.emit()"></div>
+<div class="panel-drawer">
+  <!-- Header -->
+  <div class="panel-header">
+    <div class="panel-header-info">
+      <h2 class="panel-title">{{ lendingData()?.borrowerName }}</h2>
+      <span class="status-badge" [class.badge-settled]="lendingData()?.status === 'settled'" [class.badge-overdue]="lendingData()?.isOverdue">
+        {{ lendingData()?.status === 'settled' ? 'Settled' : (lendingData()?.isOverdue ? 'Overdue' : 'Active') }}
+      </span>
+    </div>
+    <div class="header-actions">
+      <button class="delete-lending-btn" title="Delete lending" (click)="showDeleteLendingConfirm.set(true)">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+      <button class="close-btn" (click)="closed.emit()"><i class="fa-solid fa-times"></i></button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="summary-grid" *ngIf="lendingData() as ld">
+    <div class="summary-card">
+      <span class="summary-label">Principal</span>
+      <span class="summary-value">{{ formatCurrency(ld.principalAmount, currency) }}</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Repaid</span>
+      <span class="summary-value repaid">{{ formatCurrency(ld.totalRepaid, currency) }}</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Outstanding</span>
+      <span class="summary-value outstanding">{{ formatCurrency(ld.outstandingPrincipal, currency) }}</span>
+    </div>
+    <div class="summary-card" *ngIf="ld.annualInterestRate > 0">
+      <span class="summary-label">{{ ld.dueDate ? 'Projected Interest' : 'Accrued Interest' }}</span>
+      <span class="summary-value interest">{{ formatCurrency(ld.dueDate ? ld.projectedTotalInterest : ld.accruedInterest, currency) }}</span>
+      <span class="summary-sub" *ngIf="ld.dueDate && ld.accruedInterest > 0">{{ formatCurrency(ld.accruedInterest, currency) }} accrued so far</span>
+    </div>
+    <div class="summary-card highlight" *ngIf="ld.annualInterestRate > 0">
+      <span class="summary-label">Total to Recover</span>
+      <span class="summary-value">{{ formatCurrency(ld.totalToRecover, currency) }}</span>
+      <span class="summary-sub" *ngIf="ld.dueDate">Principal + full interest</span>
+    </div>
+    <div class="summary-card" *ngIf="ld.dueDate">
+      <span class="summary-label">Due Date</span>
+      <span class="summary-value" [class.overdue-text]="ld.isOverdue">{{ formatDate(ld.dueDate) }}</span>
+    </div>
+  </div>
+
+  <div class="meta-row" *ngIf="lendingData() as ld">
+    <span *ngIf="ld.annualInterestRate > 0">{{ ld.annualInterestRate }}% p.a.</span>
+    <span>Since {{ formatDate(ld.startDate) }}</span>
+    <span *ngIf="ld.borrowerContact">{{ ld.borrowerContact }}</span>
+    <span *ngIf="ld.notes" class="notes-text">{{ ld.notes }}</span>
+  </div>
+
+  <!-- Add Repayment -->
+  <div class="repayment-action-bar">
+    <span class="repayment-count">{{ total() }} repayment{{ total() !== 1 ? 's' : '' }}</span>
+    <div class="action-btns">
+      <button class="settle-btn" *ngIf="canSettle()" (click)="openSettleForm()">
+        <i class="fa-solid fa-circle-check"></i> Mark Settled
+      </button>
+      <button class="add-btn" *ngIf="canAddRepayment()" (click)="openAddRepayment()">
+        <i class="fa-solid fa-plus"></i> Add Repayment
+      </button>
+    </div>
+  </div>
+
+  <!-- Settle Form -->
+  <div class="add-repayment-form settle-form" *ngIf="showSettleForm()">
+    <div class="settle-form-title">
+      <i class="fa-solid fa-circle-check"></i>
+      <span>Record Interest &amp; Mark Settled</span>
+    </div>
+    <div class="settle-hint" *ngIf="lendingData()?.projectedTotalInterest as pi">
+      Projected interest for this loan: <strong>{{ formatCurrency(pi, currency) }}</strong>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Interest Collected</label>
+        <input type="number" [(ngModel)]="settleInterestAmount" class="form-input" placeholder="0.00 (leave blank if nil)" min="0" step="0.01" />
+      </div>
+      <div class="form-field">
+        <label>Settlement Date</label>
+        <input type="date" [(ngModel)]="settleDate" class="form-input" />
+      </div>
+    </div>
+    <div class="form-field">
+      <label>Notes</label>
+      <input type="text" [(ngModel)]="settleNotes" class="form-input" />
+    </div>
+    <div class="form-actions">
+      <button class="btn-ghost" (click)="showSettleForm.set(false)">Cancel</button>
+      <button class="btn-settle-confirm" [disabled]="settleLoading()" (click)="confirmSettle()">
+        <i class="fa-solid fa-spinner fa-spin" *ngIf="settleLoading()"></i>
+        <span *ngIf="!settleLoading()"><i class="fa-solid fa-circle-check"></i> Confirm &amp; Settle</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Add Repayment Form -->
+  <div class="add-repayment-form" *ngIf="showAddRepayment()">
+    <div class="form-row">
+      <div class="form-field">
+        <label>Date</label>
+        <input type="date" [(ngModel)]="repaymentDate" class="form-input" />
+      </div>
+      <div class="form-field">
+        <label>Amount</label>
+        <input type="number" [(ngModel)]="repaymentAmount" class="form-input" placeholder="0.00" min="0.01" step="0.01" />
+      </div>
+    </div>
+    <div class="form-field">
+      <label>Notes (optional)</label>
+      <input type="text" [(ngModel)]="repaymentNotes" class="form-input" placeholder="e.g. partial payment" />
+    </div>
+    <div class="form-actions">
+      <button class="btn-ghost" (click)="showAddRepayment.set(false)">Cancel</button>
+      <button class="btn-primary" [disabled]="addLoading() || !repaymentAmount || !repaymentDate" (click)="submitRepayment()">
+        <span *ngIf="addLoading()"><i class="fa-solid fa-spinner fa-spin"></i></span>
+        <span *ngIf="!addLoading()">Save</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Repayments Table -->
+  <div class="repayments-body">
+    <div *ngIf="loading() && repayments().length === 0" class="loading-row">
+      <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+    </div>
+    <div *ngIf="!loading() && repayments().length === 0" class="empty-row">
+      No repayments yet
+    </div>
+    <table *ngIf="repayments().length > 0" class="repayment-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th class="text-right">Amount</th>
+          <th>Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of repayments()">
+          <td>{{ formatDate(r.date) }}</td>
+          <td class="text-right repaid">{{ formatCurrency(r.amount, currency) }}</td>
+          <td class="notes-cell">{{ r.notes || '—' }}</td>
+          <td class="action-cell">
+            <button class="del-btn" title="Delete" (click)="openDeleteRepayment(r)">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div *ngIf="hasMore()" class="load-more">
+      <button class="btn-ghost" (click)="loadMore()">Load more</button>
+    </div>
+  </div>
+</div>
+
+<app-confirm-dialog
+  [isOpen]="showDeleteConfirm()"
+  title="Delete Repayment"
+  message="Are you sure you want to delete this repayment? The lending summary will be recalculated."
+  confirmLabel="Delete"
+  [loading]="deleteLoading()"
+  (confirmed)="confirmDeleteRepayment()"
+  (cancelled)="showDeleteConfirm.set(false)">
+</app-confirm-dialog>
+
+<app-confirm-dialog
+  [isOpen]="showDeleteLendingConfirm()"
+  title="Delete Lending"
+  [message]="'Delete lending for &quot;' + (lendingData()?.borrowerName || '') + '&quot;? All repayment records will also be removed. This cannot be undone.'"
+  confirmLabel="Delete"
+  [loading]="deleteLendingLoading()"
+  (confirmed)="confirmDeleteLending()"
+  (cancelled)="showDeleteLendingConfirm.set(false)">
+</app-confirm-dialog>
+

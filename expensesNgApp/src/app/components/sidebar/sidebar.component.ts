@@ -18,7 +18,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'fa-solid fa-chart-pie',  path: 'dashboard', requirePermission: 'canViewDashboard' },
   { id: 'expenses',  label: 'Expenses',  icon: 'fa-solid fa-receipt',     path: 'expenses',  requirePermission: 'canViewExpenses' },
   { id: 'budget',    label: 'Budget',    icon: 'fa-solid fa-bullseye',    path: 'budget',    requirePermission: 'canViewBudgets' },
-  { id: 'insights',  label: 'Insights',  icon: 'fa-solid fa-chart-line',  path: 'insights',  requirePermission: 'canViewInsights' },
+  { id: 'finance-tools',  label: 'Finance Tools',  icon: 'fa-solid fa-calculator',  path: 'finance-tools',  requirePermission: 'canViewInsights' },
   { id: 'settings',  label: 'Settings',  icon: 'fa-solid fa-gear',        path: 'settings',  requirePermission: 'canViewSettings' },
   { id: 'members',   label: 'Members',   icon: 'fa-solid fa-users',       path: 'members',   requirePermission: 'canManageMembers' },
 ];

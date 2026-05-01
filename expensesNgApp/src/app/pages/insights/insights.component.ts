@@ -2,25 +2,27 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { BaseChartDirective } from 'ng2-charts';
-import { ChartData, ChartOptions } from 'chart.js';
 import { ExpenseService } from '../../services/expense.service';
-import { DashboardService } from '../../services/dashboard.service';
 import { SettingsService } from '../../services/settings.service';
+import { MemberService } from '../../services/member.service';
+import { LendingService } from '../../services/lending.service';
 import { ToastService } from '../../services/toast.service';
 import { Expense } from '../../models/expense.model';
+import { Lending } from '../../models/lending.model';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent } from '../../components/card/card.component';
 import { ButtonComponent } from '../../components/button/button.component';
 import { LoadingComponent, EmptyStateComponent } from '../../components/loading/loading.component';
 import { DateRangePickerComponent } from '../../components/date-range-picker/date-range-picker.component';
 import { ModalComponent } from '../../components/modal/modal.component';
 import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-dialog.component';
+import { LendingPanelComponent } from '../../components/lending-panel/lending-panel.component';
+import { AddLendingModalComponent } from '../../components/add-lending-modal/add-lending-modal.component';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 
 @Component({
   selector: 'app-insights',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, BaseChartDirective, CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent, LoadingComponent, EmptyStateComponent, DateRangePickerComponent, ModalComponent, ButtonComponent, ConfirmDialogComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent, LoadingComponent, EmptyStateComponent, DateRangePickerComponent, ModalComponent, ButtonComponent, ConfirmDialogComponent, LendingPanelComponent, AddLendingModalComponent],
   templateUrl: './insights.component.html',
   styleUrl: './insights.component.css'
 })
@@ -30,8 +32,8 @@ export class InsightsComponent implements OnInit {
   recurring = signal<any[]>([]);
   categories = signal<any[]>([]);
   currency = signal('USD');
-  dateStart = signal(new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1).toISOString().split('T')[0]);
-  dateEnd = signal(new Date().toISOString().split('T')[0]);
+  dateStart = signal(new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1).toISOString().split('T')[0] + 'T00:00:00');
+  dateEnd = signal(new Date().toISOString().split('T')[0] + 'T23:59:59');
   bookId = '';
 
   // Add Recurring Modal
@@ -83,11 +85,32 @@ export class InsightsComponent implements OnInit {
     return             { level: 'low',    icon: 'fa-solid fa-face-smile-beam',   color: '#10b981', label: 'Comfortable', tooltip: `Your expense-to-income ratio would be ${r.toFixed(1)}% — this EMI fits comfortably within your income.` };
   });
 
+  // Lending state
+  lendings = signal<Lending[]>([]);
+  lendingLoading = signal(false);
+  showAddLending = signal(false);
+  activeLending = signal<Lending | null>(null);
+  showLendingPanel = signal(false);
+  lendingStatusFilter = signal<'all' | 'active' | 'settled'>('active');
+  showDeleteLendingConfirm = signal(false);
+  lendingToDelete = signal<Lending | null>(null);
+  deleteLendingLoading = signal(false);
+
+  lendingStats = computed(() => {
+    const all = this.lendings();
+    const totalLent = all.reduce((s, l) => s + l.principalAmount, 0);
+    const totalOutstanding = all.reduce((s, l) => s + l.outstandingPrincipal, 0);
+    const totalInterest = all.reduce((s, l) => s + l.accruedInterest, 0);
+    return { totalLent, totalOutstanding, totalInterest };
+  });
+
   protected readonly formatCurrency = formatCurrency;
   protected readonly formatDate = formatDate;
 
   private expenseService = inject(ExpenseService);
   private settingsService = inject(SettingsService);
+  private memberService = inject(MemberService);
+  private lendingService = inject(LendingService);
   private toast = inject(ToastService);
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
@@ -110,46 +133,7 @@ export class InsightsComponent implements OnInit {
     const total = this.expenses().filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
     return total / 6;
   });
-  savingsRate = computed(() => {
-    const exp = this.avgMonthlyExpenses(); const inc = this.avgMonthlyIncome();
-    if (!inc) return 0;
-    return Math.round(((inc - exp) / inc) * 100);
-  });
-  topCategories = computed(() => {
-    const map = new Map<string, number>();
-    this.expenses().filter(e => e.type === 'expense').forEach(e => {
-      const raw = typeof e.category === 'string' ? e.category : (e.category as any)?.name || '';
-      const name = this.getCatName(raw);
-      map.set(name, (map.get(name) || 0) + e.amount);
-    });
-    const total = Array.from(map.values()).reduce((s, v) => s + v, 0);
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, t]) => ({ name, total: t, percent: total ? Math.round((t / total) * 100) : 0 }));
-  });
   recurringTotal = computed(() => this.recurring().reduce((s, r) => s + r.amount, 0));
-
-  trendData = computed<ChartData<'line'>>(() => {
-    const byMonth = new Map<string, { income: number; expense: number }>();
-    this.expenses().forEach(e => {
-      const m = e.date?.substring(0, 7) || '';
-      if (!byMonth.has(m)) byMonth.set(m, { income: 0, expense: 0 });
-      const v = byMonth.get(m)!;
-      if (e.type === 'income') v.income += e.amount; else v.expense += e.amount;
-    });
-    const sorted = Array.from(byMonth.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    return {
-      labels: sorted.map(([m]) => { try { return new Date(m + '-01').toLocaleString('default', { month: 'short', year: '2-digit' }); } catch { return m; } }),
-      datasets: [
-        { label: 'Expenses', data: sorted.map(([, v]) => v.expense), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.4 },
-        { label: 'Income', data: sorted.map(([, v]) => v.income), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4 }
-      ]
-    };
-  });
-
-  lineOptions: ChartOptions<'line'> = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'top' } },
-    scales: { x: { grid: { display: false } }, y: { beginAtZero: true } }
-  };
 
   ngOnInit() {
     this.route.parent?.params.subscribe(p => { this.bookId = p['bookId'] || ''; this.loadAll(); });
@@ -157,8 +141,72 @@ export class InsightsComponent implements OnInit {
 
   async loadAll() {
     this.loading.set(true);
-    await Promise.all([this.loadExpenses(), this.loadRecurring(), this.loadCategories(), this.loadSettings()]);
+    await Promise.all([this.loadExpenses(), this.loadRecurring(), this.loadCategories(), this.loadSettings(), this.loadLendings()]);
     this.loading.set(false);
+  }
+
+  async loadLendings() {
+    this.lendingLoading.set(true);
+    try {
+      const status = this.lendingStatusFilter() === 'all' ? undefined : this.lendingStatusFilter();
+      this.lendings.set(await this.lendingService.getLendings(this.bookId, status));
+    } catch {}
+    finally { this.lendingLoading.set(false); }
+  }
+
+  openLendingPanel(l: Lending) {
+    this.activeLending.set(l);
+    this.showLendingPanel.set(true);
+  }
+
+  closeLendingPanel() {
+    this.showLendingPanel.set(false);
+    this.activeLending.set(null);
+  }
+
+  async onLendingUpdated() {
+    await this.loadLendings();
+    // Refresh the panel's lending data
+    if (this.activeLending()) {
+      const refreshed = this.lendings().find(l => l.id === this.activeLending()!.id);
+      if (refreshed) this.activeLending.set(refreshed);
+    }
+  }
+
+  onLendingCreated(l: Lending) {
+    this.showAddLending.set(false);
+    this.loadLendings();
+  }
+
+  async setLendingFilter(f: 'all' | 'active' | 'settled') {
+    this.lendingStatusFilter.set(f);
+    await this.loadLendings();
+  }
+
+  getOverdueCount() {
+    return this.lendings().filter(l => l.isOverdue).length;
+  }
+
+  openDeleteLendingConfirm(l: Lending, event: Event) {
+    event.stopPropagation();
+    this.lendingToDelete.set(l);
+    this.showDeleteLendingConfirm.set(true);
+  }
+
+  async handleDeleteLending() {
+    const l = this.lendingToDelete();
+    if (!l) return;
+    this.deleteLendingLoading.set(true);
+    try {
+      await this.lendingService.deleteLending(this.bookId, l.id);
+      this.toast.success('Lending deleted');
+      this.showDeleteLendingConfirm.set(false);
+      this.lendings.update(list => list.filter(x => x.id !== l.id));
+    } catch (e: any) {
+      this.toast.error(e.message || 'Failed to delete');
+    } finally {
+      this.deleteLendingLoading.set(false);
+    }
   }
 
   async loadSettings() {
@@ -172,7 +220,7 @@ export class InsightsComponent implements OnInit {
 
   async loadCategories() {
     try {
-      const res = await this.settingsService.getCategories(this.bookId);
+      const res = await this.memberService.getAccessibleCategories(this.bookId);
       if (res.success) this.categories.set(res.data || []);
     } catch {}
   }
@@ -205,7 +253,7 @@ export class InsightsComponent implements OnInit {
     });
     this.recurringError.set('');
     const [catsRes, methodsRes] = await Promise.allSettled([
-      this.settingsService.getCategories(this.bookId),
+      this.memberService.getAccessibleCategories(this.bookId),
       this.settingsService.getPaymentMethods(this.bookId),
     ]);
     if (catsRes.status === 'fulfilled' && catsRes.value.success)

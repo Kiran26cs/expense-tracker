@@ -32,7 +32,7 @@ export const routes: Routes = [
       { path: 'expenses/add', loadComponent: () => import('./pages/add-expense/add-expense.component').then(m => m.AddExpenseComponent) },
       { path: 'expenses/:id/edit', loadComponent: () => import('./pages/edit-expense/edit-expense.component').then(m => m.EditExpenseComponent) },
       { path: 'budget', loadComponent: () => import('./pages/budget/budget.component').then(m => m.BudgetComponent) },
-      { path: 'insights', loadComponent: () => import('./pages/insights/insights.component').then(m => m.InsightsComponent) },
+      { path: 'finance-tools', loadComponent: () => import('./pages/insights/insights.component').then(m => m.InsightsComponent) },
       { path: 'settings', loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent) },
       { path: 'members', loadComponent: () => import('./pages/members/members.component').then(m => m.MembersComponent) },
     ]

@@ -6,6 +6,7 @@ import { BaseChartDirective } from 'ng2-charts';
 import { ChartData, ChartOptions } from 'chart.js';
 import { DashboardService } from '../../services/dashboard.service';
 import { SettingsService } from '../../services/settings.service';
+import { MemberService } from '../../services/member.service';
 import { ToastService } from '../../services/toast.service';
 import { DashboardSummary, DailyTransactionGroup, UpcomingPayment } from '../../models/dashboard.model';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent } from '../../components/card/card.component';
@@ -36,13 +37,14 @@ export class DashboardComponent implements OnInit {
   selectedPayment = signal<UpcomingPayment | null>(null);
   markPaidLoading = false;
 
-  dateStart = signal(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
-  dateEnd = signal(new Date().toISOString().split('T')[0]);
+  dateStart = signal(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0] + 'T00:00:00');
+  dateEnd = signal(new Date().toISOString().split('T')[0] + 'T23:59:59');
 
   bookId = '';
 
   private dashboardService = inject(DashboardService);
   private settingsService = inject(SettingsService);
+  private memberService = inject(MemberService);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
 
@@ -108,7 +110,7 @@ export class DashboardComponent implements OnInit {
 
   async loadCategories() {
     try {
-      const res = await this.settingsService.getCategories(this.bookId);
+      const res = await this.memberService.getAccessibleCategories(this.bookId);
       if (res.success) this.categories.set(res.data || []);
     } catch {}
   }

@@ -39,7 +39,8 @@ public class ExpenseBookMember
     public string InvitedEmail { get; set; } = string.Empty;
 
     [BsonElement("inviteToken")]
-    public string? InviteToken { get; set; }   // nulled after acceptance
+    [BsonIgnoreIfNull]
+    public string? InviteToken { get; set; }   // omitted from document when null so sparse unique index ignores it
 
     [BsonElement("inviteStatus")]
     public string InviteStatus { get; set; } = "pending";  // pending | accepted | revoked

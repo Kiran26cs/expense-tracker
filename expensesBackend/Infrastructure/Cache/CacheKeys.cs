@@ -46,6 +46,10 @@ public static class CacheKeys
     public static string UserSettings(string userId) =>
         $"settings:{userId}";
 
+    // Book-level Settings
+    public static string BookSettings(string bookId) =>
+        $"settings:book:{bookId}";
+
     // Member permissions — cached per (bookId, userId) pair
     public static string MemberPermissions(string bookId, string userId) =>
         $"member-perms:{bookId}:{userId}";

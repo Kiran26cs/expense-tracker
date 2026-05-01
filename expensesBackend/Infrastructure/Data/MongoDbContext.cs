@@ -35,6 +35,10 @@ public class MongoDbContext
         _database.GetCollection<UpcomingPayment>("upcomingPayments");
     public IMongoCollection<ExpenseBookMember> ExpenseBookMembers =>
         _database.GetCollection<ExpenseBookMember>("expenseBookMembers");
+    public IMongoCollection<Lending> Lendings =>
+        _database.GetCollection<Lending>("lendings");
+    public IMongoCollection<LendingRepayment> LendingRepayments =>
+        _database.GetCollection<LendingRepayment>("lendingRepayments");
 
     private void CreateIndexes()
     {
@@ -129,5 +133,23 @@ public class MongoDbContext
                 Unique = true,
                 PartialFilterExpression = memberEmailFilter
             }));
+
+        // Lending indexes
+        var lendingIndexKeys = Builders<Lending>.IndexKeys
+            .Ascending(l => l.ExpenseBookId)
+            .Ascending(l => l.IsDeleted)
+            .Ascending(l => l.Status);
+        Lendings.Indexes.CreateOne(new CreateIndexModel<Lending>(
+            lendingIndexKeys,
+            new CreateIndexOptions { Name = "idx_lending_book_status" }));
+
+        // LendingRepayment indexes
+        var repaymentIndexKeys = Builders<LendingRepayment>.IndexKeys
+            .Ascending(r => r.LendingId)
+            .Ascending(r => r.IsDeleted)
+            .Descending(r => r.Date);
+        LendingRepayments.Indexes.CreateOne(new CreateIndexModel<LendingRepayment>(
+            repaymentIndexKeys,
+            new CreateIndexOptions { Name = "idx_repayment_lending_date" }));
     }
 }

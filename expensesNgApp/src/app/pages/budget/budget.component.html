@@ -7,6 +7,14 @@
       <p class="page-subtitle">Monthly spending limits by category</p>
     </div>
     <div class="header-actions">
+      <app-button
+        *ngIf="isEditable()"
+        variant="ghost"
+        size="sm"
+        [loading]="copyLoading()"
+        (clicked)="showCopyConfirm.set(true)">
+        <i class="fa-solid fa-copy"></i> Copy from {{ formatMonthLabel(prevMonthStr()) }}
+      </app-button>
       <div class="search-wrap">
         <i class="fa-solid fa-magnifying-glass search-icon"></i>
         <input type="text" class="search-input" placeholder="Search category..."
@@ -101,13 +109,13 @@
                       [ngModel]="editAmount()" (ngModelChange)="editAmount.set(+$event)"
                       min="0.01" step="0.01" placeholder="0.00">
                     <span *ngIf="editingCategory() !== row.category && hasLimit(row.budget)" class="amount-text">
-                      {{ formatCurrency(row.budget!.amount, row.budget!.currency) }}
+                      {{ formatCurrency(row.budget!.amount, currency()) }}
                     </span>
                     <span *ngIf="editingCategory() !== row.category && !hasLimit(row.budget) && row.budget" class="cell-text dim no-limit-tag">
                       No limit
                     </span>
                     <span *ngIf="editingCategory() !== row.category && !row.budget" class="cell-text dim">
-                      {{ formatCurrency(0) }}
+                      {{ formatCurrency(0, currency()) }}
                     </span>
                   </td>
 
@@ -115,18 +123,18 @@
                   <td class="col-spent">
                     <span *ngIf="row.budget"
                       [class.over-budget]="(row.budget.spent || 0) > row.budget.amount">
-                      {{ formatCurrency(row.budget.spent || 0, row.budget.currency) }}
+                      {{ formatCurrency(row.budget.spent || 0, currency()) }}
                     </span>
-                    <span *ngIf="!row.budget" class="cell-text dim">{{ formatCurrency(0) }}</span>
+                    <span *ngIf="!row.budget" class="cell-text dim">{{ formatCurrency(0, currency()) }}</span>
                   </td>
 
                   <!-- Remaining -->
                   <td class="col-remaining">
                     <span *ngIf="row.budget"
                       [class.over-budget]="(row.budget.spent || 0) > row.budget.amount">
-                      {{ (row.budget.spent || 0) > row.budget.amount ? '-' : '' }}{{ formatCurrency(getRemaining(row.budget), row.budget.currency) }}
+                      {{ (row.budget.spent || 0) > row.budget.amount ? '-' : '' }}{{ formatCurrency(getRemaining(row.budget), currency()) }}
                     </span>
-                    <span *ngIf="!row.budget" class="cell-text dim">{{ formatCurrency(0) }}</span>
+                    <span *ngIf="!row.budget" class="cell-text dim">{{ formatCurrency(0, currency()) }}</span>
                   </td>
 
                   <!-- Progress -->
@@ -182,7 +190,7 @@
                               <span *ngIf="v.versionNumber === row.budget.latestVersionNumber" class="latest-tag">current</span>
                             </td>
                             <td>{{ formatVersionDate(v.effectiveDate) }}</td>
-                            <td>{{ formatCurrency(v.amount, row.budget.currency) }}</td>
+                            <td>{{ formatCurrency(v.amount, currency()) }}</td>
                             <td>{{ formatVersionDate(v.createdAt || '') }}</td>
                           </tr>
                         </tbody>
@@ -218,6 +226,17 @@
     [loading]="deleteLoading"
     (confirmed)="handleDelete()"
     (cancelled)="showDeleteConfirm.set(false)">
+  </app-confirm-dialog>
+
+  <!-- Copy from previous month confirm -->
+  <app-confirm-dialog
+    [isOpen]="showCopyConfirm()"
+    title="Copy Budgets from {{ formatMonthLabel(prevMonthStr()) }}"
+    [message]="'This will copy budget limits from ' + formatMonthLabel(prevMonthStr()) + ' into ' + formatMonthLabel(filterMonthStr()) + '. Categories that already have a limit this month will be skipped.'"
+    confirmLabel="Copy"
+    [loading]="copyLoading()"
+    (confirmed)="copyFromPreviousMonth()"
+    (cancelled)="showCopyConfirm.set(false)">
   </app-confirm-dialog>
 
 </div>
