@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -6,6 +6,7 @@ import { AuthStateService } from '../../services/auth-state.service';
 import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent } from '../../components/input/input.component';
 import { isValidEmail, isValidPhone } from '../../utils/helpers';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-signup',
@@ -14,7 +15,7 @@ import { isValidEmail, isValidPhone } from '../../utils/helpers';
   templateUrl: './signup.component.html',
   styleUrl: './signup.component.css'
 })
-export class SignupComponent {
+export class SignupComponent implements AfterViewInit {
   name = signal('');
   emailOrPhone = signal('');
   otp = '';
@@ -26,6 +27,41 @@ export class SignupComponent {
 
   private auth = inject(AuthStateService);
   private router = inject(Router);
+
+  ngAfterViewInit() {
+    this.setupGoogleButton();
+  }
+
+  private setupGoogleButton() {
+    const google = (window as any)['google'];
+    if (!google?.accounts?.id) return;
+    google.accounts.id.initialize({
+      client_id: environment.googleClientId,
+      callback: (res: { credential: string }) => this.onGoogleCredential(res)
+    });
+    const container = document.getElementById('g-btn-signup');
+    if (container) {
+      google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
+    }
+  }
+
+  private async onGoogleCredential(res: { credential: string }) {
+    this.loading.set(true);
+    this.error.set('');
+    try {
+      await this.auth.googleLogin(res.credential);
+      const pendingToken = sessionStorage.getItem('pendingInviteToken');
+      if (pendingToken) {
+        this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
+      } else {
+        this.router.navigate(['/']);
+      }
+    } catch (e: any) {
+      this.error.set(e.message || 'Google sign-up failed');
+    } finally {
+      this.loading.set(false);
+    }
+  }
 
   onOtpInput(event: Event, idx: number) {
     const input = event.target as HTMLInputElement;
@@ -88,7 +124,23 @@ export class SignupComponent {
   }
 
   handleGoogleLogin() {
-    this.error.set('Google login requires the Google Client ID to be configured in environment.ts');
+    const google = (window as any)['google'];
+    if (!google?.accounts?.id) {
+      this.error.set('Google Sign-In is unavailable. Please refresh the page and try again.');
+      return;
+    }
+    this.error.set('');
+    const container = document.getElementById('g-btn-signup');
+    // Render on first click if script loaded after component init
+    if (container && !container.hasChildNodes()) {
+      this.setupGoogleButton();
+    }
+    const btn = container?.querySelector<HTMLElement>('[role="button"]');
+    if (btn) {
+      btn.click();
+    } else {
+      this.error.set('Google Sign-In is unavailable. Please refresh the page and try again.');
+    }
   }
 
   startResendTimer() {

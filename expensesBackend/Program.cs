@@ -1,3 +1,4 @@
+using Azure.Identity;
 using ExpensesBackend.API.Infrastructure.Data;
 using ExpensesBackend.API.Middleware;
 using ExpensesBackend.API.Services;
@@ -24,6 +25,25 @@ if (args.Length > 0 && args[0] == "migrate")
 }
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Azure App Configuration — connection string for local dev, endpoint + managed identity for production
+var appConfigConnection = builder.Configuration["AzureAppConfig:ConnectionString"];
+var appConfigEndpoint = builder.Configuration["AzureAppConfig:Endpoint"];
+
+if (!string.IsNullOrEmpty(appConfigConnection))
+{
+    // Local dev: authenticate to Key Vault via Azure CLI (requires `az login`)
+    builder.Configuration.AddAzureAppConfiguration(options =>
+        options.Connect(appConfigConnection)
+               .ConfigureKeyVault(kv => kv.SetCredential(new AzureCliCredential())));
+}
+else if (!string.IsNullOrEmpty(appConfigEndpoint))
+{
+    // Production: authenticate via Managed Identity assigned to the App Service
+    builder.Configuration.AddAzureAppConfiguration(options =>
+        options.Connect(new Uri(appConfigEndpoint), new DefaultAzureCredential())
+               .ConfigureKeyVault(kv => kv.SetCredential(new DefaultAzureCredential())));
+}
 
 // Add services to the container
 builder.Services.AddControllers()
