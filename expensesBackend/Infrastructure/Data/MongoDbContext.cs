@@ -60,6 +60,72 @@ public class MongoDbContext
             .Descending(e => e.Date);
         Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(expenseIndexKeys));
 
+        // Cosmos DB requires an index for every ORDER BY field.
+        // Queries filtered by ExpenseBookId (not UserId) need their own indexes.
+        var expenseByBookDateIndex = Builders<Expense>.IndexKeys
+            .Ascending(e => e.ExpenseBookId)
+            .Descending(e => e.Date);
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            expenseByBookDateIndex,
+            new CreateIndexOptions { Name = "idx_expense_book_date" }));
+
+        // Dynamic sort by Amount (paged expense query) needs amount indexes for both filter paths.
+        var expenseByBookAmountIndex = Builders<Expense>.IndexKeys
+            .Ascending(e => e.ExpenseBookId)
+            .Descending(e => e.Amount);
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            expenseByBookAmountIndex,
+            new CreateIndexOptions { Name = "idx_expense_book_amount" }));
+
+        var expenseByUserAmountIndex = Builders<Expense>.IndexKeys
+            .Ascending(e => e.UserId)
+            .Descending(e => e.Amount);
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            expenseByUserAmountIndex,
+            new CreateIndexOptions { Name = "idx_expense_user_amount" }));
+
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            Builders<Expense>.IndexKeys.Descending(e => e.Date),
+            new CreateIndexOptions { Name = "idx_expense_date" }));
+
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            Builders<Expense>.IndexKeys.Descending(e => e.Amount),
+            new CreateIndexOptions { Name = "idx_expense_amount" }));
+
+        // Cosmos DB requires ALL ORDER BY fields in a single composite index.
+        // The paged query sorts by (date, _id) or (amount, _id) — _id is the keyset tiebreaker.
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            Builders<Expense>.IndexKeys.Descending(e => e.Date).Descending(e => e.Id),
+            new CreateIndexOptions { Name = "idx_expense_date_id" }));
+
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            Builders<Expense>.IndexKeys.Descending(e => e.Amount).Descending(e => e.Id),
+            new CreateIndexOptions { Name = "idx_expense_amount_id" }));
+
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            Builders<Expense>.IndexKeys.Ascending(e => e.ExpenseBookId).Descending(e => e.Date).Descending(e => e.Id),
+            new CreateIndexOptions { Name = "idx_expense_book_date_id" }));
+
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            Builders<Expense>.IndexKeys.Ascending(e => e.UserId).Descending(e => e.Date).Descending(e => e.Id),
+            new CreateIndexOptions { Name = "idx_expense_user_date_id" }));
+
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            Builders<Expense>.IndexKeys.Ascending(e => e.ExpenseBookId).Descending(e => e.Amount).Descending(e => e.Id),
+            new CreateIndexOptions { Name = "idx_expense_book_amount_id" }));
+
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            Builders<Expense>.IndexKeys.Ascending(e => e.UserId).Descending(e => e.Amount).Descending(e => e.Id),
+            new CreateIndexOptions { Name = "idx_expense_user_amount_id" }));
+
+        // Category indexes — Cosmos DB requires an index on every ORDER BY field
+        var categoryIndexKeys = Builders<Category>.IndexKeys
+            .Ascending(c => c.ExpenseBookId)
+            .Ascending(c => c.Name);
+        Categories.Indexes.CreateOne(new CreateIndexModel<Category>(
+            categoryIndexKeys,
+            new CreateIndexOptions { Name = "idx_category_book_name" }));
+
         // Budget indexes
         var budgetIndexKeys = Builders<Budget>.IndexKeys
             .Ascending(b => b.UserId)
@@ -98,6 +164,15 @@ public class MongoDbContext
             .Ascending(u => u.RecurringExpenseId);
         UpcomingPayments.Indexes.CreateOne(new CreateIndexModel<UpcomingPayment>(upcomingRecurringIndexKeys));
 
+        // DashboardService sorts UpcomingPayments by DueDate filtered only by RecurringExpenseId
+        // (no UserId in filter), so (UserId, DueDate) doesn't apply — needs its own index.
+        var upcomingByRecurringDueDateIndex = Builders<UpcomingPayment>.IndexKeys
+            .Ascending(u => u.RecurringExpenseId)
+            .Descending(u => u.DueDate);
+        UpcomingPayments.Indexes.CreateOne(new CreateIndexModel<UpcomingPayment>(
+            upcomingByRecurringDueDateIndex,
+            new CreateIndexOptions { Name = "idx_upcoming_recurring_duedate" }));
+
         // ExpenseBookMember indexes
         // 1. Permission lookup: find a specific user's membership in a book
         var memberBookUserIndex = Builders<ExpenseBookMember>.IndexKeys
@@ -113,11 +188,15 @@ public class MongoDbContext
             memberUserIndex,
             new CreateIndexOptions { Name = "idx_member_user" }));
 
-        // 3. Invite token lookup — sparse+unique so null tokens don't conflict
+        // 3. Invite token lookup — partial+unique so only documents with a token are indexed
+        //    Cosmos DB for MongoDB indexes null values in sparse indexes (unlike native MongoDB),
+        //    so we use a partial filter to exclude documents without a token instead.
         var memberTokenIndex = Builders<ExpenseBookMember>.IndexKeys.Ascending(m => m.InviteToken);
+        var memberTokenFilter = Builders<ExpenseBookMember>.Filter
+            .Type(m => m.InviteToken, MongoDB.Bson.BsonType.String);
         ExpenseBookMembers.Indexes.CreateOne(new CreateIndexModel<ExpenseBookMember>(
             memberTokenIndex,
-            new CreateIndexOptions { Name = "idx_member_token", Sparse = true, Unique = true }));
+            new CreateIndexOptions<ExpenseBookMember> { Name = "idx_member_token", PartialFilterExpression = memberTokenFilter }));
 
         // 4. Prevent duplicate pending invites to the same email per book
         //    Partial index: only applies when inviteStatus == "pending"
@@ -142,6 +221,15 @@ public class MongoDbContext
         Lendings.Indexes.CreateOne(new CreateIndexModel<Lending>(
             lendingIndexKeys,
             new CreateIndexOptions { Name = "idx_lending_book_status" }));
+
+        // GetLendingsAsync sorts by CreatedAt DESC — Cosmos DB requires CreatedAt in the index.
+        var lendingByCreatedAtIndex = Builders<Lending>.IndexKeys
+            .Ascending(l => l.ExpenseBookId)
+            .Ascending(l => l.IsDeleted)
+            .Descending(l => l.CreatedAt);
+        Lendings.Indexes.CreateOne(new CreateIndexModel<Lending>(
+            lendingByCreatedAtIndex,
+            new CreateIndexOptions { Name = "idx_lending_book_createdat" }));
 
         // LendingRepayment indexes
         var repaymentIndexKeys = Builders<LendingRepayment>.IndexKeys

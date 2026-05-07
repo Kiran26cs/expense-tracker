@@ -40,6 +40,16 @@ public class MemberService : IMemberService
         if (cached != null) return cached;
 
         var resolved = await ResolveInternalAsync(bookId, userId);
+
+        // Pattern from GetAccessibleCategoriesAsync: owners don't store AllowedCategoryIds
+        // because they have access to all categories. Populate the list here so every caller
+        // gets the correct data without needing a separate IsOwner check.
+        if (resolved.IsOwner || resolved.Role == "owner")
+        {
+            var allCategories = await _categoryService.GetCategoriesAsync(bookId);
+            resolved.AllowedCategoryIds = [.. allCategories.Select(c => c.Id)];
+        }
+
         await _cache.SetAsync(cacheKey, resolved, PermissionCacheTtl);
         return resolved;
     }

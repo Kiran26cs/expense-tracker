@@ -47,7 +47,7 @@ public class ExpenseService : IExpenseService
 
     public async Task<ExpensePagedResponse> GetExpensesPagedAsync(string userId, ExpensePagedRequest req)
     {
-        var sortField = req.SortField?.ToLowerInvariant() == "amount" ? "amount" : "date";
+            var sortField = req.SortField?.ToLowerInvariant() == "amount" ? "amount" : "date";
         var sortDesc  = req.SortDir?.ToLowerInvariant() != "asc";
 
         // ── 1. Build base filter (same filter applied to both data + count) ──────
@@ -199,7 +199,7 @@ public class ExpenseService : IExpenseService
             HasNext   = hasNext,
             HasPrev   = hasPrev
         };
-    }
+        }
 
     private static ExpenseDto MapBsonToDto(BsonDocument d) => new()
     {
