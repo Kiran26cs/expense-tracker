@@ -309,12 +309,16 @@ public class MemberService : IMemberService
             await InvalidatePermissionsCacheAsync(bookId, member.UserId);
     }
 
-    public async Task<AcceptInviteResponse> AcceptInviteAsync(string token, string userId)
+    public async Task<AcceptInviteResponse> AcceptInviteAsync(string token, string userId, string userEmail)
     {
         var member = await _context.ExpenseBookMembers
             .Find(m => m.InviteToken == token && m.InviteStatus == "pending" && !m.IsDeleted)
             .FirstOrDefaultAsync()
             ?? throw new KeyNotFoundException("Invite not found or already used.");
+
+        if (string.IsNullOrEmpty(userEmail) ||
+            !string.Equals(member.InvitedEmail, userEmail, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("This invitation was sent to a different email address.");
 
         // Prevent double-join
         var alreadyAccepted = await _context.ExpenseBookMembers.Find(
