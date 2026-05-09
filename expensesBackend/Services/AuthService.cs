@@ -64,8 +64,8 @@ public class AuthService : IAuthService
             };
             sent = await _messaging.SendEmailAsync(
                 email,
-                "Your Expense Tracker OTP",
-                $"Your OTP is: {otp}. It expires in {OTP_EXPIRY_MINUTES} minutes.",
+                "Your Nidhiwise OTP",
+                $"Your Nidhiwise OTP for login is {otp}. Expires in {OTP_EXPIRY_MINUTES} minutes.",
                 emailVariables);
         }
         else
