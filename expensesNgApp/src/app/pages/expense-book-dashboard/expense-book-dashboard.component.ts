@@ -10,14 +10,15 @@ import { ExpenseBook, CreateExpenseBookRequest } from '../../models/expense-book
 import { PendingInvite } from '../../models/member.model';
 import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent } from '../../components/input/input.component';
+import { SelectComponent } from '../../components/input/select.component';
 import { ModalComponent } from '../../components/modal/modal.component';
 import { LoadingComponent, EmptyStateComponent, ErrorStateComponent } from '../../components/loading/loading.component';
-import { formatCurrency } from '../../utils/helpers';
+import { formatCurrency, CURRENCY_OPTIONS, BOOK_ICON_OPTIONS } from '../../utils/helpers';
 
 @Component({
   selector: 'app-expense-book-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonComponent, InputComponent, ModalComponent, LoadingComponent, EmptyStateComponent, ErrorStateComponent],
+  imports: [CommonModule, FormsModule, ButtonComponent, InputComponent, SelectComponent, ModalComponent, LoadingComponent, EmptyStateComponent, ErrorStateComponent],
   templateUrl: './expense-book-dashboard.component.html',
   styleUrl: './expense-book-dashboard.component.css'
 })
@@ -37,8 +38,13 @@ export class ExpenseBookDashboardComponent implements OnInit {
 
   acceptingToken  = signal<string | null>(null);
   decliningToken  = signal<string | null>(null);
+  iconSelection   = signal('fa fa-book');
+  showCustomIcon  = signal(false);
 
   readonly hasContent = computed(() => this.books().length > 0 || this.pendingInvites().length > 0);
+
+  readonly currencyOptions = CURRENCY_OPTIONS;
+  readonly iconOptions     = BOOK_ICON_OPTIONS;
 
   private bookService   = inject(ExpenseBookService);
   private memberService = inject(MemberService);
@@ -113,7 +119,24 @@ export class ExpenseBookDashboardComponent implements OnInit {
 
   // ── Create / Delete ───────────────────────────────────────────────────────
 
-  openCreateModal()  { this.createForm = { name: '', description: '', currency: 'USD', icon: 'fa fa-book' }; this.createError = ''; this.showCreateModal.set(true); }
+  onIconSelect(val: string) {
+    if (val === '__other__') {
+      this.showCustomIcon.set(true);
+      this.createForm.icon = '';
+    } else {
+      this.showCustomIcon.set(false);
+      this.createForm.icon = val;
+      this.iconSelection.set(val);
+    }
+  }
+
+  openCreateModal() {
+    this.createForm = { name: '', description: '', currency: 'USD', icon: 'fa fa-book' };
+    this.createError = '';
+    this.iconSelection.set('fa fa-book');
+    this.showCustomIcon.set(false);
+    this.showCreateModal.set(true);
+  }
   closeCreateModal() { this.showCreateModal.set(false); }
 
   async handleCreate() {

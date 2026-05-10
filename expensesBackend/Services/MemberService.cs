@@ -40,6 +40,16 @@ public class MemberService : IMemberService
         if (cached != null) return cached;
 
         var resolved = await ResolveInternalAsync(bookId, userId);
+
+        // Pattern from GetAccessibleCategoriesAsync: owners don't store AllowedCategoryIds
+        // because they have access to all categories. Populate the list here so every caller
+        // gets the correct data without needing a separate IsOwner check.
+        if (resolved.IsOwner || resolved.Role == "owner")
+        {
+            var allCategories = await _categoryService.GetCategoriesAsync(bookId);
+            resolved.AllowedCategoryIds = [.. allCategories.Select(c => c.Id)];
+        }
+
         await _cache.SetAsync(cacheKey, resolved, PermissionCacheTtl);
         return resolved;
     }
@@ -299,12 +309,16 @@ public class MemberService : IMemberService
             await InvalidatePermissionsCacheAsync(bookId, member.UserId);
     }
 
-    public async Task<AcceptInviteResponse> AcceptInviteAsync(string token, string userId)
+    public async Task<AcceptInviteResponse> AcceptInviteAsync(string token, string userId, string userEmail)
     {
         var member = await _context.ExpenseBookMembers
             .Find(m => m.InviteToken == token && m.InviteStatus == "pending" && !m.IsDeleted)
             .FirstOrDefaultAsync()
             ?? throw new KeyNotFoundException("Invite not found or already used.");
+
+        if (string.IsNullOrEmpty(userEmail) ||
+            !string.Equals(member.InvitedEmail, userEmail, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("This invitation was sent to a different email address.");
 
         // Prevent double-join
         var alreadyAccepted = await _context.ExpenseBookMembers.Find(

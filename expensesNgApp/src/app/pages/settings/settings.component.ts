@@ -10,35 +10,7 @@ import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent, SelectComponent } from '../../components/input/input.component';
 import { ModalComponent } from '../../components/modal/modal.component';
 import { LoadingComponent } from '../../components/loading/loading.component';
-
-const FA_ICONS = [
-  { icon: 'fa-solid fa-utensils', label: 'Food' },
-  { icon: 'fa-solid fa-car', label: 'Transport' },
-  { icon: 'fa-solid fa-bag-shopping', label: 'Shopping' },
-  { icon: 'fa-solid fa-bolt', label: 'Utilities' },
-  { icon: 'fa-solid fa-film', label: 'Entertainment' },
-  { icon: 'fa-solid fa-heart-pulse', label: 'Health' },
-  { icon: 'fa-solid fa-graduation-cap', label: 'Education' },
-  { icon: 'fa-solid fa-house', label: 'Rent' },
-  { icon: 'fa-solid fa-cart-shopping', label: 'Groceries' },
-  { icon: 'fa-solid fa-plane', label: 'Travel' },
-  { icon: 'fa-solid fa-gamepad', label: 'Gaming' },
-  { icon: 'fa-solid fa-shirt', label: 'Clothing' },
-  { icon: 'fa-solid fa-mobile-screen', label: 'Phone' },
-  { icon: 'fa-solid fa-dumbbell', label: 'Fitness' },
-  { icon: 'fa-solid fa-gift', label: 'Gifts' },
-  { icon: 'fa-solid fa-baby', label: 'Kids' },
-  { icon: 'fa-solid fa-paw', label: 'Pets' },
-  { icon: 'fa-solid fa-briefcase', label: 'Work' },
-  { icon: 'fa-solid fa-piggy-bank', label: 'Savings' },
-  { icon: 'fa-solid fa-ellipsis', label: 'Other' },
-];
-
-const COLOR_OPTIONS = [
-  '#ef4444', '#f97316', '#f59e0b', '#22c55e',
-  '#10b981', '#14b8a6', '#3b82f6', '#6366f1',
-  '#8b5cf6', '#ec4899', '#64748b', '#0ea5e9',
-];
+import { CATEGORY_FA_ICONS, CATEGORY_COLOR_OPTIONS } from '../../utils/helpers';
 
 @Component({
   selector: 'app-settings',
@@ -87,8 +59,8 @@ export class SettingsComponent implements OnInit {
   importCatData = signal<Array<{ name: string; icon: string; color: string }>>([]);
   isDraggingCat = signal(false);
 
-  readonly FA_ICONS = FA_ICONS;
-  readonly COLOR_OPTIONS = COLOR_OPTIONS;
+  readonly FA_ICONS = CATEGORY_FA_ICONS;
+  readonly COLOR_OPTIONS = CATEGORY_COLOR_OPTIONS;
 
   private settingsService = inject(SettingsService);
   readonly themeService = inject(ThemeService);

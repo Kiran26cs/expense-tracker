@@ -39,6 +39,8 @@ app-card-content { display: block; }
 
 /* Row states */
 .budget-row.row-editing { background: rgba(99,102,241,0.03); }
+.clickable-cell { cursor: pointer; }
+.budget-row:not(.row-editing) td.clickable-cell:hover { background: rgba(99,102,241,0.05); }
 
 /* Expand button */
 .expand-btn { background: none; border: none; cursor: pointer; padding: 0.25rem 0.4rem; color: var(--color-text-tertiary); border-radius: var(--radius-sm); transition: color .15s; font-size: 0.75rem; }

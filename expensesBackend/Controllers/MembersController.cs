@@ -223,12 +223,12 @@ public class MembersController : ControllerBase
             if (string.IsNullOrWhiteSpace(token))
                 return BadRequest(ApiResponse<AcceptInviteResponse>.ErrorResponse("Token is required."));
 
-            var result = await _memberService.AcceptInviteAsync(token, GetUserId());
+            var result = await _memberService.AcceptInviteAsync(token, GetUserId(), GetUserEmail());
             return Ok(ApiResponse<AcceptInviteResponse>.SuccessResponse(result));
         }
         catch (UnauthorizedAccessException ex)
         {
-            return StatusCode(401, ApiResponse<AcceptInviteResponse>.ErrorResponse(ex.Message));
+            return StatusCode(403, ApiResponse<AcceptInviteResponse>.ErrorResponse(ex.Message));
         }
         catch (KeyNotFoundException ex)
         {

@@ -69,10 +69,12 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<ILendingService, LendingService>();
 
-// Messaging Service — switch provider via Messaging:Provider in appsettings.json
+// Messaging Service — switch provider via Messaging:Provider in Azure App Configuration
 builder.Services.AddHttpClient("MSG91");
 var messagingProvider = builder.Configuration["Messaging:Provider"] ?? "MSG91";
-if (messagingProvider.Equals("TwilioSendGrid", StringComparison.OrdinalIgnoreCase))
+if (messagingProvider.Equals("AzureCommunication", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddScoped<IMessagingService, AzureCommunicationMessagingService>();
+else if (messagingProvider.Equals("TwilioSendGrid", StringComparison.OrdinalIgnoreCase))
     builder.Services.AddScoped<IMessagingService, TwilioSendGridMessagingService>();
 else
     builder.Services.AddScoped<IMessagingService, Msg91MessagingService>();
@@ -110,12 +112,17 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// CORS
+// CORS — origins from config + local dev defaults
+var frontendUrl = builder.Configuration["App:FrontendUrl"];
+var corsOrigins = new List<string> { "http://localhost:4200", "http://localhost:5173" };
+if (!string.IsNullOrEmpty(frontendUrl))
+    corsOrigins.Add(frontendUrl.TrimEnd('/'));
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:4200")
+        policy.WithOrigins([.. corsOrigins])
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

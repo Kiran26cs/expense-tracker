@@ -16,8 +16,8 @@ public interface IMemberService
     /// <summary>Soft-deletes (revokes) a member record.</summary>
     Task RemoveMemberAsync(string bookId, string memberId, string requestingUserId);
 
-    /// <summary>Accepts an invite token and links the user to the book.</summary>
-    Task<AcceptInviteResponse> AcceptInviteAsync(string token, string userId);
+    /// <summary>Accepts an invite token and links the user to the book. Validates userEmail matches the invited email.</summary>
+    Task<AcceptInviteResponse> AcceptInviteAsync(string token, string userId, string userEmail);
 
     /// <summary>Resolves the effective permissions for a user in a book (Redis-cached).</summary>
     Task<ResolvedPermissions> GetResolvedPermissionsAsync(string bookId, string userId);
