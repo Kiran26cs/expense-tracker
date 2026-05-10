@@ -98,7 +98,7 @@
   </div>
 
   <!-- ══ Category Management Modal ══ -->
-  <app-modal [isOpen]="showCategoryModal()" [title]="catModalTitle" maxWidth="660px" (closed)="closeCategoryModal()">
+  <app-modal [isOpen]="showCategoryModal()" [title]="catModalTitle" maxWidth="660px" [closeOnBackdrop]="false" (closed)="closeCategoryModal()">
 
     <!-- ── MAIN VIEW ── -->
     <ng-container *ngIf="catView() === 'main'">
@@ -138,11 +138,6 @@
             <!-- Inline edit mode -->
             <ng-container *ngIf="editingCatId() === c.id">
               <div class="cat-edit-row">
-                <input class="cat-edit-input cat-edit-icon-input"
-                  [value]="editCatIcon()"
-                  (input)="editCatIcon.set($any($event.target).value)"
-                  placeholder="fa fa-tag"
-                  title="Icon class" />
                 <input class="cat-edit-input"
                   [value]="editCatName()"
                   (input)="editCatName.set($any($event.target).value)"
@@ -156,9 +151,14 @@
                   <i class="fa-solid fa-xmark" style="color:var(--color-danger)"></i>
                 </button>
               </div>
-              <div class="cat-edit-icon-preview" [style.color]="c.color">
-                <i [class]="editCatIcon() || 'fa-solid fa-tag'"></i>
-                <span class="cat-edit-icon-hint">Icon preview</span>
+              <div class="cat-icon-grid">
+                <button *ngFor="let item of FA_ICONS" type="button"
+                  class="cat-icon-option"
+                  [class.cat-icon-option--selected]="editCatIcon() === item.icon"
+                  [title]="item.label"
+                  (click)="editCatIcon.set(item.icon)">
+                  <i [class]="item.icon"></i>
+                </button>
               </div>
             </ng-container>
             <!-- Normal mode -->

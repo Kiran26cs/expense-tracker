@@ -111,15 +111,16 @@
   </div>
 
   <!-- Create Modal -->
-  <app-modal [isOpen]="showCreateModal()" title="Create Expense Book" (closed)="closeCreateModal()">
+  <app-modal [isOpen]="showCreateModal()" title="Create Expense Book" [closeOnBackdrop]="false" (closed)="closeCreateModal()">
     <form (ngSubmit)="handleCreate()" class="modal-form">
       <div *ngIf="createError" class="error-banner">{{ createError }}</div>
       <app-input label="Book Name" [value]="createForm.name" (valueChange)="createForm.name = $event" placeholder="e.g. Personal, Business" [required]="true"></app-input>
       <app-input label="Description (optional)" [value]="createForm.description || ''" (valueChange)="createForm.description = $event" placeholder="What is this book for?"></app-input>
       <div class="form-row">
-        <app-input label="Currency" [value]="createForm.currency || 'USD'" (valueChange)="createForm.currency = $event" placeholder="USD"></app-input>
-        <app-input label="Icon (FA class)" [value]="createForm.icon || ''" (valueChange)="createForm.icon = $event" placeholder="fa fa-book"></app-input>
+        <app-select label="Currency" [options]="currencyOptions" [value]="createForm.currency || 'USD'" (valueChange)="createForm.currency = $event"></app-select>
+        <app-select label="Icon" [options]="iconOptions" [value]="iconSelection()" (valueChange)="onIconSelect($event)"></app-select>
       </div>
+      <app-input *ngIf="showCustomIcon()" label="Custom Icon (FA class)" [value]="createForm.icon || ''" (valueChange)="createForm.icon = $event" placeholder="e.g. fa fa-star"></app-input>
       <div class="modal-actions">
         <app-button type="button" variant="ghost" (clicked)="closeCreateModal()">Cancel</app-button>
         <app-button type="submit" [loading]="createLoading">Create Book</app-button>

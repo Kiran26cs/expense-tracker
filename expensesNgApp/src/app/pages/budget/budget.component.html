@@ -93,7 +93,9 @@
                   </td>
 
                   <!-- Effective Date -->
-                  <td class="col-date">
+                  <td class="col-date"
+                    [class.clickable-cell]="isEditable() && editingCategory() !== row.category"
+                    (click)="editingCategory() !== row.category && isEditable() && startEdit(row)">
                     <input *ngIf="editingCategory() === row.category"
                       type="date" class="cell-input"
                       [ngModel]="editDate()" (ngModelChange)="editDate.set($event)">
@@ -103,7 +105,9 @@
                   </td>
 
                   <!-- Budget Amount -->
-                  <td class="col-amount">
+                  <td class="col-amount"
+                    [class.clickable-cell]="isEditable() && editingCategory() !== row.category"
+                    (click)="editingCategory() !== row.category && isEditable() && startEdit(row)">
                     <input *ngIf="editingCategory() === row.category"
                       type="number" class="cell-input cell-input-num"
                       [ngModel]="editAmount()" (ngModelChange)="editAmount.set(+$event)"
