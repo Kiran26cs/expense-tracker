@@ -78,6 +78,12 @@ export class ImportService {
     this.activeDetail.set(session);
   }
 
+  pollImportSession(bookId: string, sessionId: string) {
+    return firstValueFrom(
+      this.api.get<ApiResponse<ImportSession>>(`/${bookId}/imports/${sessionId}`)
+    );
+  }
+
   async loadSessions(bookId: string) {
     try {
       const res = await firstValueFrom(

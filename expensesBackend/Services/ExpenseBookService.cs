@@ -245,6 +245,7 @@ public class ExpenseBookService : IExpenseBookService
             Color = expenseBook.Color,
             Icon = expenseBook.Icon,
             IsDefault = expenseBook.IsDefault,
+            IsTemplate = expenseBook.IsTemplate,
             TotalExpenses = expenseBook.TotalExpenses,
             ExpenseCount = expenseBook.ExpenseCount,
             CreatedAt = expenseBook.CreatedAt,

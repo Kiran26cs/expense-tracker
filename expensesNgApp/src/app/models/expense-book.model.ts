@@ -8,6 +8,7 @@ export interface ExpenseBook {
   icon?: string;
   currency?: string;
   isDefault: boolean;
+  isTemplate: boolean;
   totalExpenses?: number;
   expenseCount?: number;
   createdAt?: string;

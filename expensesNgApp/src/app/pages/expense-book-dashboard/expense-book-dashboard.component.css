@@ -11,6 +11,62 @@
 .page-subtitle { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0; }
 .header-actions { display: flex; gap: 0.75rem; align-items: center; }
 
+/* Template button */
+.template-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.1rem;
+  border: 1.5px solid #8b5cf6;
+  border-radius: var(--radius-lg, 8px);
+  background: rgba(139, 92, 246, 0.08);
+  color: #7c3aed;
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.template-btn:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.15);
+  transform: translateY(-1px);
+}
+.template-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.template-btn-lg {
+  flex-direction: column;
+  align-items: center;
+  padding: 1.25rem 2rem;
+  font-size: 1rem;
+  border-radius: var(--radius-xl, 12px);
+  gap: 0.25rem;
+}
+.template-btn-sub {
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+.template-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--font-size-sm, 0.875rem);
+  color: #7c3aed;
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: 99px;
+  padding: 0.3rem 0.85rem;
+}
+
+.empty-with-template { max-width: 1200px; margin: 0 auto; }
+.empty-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
 /* Sections */
 .section { max-width: 1200px; margin: 0 auto 2rem; }
 .section-title {
@@ -69,6 +125,24 @@
 /* Invite action buttons */
 .invite-actions { display: flex; gap: 0.5rem; margin-top: 1rem; width: 100%; }
 .invite-actions app-button { flex: 1; }
+
+/* Inline name edit */
+.book-edit-name {
+  visibility: hidden;
+  background: none; border: none; cursor: pointer;
+  color: var(--color-text-tertiary); font-size: 0.75rem;
+  padding: 0.2rem 0.3rem; border-radius: var(--radius-sm); line-height: 1;
+  transition: color 0.15s;
+}
+.book-edit-name:hover { color: var(--color-primary); }
+.book-card:hover .book-edit-name { visibility: visible; }
+
+.book-name-input {
+  font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold);
+  border: none; border-bottom: 2px solid var(--color-primary);
+  background: transparent; outline: none; color: var(--color-text-primary);
+  padding: 0 0.1rem; width: 100%; max-width: 260px;
+}
 
 /* Delete button */
 .book-delete {

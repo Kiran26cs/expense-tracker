@@ -58,8 +58,9 @@ export const CATEGORY_COLOR_OPTIONS = [
   '#8b5cf6', '#ec4899', '#64748b', '#0ea5e9',
 ];
 
-export const formatCurrency = (amount: number, currency = 'INR'): string => {
-  return new Intl.NumberFormat('en-IN', {
+export const formatCurrency = (amount: number, currency = 'USD'): string => {
+  const locale = currency === 'INR' ? 'en-IN' : 'en-US';
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,

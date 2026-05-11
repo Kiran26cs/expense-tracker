@@ -1,21 +1,27 @@
 <header class="topbar" [class.sidebar-collapsed]="isSidebarCollapsed && !isMobile">
   <div class="topbar-left">
-    <a routerLink="/" class="app-name-link">
-      <h2 class="app-name">{{ bookName || 'ExpenseTracker' }}</h2>
+    <a *ngIf="!bookName" routerLink="/" class="app-name-link">
+      <h2 class="app-name">ExpenseTracker</h2>
     </a>
+    <ng-container *ngIf="bookName">
+      <ng-container *ngIf="isEditingName; else displayBookName">
+        <input
+          #nameInput
+          class="topbar-name-input"
+          [(ngModel)]="editName"
+          (keydown)="onNameKeydown($event)"
+          (blur)="saveEditName()"
+        />
+      </ng-container>
+      <ng-template #displayBookName>
+        <button class="app-name-btn" (click)="startEditName()" title="Rename book">
+          <h2 class="app-name">{{ currentBook.book()?.name || bookName }}</h2>
+          <i class="fa-solid fa-pen app-name-edit-icon"></i>
+        </button>
+      </ng-template>
+    </ng-container>
   </div>
 
-  <div class="topbar-center" *ngIf="!isMobile">
-    <div class="search-bar">
-      <span class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
-      <input
-        type="text"
-        class="search-input"
-        placeholder="Search expenses..."
-        (input)="onSearch($event)"
-      />
-    </div>
-  </div>
 
   <div class="topbar-right">
     <button class="icon-btn import-btn" (click)="openImportDrawer()" title="Import activity">

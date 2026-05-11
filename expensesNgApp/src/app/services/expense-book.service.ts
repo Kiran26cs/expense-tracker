@@ -28,6 +28,14 @@ export class ExpenseBookService {
     return firstValueFrom(this.api.delete<ApiResponse<void>>(`/expensebooks/${id}`));
   }
 
+  createFromTemplate(currency: string) {
+    return firstValueFrom(
+      this.api.post<ApiResponse<{ bookId: string; sessionId: string }>>(
+        '/expensebooks/template', { currency }
+      )
+    );
+  }
+
   getCategories() {
     return firstValueFrom(this.api.get<ApiResponse<string[]>>('/expensebooks/categories'));
   }

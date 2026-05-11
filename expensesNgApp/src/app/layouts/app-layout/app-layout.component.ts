@@ -52,14 +52,21 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
 
   async loadBook() {
     const bookId = this.route.snapshot.paramMap.get('bookId') || this.router.url.split('/')[1];
-    if (bookId && bookId !== 'login' && bookId !== 'signup') {
-      try {
-        const res = await this.expenseBookService.getExpenseBookById(bookId);
-        if (res.success && res.data) {
-          this.bookName = res.data.name;
-          this.currentBook.setBook(res.data);
-        }
-      } catch { /* ignore */ }
+    if (!bookId || bookId === 'login' || bookId === 'signup') return;
+
+    // Already have this book cached — use it immediately, no API call needed
+    const cached = this.currentBook.book();
+    if (cached?.id === bookId) {
+      this.bookName = cached.name;
+      return;
     }
+
+    try {
+      const res = await this.expenseBookService.getExpenseBookById(bookId);
+      if (res.success && res.data) {
+        this.bookName = res.data.name;
+        this.currentBook.setBook(res.data);
+      }
+    } catch { /* ignore */ }
   }
 }

@@ -19,6 +19,10 @@ public class ImportSession
     [BsonElement("fileName")]
     public string FileName { get; set; } = string.Empty;
 
+    // "import" (default) | "templateCreation"
+    [BsonElement("jobType")]
+    public string JobType { get; set; } = "import";
+
     [BsonElement("status")]
     public string Status { get; set; } = ImportStatus.Queued;
 

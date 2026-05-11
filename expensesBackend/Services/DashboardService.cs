@@ -106,7 +106,9 @@ public class DashboardService : IDashboardService
             Savings = totalIncome - totalExpenses,
             NetSavings = totalIncome - totalExpenses,
             TransactionCount = expenses.Count,
-            Currency = (await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync())?.Currency ?? "INR",
+            Currency = string.IsNullOrEmpty(expenseBookId)
+                ? (await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync())?.Currency ?? "USD"
+                : (await _context.ExpenseBooks.Find(b => b.Id == expenseBookId).FirstOrDefaultAsync())?.Currency ?? "USD",
             CategoryBreakdown = categoryBreakdown,
             RecentTransactions = recentTransactions,
             IsRestricted = allowedCategoryIds is { Count: > 0 }

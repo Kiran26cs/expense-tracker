@@ -71,11 +71,19 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<ILendingService, LendingService>();
 builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<ITemplateBookService, TemplateBookService>();
+builder.Services.AddSingleton<ITemplateBlobService, TemplateBlobService>();
+builder.Services.AddMemoryCache();
 
 // Bounded channel: at most 50 queued import jobs; back-pressures callers if full
 builder.Services.AddSingleton(Channel.CreateBounded<ImportJobPayload>(
     new BoundedChannelOptions(50) { FullMode = BoundedChannelFullMode.Wait }));
 builder.Services.AddHostedService<ImportProcessorService>();
+
+// Template creation channel — bounded to 10 concurrent seeding jobs
+builder.Services.AddSingleton(Channel.CreateBounded<TemplateCreationJobPayload>(
+    new BoundedChannelOptions(10) { FullMode = BoundedChannelFullMode.Wait }));
+builder.Services.AddHostedService<TemplateBookProcessorService>();
 
 // Messaging Service — switch provider via Messaging:Provider in Azure App Configuration
 builder.Services.AddHttpClient("MSG91");

@@ -66,7 +66,8 @@ public class ImportService : IImportService
     {
         var filter = Builders<ImportSession>.Filter.And(
             Builders<ImportSession>.Filter.Eq(s => s.ExpenseBookId, expenseBookId),
-            Builders<ImportSession>.Filter.Eq(s => s.UserId, userId));
+            Builders<ImportSession>.Filter.Eq(s => s.UserId, userId),
+            Builders<ImportSession>.Filter.Ne(s => s.JobType, "templateCreation"));
 
         var sessions = await _context.ImportSessions
             .Find(filter)
