@@ -39,6 +39,8 @@ public class MongoDbContext
         _database.GetCollection<Lending>("lendings");
     public IMongoCollection<LendingRepayment> LendingRepayments =>
         _database.GetCollection<LendingRepayment>("lendingRepayments");
+    public IMongoCollection<ImportSession> ImportSessions =>
+        _database.GetCollection<ImportSession>("importSessions");
 
     private void CreateIndexes()
     {
@@ -239,5 +241,25 @@ public class MongoDbContext
         LendingRepayments.Indexes.CreateOne(new CreateIndexModel<LendingRepayment>(
             repaymentIndexKeys,
             new CreateIndexOptions { Name = "idx_repayment_lending_date" }));
+
+        // ImportSession indexes
+        var importByBookUserIndex = Builders<ImportSession>.IndexKeys
+            .Ascending(s => s.ExpenseBookId)
+            .Ascending(s => s.UserId)
+            .Descending(s => s.CreatedAt);
+        ImportSessions.Indexes.CreateOne(new CreateIndexModel<ImportSession>(
+            importByBookUserIndex,
+            new CreateIndexOptions { Name = "idx_import_book_user_created" }));
+
+        // TTL index: auto-delete completed sessions 24 hours after CompletedAt
+        var importTtlIndex = Builders<ImportSession>.IndexKeys.Ascending(s => s.CompletedAt);
+        ImportSessions.Indexes.CreateOne(new CreateIndexModel<ImportSession>(
+            importTtlIndex,
+            new CreateIndexOptions
+            {
+                Name        = "idx_import_ttl",
+                ExpireAfter = TimeSpan.FromHours(24),
+                Sparse      = true   // only index documents where completedAt is set
+            }));
     }
 }

@@ -105,6 +105,24 @@
 }
 .dropdown-item:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
 .logout-item { color: var(--color-danger); }
+.import-btn { position: relative; color: var(--color-text-secondary); }
+.import-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  border-radius: 99px;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+}
 @media (max-width: 767px) {
   .topbar { left: 0; bottom: auto; padding-bottom: 0; }
 }

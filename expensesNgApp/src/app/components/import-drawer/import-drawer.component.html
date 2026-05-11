@@ -1,0 +1,172 @@
+<div class="drawer-backdrop" *ngIf="isOpen" (click)="close()"></div>
+
+<div class="drawer" [class.drawer-open]="isOpen">
+
+  <!-- ── Header ─────────────────────────────────────────── -->
+  <div class="drawer-header">
+    <div class="drawer-header-left">
+      <button *ngIf="showDetail" class="back-btn" (click)="back()">
+        <i class="fa-solid fa-arrow-left"></i>
+      </button>
+      <span class="drawer-title">
+        {{ showDetail ? 'Import Detail' : 'Import Activity' }}
+      </span>
+    </div>
+    <div class="drawer-header-actions">
+      <button
+        *ngIf="showDetail"
+        class="icon-action-btn"
+        (click)="refresh()"
+        [disabled]="detailLoading"
+        title="Refresh"
+      >
+        <i class="fa-solid fa-rotate-right" [class.fa-spin]="detailLoading"></i>
+      </button>
+      <button class="close-btn" (click)="close()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── List view ──────────────────────────────────────── -->
+  <div class="drawer-body" *ngIf="!showDetail">
+
+    <div *ngIf="sessions.length === 0" class="empty-state">
+      <i class="fa-solid fa-file-import empty-icon"></i>
+      <p>No imports in the last 24 hours</p>
+    </div>
+
+    <div class="session-list" *ngIf="sessions.length > 0">
+      <div
+        class="session-card"
+        *ngFor="let s of sessions"
+        (click)="openDetail(s.id)"
+      >
+        <div class="session-card-top">
+          <span class="session-filename">{{ s.fileName }}</span>
+          <span class="badge" [ngClass]="statusClass(s.status)">
+            {{ statusLabel(s.status) }}
+          </span>
+        </div>
+
+        <div class="session-counts">
+          <span class="count-success">
+            <i class="fa-solid fa-check"></i> {{ s.successCount }}
+          </span>
+          <span class="count-failed" *ngIf="s.failedCount > 0">
+            <i class="fa-solid fa-xmark"></i> {{ s.failedCount }}
+          </span>
+          <span class="count-total">/ {{ s.totalRecords }}</span>
+        </div>
+
+        <!-- Progress bar for active imports -->
+        <div class="progress-bar-wrap" *ngIf="!isTerminal(s.status)">
+          <div class="progress-bar-track">
+            <div
+              class="progress-bar-fill"
+              [style.width.%]="progressPercent(s)"
+            ></div>
+          </div>
+          <span class="progress-pct">{{ progressPercent(s) }}%</span>
+        </div>
+
+        <div class="session-date">
+          {{ s.createdAt | date: 'dd MMM yyyy, HH:mm' }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Detail view ────────────────────────────────────── -->
+  <div class="drawer-body" *ngIf="showDetail">
+
+    <div *ngIf="detailLoading && !activeDetail" class="loading-state">
+      <i class="fa-solid fa-spinner fa-spin"></i> Loading…
+    </div>
+
+    <ng-container *ngIf="activeDetail">
+
+      <!-- Summary strip -->
+      <div class="detail-summary">
+        <div class="detail-filename">{{ activeDetail.fileName }}</div>
+        <span class="badge" [ngClass]="statusClass(activeDetail.status)">
+          {{ statusLabel(activeDetail.status) }}
+        </span>
+        <div class="detail-counts">
+          <span class="count-success"><i class="fa-solid fa-check"></i> {{ activeDetail.successCount }} success</span>
+          <span class="count-failed" *ngIf="activeDetail.failedCount > 0"><i class="fa-solid fa-xmark"></i> {{ activeDetail.failedCount }} failed</span>
+          <span class="count-total">{{ activeDetail.totalRecords }} total</span>
+        </div>
+        <div class="progress-bar-wrap" *ngIf="!isTerminal(activeDetail.status)">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill"
+              [style.width.%]="activeDetail.totalRecords ? (activeDetail.processedCount / activeDetail.totalRecords) * 100 : 0">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Failed records -->
+      <div class="section" *ngIf="failedRecords.length > 0">
+        <div class="section-heading section-heading-error">
+          <span>
+            <i class="fa-solid fa-circle-xmark"></i> Failed ({{ failedRecords.length }})
+          </span>
+          <button
+            class="retry-all-btn"
+            (click)="retryAll()"
+            [disabled]="retrying"
+            title="Retry all failed"
+          >
+            <i class="fa-solid fa-rotate-right"></i>
+            {{ retrying ? 'Retrying…' : 'Retry all' }}
+          </button>
+        </div>
+        <div class="record-row record-failed" *ngFor="let r of failedRecords">
+          <span class="record-row-num">#{{ r.rowNumber }}</span>
+          <div class="record-main">
+            <span class="record-desc">{{ r.description }}</span>
+            <span class="record-error">{{ r.errorMessage }}</span>
+          </div>
+          <button
+            class="retry-single-btn"
+            (click)="retrySingle(r.rowNumber); $event.stopPropagation()"
+            [disabled]="retrying"
+            title="Retry this record"
+          >
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- In-progress records -->
+      <div class="section" *ngIf="inProgressRecords.length > 0">
+        <div class="section-heading section-heading-info">
+          <i class="fa-solid fa-spinner fa-spin"></i> Pending ({{ inProgressRecords.length }})
+        </div>
+        <div class="record-row" *ngFor="let r of inProgressRecords">
+          <span class="record-row-num">#{{ r.rowNumber }}</span>
+          <div class="record-main">
+            <span class="record-desc">{{ r.description }}</span>
+          </div>
+          <span class="record-amount">{{ r.amount }}</span>
+        </div>
+      </div>
+
+      <!-- Completed records -->
+      <div class="section" *ngIf="successRecords.length > 0">
+        <div class="section-heading section-heading-success">
+          <i class="fa-solid fa-circle-check"></i> Completed ({{ successRecords.length }})
+        </div>
+        <div class="record-row record-success" *ngFor="let r of successRecords">
+          <span class="record-row-num">#{{ r.rowNumber }}</span>
+          <div class="record-main">
+            <span class="record-desc">{{ r.description }}</span>
+          </div>
+          <span class="record-amount">{{ r.amount | number: '1.0-2' }}</span>
+        </div>
+      </div>
+
+    </ng-container>
+  </div>
+</div>

@@ -18,6 +18,13 @@
   </div>
 
   <div class="topbar-right">
+    <button class="icon-btn import-btn" (click)="openImportDrawer()" title="Import activity">
+      <i class="fa-solid fa-file-import"></i>
+      <span class="import-badge" *ngIf="importService.activeCount() > 0">
+        {{ importService.activeCount() }}
+      </span>
+    </button>
+
     <button class="icon-btn" (click)="themeService.toggle()" [title]="themeService.theme() === 'light' ? 'Dark mode' : 'Light mode'">
       <i [class]="themeService.theme() === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'" [style.color]="themeService.theme() !== 'light' ? '#f59e0b' : ''"></i>
     </button>

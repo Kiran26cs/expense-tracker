@@ -1,4 +1,5 @@
 using Azure.Identity;
+using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Infrastructure.Data;
 using ExpensesBackend.API.Middleware;
 using ExpensesBackend.API.Services;
@@ -7,6 +8,7 @@ using ExpensesBackend.API.Services.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Threading.Channels;
 
 // Check if running migration command
 if (args.Length > 0 && args[0] == "migrate")
@@ -68,6 +70,12 @@ builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<ILendingService, LendingService>();
+builder.Services.AddScoped<IImportService, ImportService>();
+
+// Bounded channel: at most 50 queued import jobs; back-pressures callers if full
+builder.Services.AddSingleton(Channel.CreateBounded<ImportJobPayload>(
+    new BoundedChannelOptions(50) { FullMode = BoundedChannelFullMode.Wait }));
+builder.Services.AddHostedService<ImportProcessorService>();
 
 // Messaging Service — switch provider via Messaging:Provider in Azure App Configuration
 builder.Services.AddHttpClient("MSG91");

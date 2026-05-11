@@ -1,8 +1,10 @@
-import { Component, Input, Output, EventEmitter, inject, OnInit, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject, HostListener, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ThemeService } from '../../services/theme.service';
+import { ImportService } from '../../services/import.service';
+import { CurrentBookService } from '../../services/current-book.service';
 
 @Component({
   selector: 'app-topbar',
@@ -17,8 +19,10 @@ export class TopbarComponent {
   @Input() bookName = '';
   @Output() searchChanged = new EventEmitter<string>();
 
-  authState = inject(AuthStateService);
+  authState    = inject(AuthStateService);
   themeService = inject(ThemeService);
+  importService = inject(ImportService);
+  currentBook  = inject(CurrentBookService);
   isMenuOpen = false;
 
   @ViewChild('menuWrapper') menuWrapper!: ElementRef;
@@ -31,6 +35,11 @@ export class TopbarComponent {
   }
 
   toggleMenu() { this.isMenuOpen = !this.isMenuOpen; }
+
+  openImportDrawer() {
+    const bookId = this.currentBook.book()?.id;
+    if (bookId) this.importService.openDrawer(bookId);
+  }
 
   onSearch(event: Event) {
     this.searchChanged.emit((event.target as HTMLInputElement).value);
