@@ -33,6 +33,7 @@ public class ExpenseBookResponse
     public string? Color { get; set; }
     public string? Icon { get; set; }
     public bool IsDefault { get; set; }
+    public bool IsTemplate { get; set; }
     public decimal TotalExpenses { get; set; }
     public int ExpenseCount { get; set; }
     public DateTime CreatedAt { get; set; }

@@ -35,7 +35,10 @@ public class ExpenseBook
     public decimal MonthlySavingsGoal { get; set; } = 0;
 
     [BsonElement("isDefault")]
-    public bool IsDefault { get; set; } = false; // One default book per user
+    public bool IsDefault { get; set; } = false;
+
+    [BsonElement("isTemplate")]
+    public bool IsTemplate { get; set; } = false;
 
     [BsonElement("totalExpenses")]
     public decimal TotalExpenses { get; set; } = 0;

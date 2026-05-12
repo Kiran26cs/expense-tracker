@@ -16,26 +16,27 @@
 .topbar.sidebar-collapsed { left: var(--sidebar-width-collapsed); }
 .topbar-left { display: flex; align-items: center; gap: 0.75rem; }
 .app-name-link { text-decoration: none; color: inherit; }
-.app-name { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); white-space: nowrap; }
-.topbar-center { flex: 1; max-width: 480px; }
-.search-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  padding: 0.5rem 1rem;
+.app-name { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); white-space: nowrap; margin: 0; }
+
+.app-name-btn {
+  display: flex; align-items: center; gap: 0.4rem;
+  background: none; border: none; cursor: pointer;
+  color: inherit; padding: 0.2rem 0.35rem;
+  border-radius: var(--radius-md);
+  transition: background 0.15s;
 }
-.search-icon { font-size: 0.875rem; color: var(--color-text-tertiary); }
-.search-input {
-  border: none;
-  background: none;
-  outline: none;
-  flex: 1;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  min-width: 120px;
+.app-name-btn:hover { background: var(--color-surface-hover); }
+.app-name-edit-icon {
+  font-size: 0.7rem; color: var(--color-text-tertiary);
+  opacity: 0; transition: opacity 0.15s;
+}
+.app-name-btn:hover .app-name-edit-icon { opacity: 1; }
+
+.topbar-name-input {
+  font-size: var(--font-size-lg); font-weight: var(--font-weight-bold);
+  border: none; border-bottom: 2px solid var(--color-primary);
+  background: transparent; outline: none; color: var(--color-text-primary);
+  padding: 0.1rem 0.2rem; min-width: 120px; max-width: 320px; width: auto;
 }
 .topbar-right { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
 .icon-btn {
@@ -105,6 +106,24 @@
 }
 .dropdown-item:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
 .logout-item { color: var(--color-danger); }
+.import-btn { position: relative; color: var(--color-text-secondary); }
+.import-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  border-radius: 99px;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+}
 @media (max-width: 767px) {
   .topbar { left: 0; bottom: auto; padding-bottom: 0; }
 }

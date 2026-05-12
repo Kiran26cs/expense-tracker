@@ -1,11 +1,13 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, ViewChildren, QueryList, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ExpenseBookService } from '../../services/expense-book.service';
+import { ImportService } from '../../services/import.service';
 import { MemberService } from '../../services/member.service';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ToastService } from '../../services/toast.service';
+import { CurrentBookService } from '../../services/current-book.service';
 import { ExpenseBook, CreateExpenseBookRequest } from '../../models/expense-book.model';
 import { PendingInvite } from '../../models/member.model';
 import { ButtonComponent } from '../../components/button/button.component';
@@ -15,6 +17,14 @@ import { ModalComponent } from '../../components/modal/modal.component';
 import { LoadingComponent, EmptyStateComponent, ErrorStateComponent } from '../../components/loading/loading.component';
 import { formatCurrency, CURRENCY_OPTIONS, BOOK_ICON_OPTIONS } from '../../utils/helpers';
 
+const LOCALE_CURRENCY: Record<string, string> = {
+  IN: 'INR', US: 'USD', GB: 'GBP', AU: 'AUD', CA: 'CAD',
+  SG: 'SGD', AE: 'AED', JP: 'JPY', CN: 'CNY', KR: 'KRW',
+  DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', NL: 'EUR',
+  CH: 'CHF', SE: 'SEK', NO: 'NOK', DK: 'DKK', NZ: 'NZD',
+  ZA: 'ZAR', HK: 'HKD', MX: 'MXN', BR: 'BRL'
+};
+
 @Component({
   selector: 'app-expense-book-dashboard',
   standalone: true,
@@ -22,7 +32,8 @@ import { formatCurrency, CURRENCY_OPTIONS, BOOK_ICON_OPTIONS } from '../../utils
   templateUrl: './expense-book-dashboard.component.html',
   styleUrl: './expense-book-dashboard.component.css'
 })
-export class ExpenseBookDashboardComponent implements OnInit {
+export class ExpenseBookDashboardComponent implements OnInit, OnDestroy {
+  @ViewChildren('bookNameInput') bookNameInputs!: QueryList<ElementRef<HTMLInputElement>>;
   books          = signal<ExpenseBook[]>([]);
   pendingInvites = signal<PendingInvite[]>([]);
   loading        = signal(true);
@@ -41,16 +52,35 @@ export class ExpenseBookDashboardComponent implements OnInit {
   iconSelection   = signal('fa fa-book');
   showCustomIcon  = signal(false);
 
-  readonly hasContent = computed(() => this.books().length > 0 || this.pendingInvites().length > 0);
+  // Template creation state
+  templateLoading = signal(false);
+  templateStatus  = signal<'idle' | 'processing' | 'done' | 'error'>('idle');
+
+  readonly hasContent     = computed(() => this.books().length > 0 || this.pendingInvites().length > 0);
+  readonly hasTemplate    = computed(() => this.books().some(b => b.isTemplate));
+  // Hide the button once processing started OR a template book already exists
+  readonly showTemplatBtn = computed(() =>
+    !this.hasTemplate() &&
+    this.templateStatus() !== 'processing' &&
+    this.templateStatus() !== 'done'
+  );
+
+  // Inline title editing
+  editingBookId = signal<string | null>(null);
+  editingName   = '';
 
   readonly currencyOptions = CURRENCY_OPTIONS;
   readonly iconOptions     = BOOK_ICON_OPTIONS;
 
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+
   private bookService   = inject(ExpenseBookService);
+  private importService = inject(ImportService);
   private memberService = inject(MemberService);
   private auth          = inject(AuthStateService);
   private toast         = inject(ToastService);
   private router        = inject(Router);
+  private currentBook   = inject(CurrentBookService);
 
   ngOnInit() { this.loadAll(); }
 
@@ -73,6 +103,7 @@ export class ExpenseBookDashboardComponent implements OnInit {
   }
 
   navigateToBook(book: ExpenseBook) {
+    this.currentBook.setBook(book);
     this.router.navigate([`/${book.id}/dashboard`]);
   }
 
@@ -175,6 +206,105 @@ export class ExpenseBookDashboardComponent implements OnInit {
     } catch (e: any) { this.toast.error(e.message || 'Failed to delete'); }
     finally { this.deleteLoading = false; }
   }
+
+  // ── Template book ─────────────────────────────────────────────────────────
+
+  async createFromTemplate() {
+    if (this.templateLoading()) return;
+    this.templateLoading.set(true);
+    this.templateStatus.set('processing');
+
+    const currency = this.detectCurrency();
+
+    try {
+      const res = await this.bookService.createFromTemplate(currency);
+      if (!res.success || !res.data) {
+        this.toast.error(res.error ?? 'Failed to start demo book creation');
+        this.templateStatus.set('error');
+        return;
+      }
+      const { bookId, sessionId } = res.data;
+      this.startTemplatePolling(bookId, sessionId);
+    } catch (e: any) {
+      const msg = e?.error?.error ?? e?.message ?? 'Failed to create demo book';
+      this.toast.error(msg);
+      this.templateStatus.set('error');
+    } finally {
+      this.templateLoading.set(false);
+    }
+  }
+
+  private startTemplatePolling(bookId: string, sessionId: string) {
+    this.stopTemplatePolling();
+    this.pollTimer = setInterval(async () => {
+      try {
+        const res = await this.importService.pollImportSession(bookId, sessionId);
+        if (!res.success || !res.data) return;
+
+        const status = res.data.status;
+        if (status === 'completed' || status === 'completedWithErrors') {
+          this.stopTemplatePolling();
+          this.templateStatus.set('done');
+          await this.loadAll();
+          this.toast.success('Demo Expense Book is ready! Click to explore.');
+        } else if (status === 'failed') {
+          this.stopTemplatePolling();
+          this.templateStatus.set('error');
+          await this.loadAll();
+          this.toast.error('Demo book creation encountered errors.');
+        }
+      } catch { /* ignore transient errors, keep polling */ }
+    }, 5000);
+  }
+
+  private stopTemplatePolling() {
+    if (this.pollTimer !== null) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  private detectCurrency(): string {
+    const lang   = navigator.language ?? 'en-US';
+    const region = lang.split('-')[1]?.toUpperCase() ?? '';
+    return LOCALE_CURRENCY[region] ?? 'USD';
+  }
+
+  // ── Inline book title editing ─────────────────────────────────────────────
+
+  startEditBookName(book: ExpenseBook, event: Event) {
+    event.stopPropagation();
+    this.editingBookId.set(book.id);
+    this.editingName = book.name;
+    setTimeout(() => this.bookNameInputs.first?.nativeElement.focus(), 0);
+  }
+
+  async saveBookName(book: ExpenseBook) {
+    const name = this.editingName.trim();
+    if (!name || name === book.name) { this.cancelEditBookName(); return; }
+    try {
+      const res = await this.bookService.updateExpenseBook(book.id, { name });
+      if (res.success && res.data) {
+        this.books.update(list => list.map(b => b.id === book.id ? { ...b, name: res.data!.name } : b));
+        this.toast.success('Book name updated');
+      } else {
+        this.toast.error(res.error || 'Failed to rename book');
+      }
+    } catch (e: any) {
+      this.toast.error(e.message || 'Failed to rename book');
+    } finally {
+      this.cancelEditBookName();
+    }
+  }
+
+  cancelEditBookName() { this.editingBookId.set(null); this.editingName = ''; }
+
+  onEditKeydown(event: KeyboardEvent, book: ExpenseBook) {
+    if (event.key === 'Enter')  { event.preventDefault(); this.saveBookName(book); }
+    if (event.key === 'Escape') { this.cancelEditBookName(); }
+  }
+
+  ngOnDestroy() { this.stopTemplatePolling(); }
 
   handleLogout() { this.auth.logout(); this.router.navigate(['/login']); }
   protected readonly formatCurrency = formatCurrency;

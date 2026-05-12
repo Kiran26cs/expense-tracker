@@ -88,7 +88,7 @@ export class DashboardComponent implements OnInit {
 
   pieOptions: ChartOptions<'doughnut'> = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${formatCurrency(ctx.parsed)}` } } },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${formatCurrency(ctx.parsed, this.summary()?.currency)}` } } },
     cutout: '65%'
   };
 

@@ -10,6 +10,18 @@
     </div>
     <div class="header-actions">
       <app-button variant="ghost" (clicked)="handleLogout()">Logout</app-button>
+      <button
+        *ngIf="showTemplatBtn()"
+        class="template-btn"
+        (click)="createFromTemplate()"
+        [disabled]="templateLoading()"
+      >
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        {{ templateLoading() ? 'Creating demo…' : 'Try Demo Template' }}
+      </button>
+      <div *ngIf="templateStatus() === 'processing' && !templateLoading()" class="template-progress-pill">
+        <i class="fa-solid fa-spinner fa-spin"></i> Building demo book…
+      </div>
       <app-button (clicked)="openCreateModal()">+ New Book</app-button>
     </div>
   </div>
@@ -21,13 +33,26 @@
   <div *ngIf="!loading() && !error()">
 
     <!-- Empty state -->
-    <app-empty-state
-      *ngIf="!hasContent()"
-      title="No expense books yet"
-      description="Create your first expense book to start tracking"
-      icon="fa-solid fa-book-open">
-      <app-button (clicked)="openCreateModal()">Create First Book</app-button>
-    </app-empty-state>
+    <div *ngIf="!hasContent()" class="empty-with-template">
+      <app-empty-state
+        title="No expense books yet"
+        description="Start from scratch or explore a fully loaded demo book."
+        icon="fa-solid fa-book-open">
+      </app-empty-state>
+      <div class="empty-actions">
+        <button
+          *ngIf="showTemplatBtn()"
+          class="template-btn template-btn-lg"
+          (click)="createFromTemplate()"
+          [disabled]="templateLoading()"
+        >
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          {{ templateLoading() ? 'Creating demo…' : 'Try Demo Template' }}
+          <span class="template-btn-sub">Pre-filled with expenses, budgets & more</span>
+        </button>
+        <app-button (clicked)="openCreateModal()">+ Create Empty Book</app-button>
+      </div>
+    </div>
 
     <!-- Pending invites section -->
     <div *ngIf="pendingInvites().length > 0" class="section">
@@ -75,15 +100,31 @@
         My Books
       </h2>
       <div class="books-grid">
-        <div *ngFor="let book of books()" class="book-card" (click)="navigateToBook(book)">
+        <div *ngFor="let book of books()" class="book-card" (click)="editingBookId() !== book.id && navigateToBook(book)">
           <div class="book-icon" [style.background]="book.color || 'var(--gradient-primary)'">
             <i [class]="book.icon || 'fa fa-book'"></i>
           </div>
           <div class="book-info">
             <div class="book-name-row">
-              <h3 class="book-name">{{ book.name }}</h3>
+              <!-- Inline edit input -->
+              <ng-container *ngIf="editingBookId() === book.id; else displayName">
+                <input
+                  #bookNameInput
+                  class="book-name-input"
+                  [(ngModel)]="editingName"
+                  (keydown)="onEditKeydown($event, book)"
+                  (blur)="saveBookName(book)"
+                  (click)="$event.stopPropagation()"
+                />
+              </ng-container>
+              <ng-template #displayName>
+                <h3 class="book-name">{{ book.name }}</h3>
+                <button class="book-edit-name" title="Rename" (click)="startEditBookName(book, $event)">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+              </ng-template>
               <!-- Shared indicator -->
-              <span *ngIf="isShared(book)" class="shared-badge" [title]="'Shared — your role: ' + roleLabel(book)">
+              <span *ngIf="isShared(book) && editingBookId() !== book.id" class="shared-badge" [title]="'Shared — your role: ' + roleLabel(book)">
                 <i class="fa-solid fa-users"></i>
                 {{ roleLabel(book) }}
               </span>

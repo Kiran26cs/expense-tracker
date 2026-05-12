@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ExpenseService } from '../../services/expense.service';
+import { ImportService } from '../../services/import.service';
 import { ToastService } from '../../services/toast.service';
 import { SettingsService } from '../../services/settings.service';
 import { MemberService } from '../../services/member.service';
@@ -104,6 +105,7 @@ export class ExpenseListComponent implements OnInit {
   private searchTimeout: any;
 
   private expenseService = inject(ExpenseService);
+  private importService  = inject(ImportService);
   private settingsService = inject(SettingsService);
   private memberService = inject(MemberService);
   private toast = inject(ToastService);
@@ -430,20 +432,34 @@ export class ExpenseListComponent implements OnInit {
     const rows = this.addImportData();
     if (!rows.length) return;
     this.addImportLoading.set(true);
-    let success = 0, failed = 0;
-    for (const row of rows) {
-      try {
-        const res = await this.expenseService.createExpense(this.bookId, { ...row, date: new Date(row.date).toISOString() });
-        if (res.success) success++; else failed++;
-      } catch { failed++; }
-    }
-    this.addImportLoading.set(false);
-    if (success > 0) {
-      this.toast.success(`Imported ${success} expense${success !== 1 ? 's' : ''}${failed > 0 ? ` (${failed} failed)` : ''}`);
-      this.closeAddModal();
-      this.loadExpenses();
-    } else {
-      this.addError.set(`All ${failed} row${failed !== 1 ? 's' : ''} failed to import`);
+    this.addError.set('');
+    try {
+      const fileName = this.addImportFile()?.name ?? 'expenses.csv';
+      const res = await this.importService.startImport(this.bookId, {
+        fileName,
+        rows: rows.map((r, i) => ({
+          rowNumber:     i + 1,
+          description:   r.description,
+          amount:        r.amount,
+          date:          r.date,
+          category:      r.category,
+          paymentMethod: r.paymentMethod,
+          notes:         r.notes ?? '',
+          type:          r.type ?? 'expense',
+          currency:      r.currency ?? ''
+        }))
+      });
+      if (res.success && res.data) {
+        this.importService.notifyNewImport(this.bookId, res.data);
+        this.toast.success(`Import started — ${rows.length} records queued. Track progress via the import icon.`);
+        this.closeAddModal();
+      } else {
+        this.addError.set(res.error ?? 'Failed to start import');
+      }
+    } catch (e: any) {
+      this.addError.set(e.message ?? 'Failed to start import');
+    } finally {
+      this.addImportLoading.set(false);
     }
   }
   downloadExpenseTemplate() {
