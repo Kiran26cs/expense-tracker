@@ -15,6 +15,27 @@ public class ExpenseBookDependencyService : IExpenseBookDependencyService
     }
 
     /// <summary>
+    /// Cascade-deletes every document in every collection that belongs to this expense book.
+    /// Run this before deleting the ExpenseBook document itself.
+    /// </summary>
+    public async Task DeleteAllDependenciesAsync(string expenseBookId)
+    {
+        var f = expenseBookId;
+        await Task.WhenAll(
+            _context.Expenses            .DeleteManyAsync(e => e.ExpenseBookId == f),
+            _context.Categories          .DeleteManyAsync(c => c.ExpenseBookId == f),
+            _context.Budgets             .DeleteManyAsync(b => b.ExpenseBookId == f),
+            _context.RecurringExpenses   .DeleteManyAsync(r => r.ExpenseBookId == f),
+            _context.UpcomingPayments    .DeleteManyAsync(u => u.ExpenseBookId == f),
+            _context.Lendings            .DeleteManyAsync(l => l.ExpenseBookId == f),
+            _context.LendingRepayments   .DeleteManyAsync(r => r.ExpenseBookId == f),
+            _context.ImportSessions      .DeleteManyAsync(s => s.ExpenseBookId == f),
+            _context.DailyExpenseSummaries.DeleteManyAsync(d => d.ExpenseBookId == f),
+            _context.ExpenseBookMembers  .DeleteManyAsync(m => m.ExpenseBookId == f)
+        );
+    }
+
+    /// <summary>
     /// Copies all system-default categories (expenseBookId == null, isDefault == true)
     /// into the newly created expense book as book-scoped, editable copies.
     /// </summary>

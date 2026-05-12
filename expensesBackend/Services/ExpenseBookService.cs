@@ -165,24 +165,21 @@ public class ExpenseBookService : IExpenseBookService
         if (expenseBook == null)
             throw new KeyNotFoundException("Expense book not found");
 
-        // Check if there are any expenses linked to this book
-        var hasExpenses = await _context.Expenses.Find(e => e.ExpenseBookId == expenseBookId).AnyAsync();
-        if (hasExpenses)
-            throw new InvalidOperationException("Cannot delete expense book with existing expenses. Please delete all expenses first.");
-
+        // Cascade-delete all dependent data, then the book itself
+        await _dependencyService.DeleteAllDependenciesAsync(expenseBookId);
         await _context.ExpenseBooks.DeleteOneAsync(eb => eb.Id == expenseBookId && eb.UserId == userId);
 
-        // If deleted book was default, set another book as default
+        // If deleted book was default, promote the next available book
         if (expenseBook.IsDefault)
         {
-            var firstBook = await _context.ExpenseBooks
+            var nextBook = await _context.ExpenseBooks
                 .Find(eb => eb.UserId == userId)
                 .FirstOrDefaultAsync();
 
-            if (firstBook != null)
+            if (nextBook != null)
             {
                 var update = Builders<ExpenseBook>.Update.Set(eb => eb.IsDefault, true);
-                await _context.ExpenseBooks.UpdateOneAsync(eb => eb.Id == firstBook.Id, update);
+                await _context.ExpenseBooks.UpdateOneAsync(eb => eb.Id == nextBook.Id, update);
             }
         }
     }
