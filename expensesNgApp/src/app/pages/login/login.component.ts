@@ -91,10 +91,11 @@ export class LoginComponent implements AfterViewInit {
     }
     this.loading.set(true);
     try {
-      const res = await this.auth.requestOTP(this.emailOrPhone());
+      const res = await this.auth.requestOTP(this.emailOrPhone(), true);
       if (res.success) {
         this.step.set('otp');
         this.startResendTimer();
+        setTimeout(() => (document.getElementById('otp-0') as HTMLInputElement)?.focus(), 0);
       } else {
         this.error.set(res.error || 'Failed to send OTP');
       }
@@ -129,7 +130,7 @@ export class LoginComponent implements AfterViewInit {
   async handleResendOTP() {
     this.loading.set(true);
     try {
-      await this.auth.requestOTP(this.emailOrPhone());
+      await this.auth.requestOTP(this.emailOrPhone(), true);
       this.startResendTimer();
     } catch { this.error.set('Failed to resend OTP'); }
     finally { this.loading.set(false); }

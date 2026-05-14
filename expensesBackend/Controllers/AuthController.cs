@@ -22,7 +22,7 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var result = await _authService.SendOtpAsync(request.Email, request.Phone);
+            var result = await _authService.SendOtpAsync(request.Email, request.Phone, request.IsLogin);
             return Ok(ApiResponse<bool>.SuccessResponse(result));
         }
         catch (Exception ex)

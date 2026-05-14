@@ -104,10 +104,10 @@ export class AuthStateService {
     }
   }
 
-  async requestOTP(emailOrPhone: string): Promise<ApiResponse<boolean>> {
+  async requestOTP(emailOrPhone: string, isLogin = false): Promise<ApiResponse<boolean>> {
     const email = emailOrPhone.includes('@') ? emailOrPhone : undefined;
     const phone = emailOrPhone.includes('@') ? undefined : emailOrPhone;
-    return firstValueFrom(this.api.post<ApiResponse<boolean>>('/Auth/send-otp', { email, phone }));
+    return firstValueFrom(this.api.post<ApiResponse<boolean>>('/Auth/send-otp', { email, phone, isLogin }));
   }
 
   async verifyOTP(emailOrPhone: string, otp: string): Promise<ApiResponse<boolean>> {
