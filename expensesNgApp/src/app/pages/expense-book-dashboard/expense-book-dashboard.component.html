@@ -9,7 +9,21 @@
       </div>
     </div>
     <div class="header-actions">
-      <app-button variant="ghost" (clicked)="handleLogout()">Logout</app-button>
+      <div class="profile-menu-wrapper" #profileMenuWrapper>
+        <button class="profile-avatar-btn" (click)="toggleProfileMenu()" title="Account">
+          <div class="profile-avatar">{{ getUserInitials() }}</div>
+        </button>
+        <div class="profile-dropdown" *ngIf="profileMenuOpen">
+          <div class="profile-user-info">
+            <div class="profile-name">{{ auth.user()?.name }}</div>
+            <div class="profile-email">{{ auth.user()?.email || auth.user()?.phone }}</div>
+          </div>
+          <div class="profile-divider"></div>
+          <button class="profile-signout" (click)="auth.logout()">
+            <i class="fa-solid fa-sign-out-alt"></i> Sign Out
+          </button>
+        </div>
+      </div>
       <button
         *ngIf="showTemplatBtn()"
         class="template-btn"
@@ -66,7 +80,7 @@
             <i [class]="invite.expenseBookIcon || 'fa fa-book'"></i>
           </div>
           <div class="book-info">
-            <h3 class="book-name">{{ invite.expenseBookName }}</h3>
+            <h3 class="book-name" [appTruncate]="invite.expenseBookName"></h3>
             <p class="book-role-badge invite-badge">
               <i class="fa-solid fa-user-plus"></i>
               Invited as <strong>{{ invite.role }}</strong>
@@ -118,7 +132,7 @@
                 />
               </ng-container>
               <ng-template #displayName>
-                <h3 class="book-name">{{ book.name }}</h3>
+                <h3 class="book-name" [appTruncate]="book.name"></h3>
                 <button class="book-edit-name" title="Rename" (click)="startEditBookName(book, $event)">
                   <i class="fa-solid fa-pen"></i>
                 </button>

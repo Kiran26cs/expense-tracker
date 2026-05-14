@@ -2,6 +2,7 @@ import { Component, Input, inject, HostListener, ElementRef, ViewChild } from '@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { TruncateDirective } from '../../directives/truncate.directive';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ThemeService } from '../../services/theme.service';
 import { ImportService } from '../../services/import.service';
@@ -12,7 +13,7 @@ import { ToastService } from '../../services/toast.service';
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, TruncateDirective],
   templateUrl: './topbar.component.html',
   styleUrl: './topbar.component.css'
 })
@@ -85,6 +86,7 @@ getUserInitials(): string {
   }
 
   cancelEditName() { this.isEditingName = false; }
+
 
   onNameKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter')  { event.preventDefault(); this.saveEditName(); }

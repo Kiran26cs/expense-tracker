@@ -27,10 +27,19 @@ public class AuthService : IAuthService
         _messaging = messaging;
     }
 
-    public async Task<bool> SendOtpAsync(string? email, string? phone)
+    public async Task<bool> SendOtpAsync(string? email, string? phone, bool isLogin = false)
     {
         if (string.IsNullOrEmpty(email) && string.IsNullOrEmpty(phone))
             return false;
+
+        if (isLogin)
+        {
+            var userExists = await _context.Users
+                .Find(BuildUserFilter(email, phone))
+                .AnyAsync();
+            if (!userExists)
+                return true; // silently succeed — do not reveal whether account exists
+        }
 
         // Generate 6-digit OTP
         var otp = GenerateOtp();

@@ -14,8 +14,8 @@
         />
       </ng-container>
       <ng-template #displayBookName>
-        <button class="app-name-btn" (click)="startEditName()" title="Rename book">
-          <h2 class="app-name">{{ currentBook.book()?.name || bookName }}</h2>
+        <button class="app-name-btn" (click)="startEditName()">
+          <h2 class="app-name" [appTruncate]="currentBook.book()?.name || bookName"></h2>
           <i class="fa-solid fa-pen app-name-edit-icon"></i>
         </button>
       </ng-template>

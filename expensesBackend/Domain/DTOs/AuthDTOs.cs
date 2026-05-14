@@ -4,6 +4,7 @@ public class LoginRequest
 {
     public string? Email { get; set; }
     public string? Phone { get; set; }
+    public bool IsLogin { get; set; } = false;
 }
 
 public class VerifyOtpRequest

@@ -27,7 +27,7 @@
         <!-- Step 2: OTP -->
         <form *ngIf="step() === 'otp'" (ngSubmit)="handleLogin()" class="auth-form">
           <div *ngIf="error()" class="error-banner">{{ error() }}</div>
-          <div class="otp-info">OTP sent to <strong>{{ emailOrPhone() }}</strong></div>
+          <div class="otp-info">If <strong>{{ emailOrPhone() }}</strong> is registered with us, an OTP has been sent to it.</div>
           <div class="otp-input-row">
             <input
               *ngFor="let i of [0,1,2,3,4,5]; let idx = index"

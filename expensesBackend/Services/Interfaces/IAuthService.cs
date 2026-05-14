@@ -5,7 +5,7 @@ namespace ExpensesBackend.API.Services.Interfaces;
 
 public interface IAuthService
 {
-    Task<bool> SendOtpAsync(string? email, string? phone);
+    Task<bool> SendOtpAsync(string? email, string? phone, bool isLogin = false);
     Task<bool> VerifyOtpAsync(string? email, string? phone, string otp);
     Task<AuthResponse> SignupAsync(SignupRequest request, string otp);
     Task<AuthResponse> LoginAsync(string? email, string? phone, string otp);
