@@ -49,7 +49,9 @@ public class ExpensesController : ControllerBase
                 if (perms.Expenses == "none")
                     return StatusCode(403, ApiResponse<ExpensePagedResponse>.ErrorResponse("You do not have access to expenses in this book."));
 
-                allowedCategoryIds = perms.AllowedCategoryIds;
+                // Owner has all categories — keep list empty so the IN-filter is skipped entirely.
+                // Non-owners get their restricted list; empty list = no access at all.
+                allowedCategoryIds = perms.IsOwner ? [] : perms.AllowedCategoryIds;
 
                 // If the caller has a category whitelist AND is also filtering by a specific category,
                 // that category must be in the allowed list

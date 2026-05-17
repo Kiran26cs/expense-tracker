@@ -27,7 +27,9 @@ public class DashboardController : ControllerBase
     {
         if (string.IsNullOrEmpty(expenseBookId)) return [];
         var perms = await _memberService.GetResolvedPermissionsAsync(expenseBookId, GetUserId());
-        return perms.AllowedCategoryIds;
+        // Owner has unrestricted access — empty list skips the IN-filter entirely.
+        // Non-owners get their actual category whitelist.
+        return perms.IsOwner ? [] : perms.AllowedCategoryIds;
     }
 
     [HttpGet("summary")]

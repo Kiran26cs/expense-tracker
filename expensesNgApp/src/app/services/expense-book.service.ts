@@ -24,6 +24,10 @@ export class ExpenseBookService {
     return firstValueFrom(this.api.put<ApiResponse<ExpenseBook>>(`/expensebooks/${id}`, data));
   }
 
+  updateAiChat(id: string, aiChatEnabled: boolean) {
+    return firstValueFrom(this.api.patch<ApiResponse<ExpenseBook>>(`/expensebooks/${id}/ai-chat`, { aiChatEnabled }));
+  }
+
   deleteExpenseBook(id: string) {
     return firstValueFrom(this.api.delete<ApiResponse<void>>(`/expensebooks/${id}`));
   }

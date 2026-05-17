@@ -30,7 +30,7 @@
         (click)="createFromTemplate()"
         [disabled]="templateLoading()"
       >
-        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <i class="fa-solid fa-flask"></i>
         {{ templateLoading() ? 'Creating demo…' : 'Try Demo Template' }}
       </button>
       <div *ngIf="templateStatus() === 'processing' && !templateLoading()" class="template-progress-pill">

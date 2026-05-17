@@ -49,6 +49,9 @@ public class ExpenseBook
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [BsonElement("aiChatEnabled")]
+    public bool AiChatEnabled { get; set; } = false;
+
     [BsonElement("updatedAt")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

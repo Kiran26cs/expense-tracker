@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { throwError, catchError, EMPTY } from 'rxjs';
 import { ToastService } from '../services/toast.service';
+import { SessionBus } from '../services/session-bus.service';
 
 const STATUS_MESSAGES: Record<number, string> = {
   400: 'Invalid request. Please check your input.',
@@ -29,9 +30,10 @@ function friendlyMessage(error: HttpErrorResponse): string {
 }
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const router = inject(Router);
-  const toast  = inject(ToastService);
-  const token  = localStorage.getItem('authToken');
+  const router     = inject(Router);
+  const toast      = inject(ToastService);
+  const sessionBus = inject(SessionBus);
+  const token      = localStorage.getItem('authToken');
 
   const authReq = token
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
@@ -40,9 +42,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
       if (error.status === 401) {
-        localStorage.removeItem('authToken');
-        toast.error('Your session has expired. Please log in again.');
-        router.navigate(['/login']);
+        sessionBus.notifyExpired();
         return EMPTY;
       }
 

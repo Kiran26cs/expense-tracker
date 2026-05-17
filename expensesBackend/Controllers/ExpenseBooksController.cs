@@ -157,6 +157,35 @@ public class ExpenseBooksController : ControllerBase
     }
 
     /// <summary>
+    /// Toggle AI Chat for an expense book — owner or admin only
+    /// </summary>
+    [HttpPatch("{id}/ai-chat")]
+    public async Task<ActionResult<ApiResponse<ExpenseBookResponse>>> UpdateAiChat(
+        string id, [FromBody] UpdateAiChatRequest request)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var perms = await _memberService.GetResolvedPermissionsAsync(id, userId);
+            if (!perms.CanModifyBook)
+                return StatusCode(403, ApiResponse<ExpenseBookResponse>.ErrorResponse(
+                    "Only the book owner or an admin can change AI Chat settings."));
+
+            var result = await _expenseBookService.UpdateAiChatAsync(id, request.AiChatEnabled);
+            return Ok(ApiResponse<ExpenseBookResponse>.SuccessResponse(result));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(ApiResponse<ExpenseBookResponse>.ErrorResponse("Expense book not found"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating AI chat setting");
+            return StatusCode(500, ApiResponse<ExpenseBookResponse>.ErrorResponse("Error updating AI chat setting"));
+        }
+    }
+
+    /// <summary>
     /// Delete an expense book
     /// </summary>
     [HttpDelete("{id}")]

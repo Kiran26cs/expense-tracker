@@ -22,6 +22,40 @@
       </app-card-content>
     </app-card>
 
+    <!-- AI Features -->
+    <app-card>
+      <app-card-header>
+        <app-card-title>
+          <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--color-primary);margin-right:6px"></i>
+          AI Features
+        </app-card-title>
+      </app-card-header>
+      <app-card-content>
+        <div class="setting-row">
+          <div class="setting-info">
+            <p class="setting-name">AI Chat Assistant</p>
+            <p class="setting-desc">
+              Allow members to use the AI chat to query and manage expenses using natural language.
+              <span *ngIf="!canModifyBook" class="setting-locked">
+                <i class="fa-solid fa-lock"></i> Only the owner or admin can change this setting.
+              </span>
+            </p>
+          </div>
+          <label class="toggle-switch" [class.toggle-disabled]="!canModifyBook || aiChatLoading()">
+            <input
+              type="checkbox"
+              [checked]="aiChatEnabled()"
+              (change)="toggleAiChat($any($event.target).checked)"
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div *ngIf="aiChatLoading()" class="setting-saving">
+          <i class="fa-solid fa-spinner fa-spin"></i> Saving…
+        </div>
+      </app-card-content>
+    </app-card>
+
     <!-- General Settings -->
     <app-card>
       <app-card-header><app-card-title>General</app-card-title></app-card-header>

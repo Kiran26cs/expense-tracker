@@ -2,19 +2,36 @@ import { Injectable, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
+import { SessionBus } from './session-bus.service';
+import { ToastService } from './toast.service';
 import { User, ApiResponse } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
 export class AuthStateService {
   private userSignal = signal<User | null>(null);
   private loadingSignal = signal(true);
+  private _handlingExpiry = false;
 
   user = this.userSignal.asReadonly();
   isLoading = this.loadingSignal.asReadonly();
   isAuthenticated = computed(() => !!this.userSignal());
 
-  constructor(private api: ApiService, private router: Router) {
+  constructor(
+    private api: ApiService,
+    private router: Router,
+    private sessionBus: SessionBus,
+    private toast: ToastService,
+  ) {
+    this.sessionBus.expired$.subscribe(() => this.onSessionExpired());
     this.checkAuth();
+  }
+
+  private onSessionExpired(): void {
+    if (this._handlingExpiry) return;
+    this._handlingExpiry = true;
+    this.clearSession();
+    this.toast.error('Your session has expired. Please log in again.');
+    this.router.navigate(['/login']).finally(() => { this._handlingExpiry = false; });
   }
 
   getToken(): string | null {
@@ -30,8 +47,12 @@ export class AuthStateService {
     localStorage.removeItem('authUser');
   }
 
+  clearSession(): void {
+    this.clearToken();
+    this.userSignal.set(null);
+  }
+
   private persistUser(user: User): void {
-    console.log('persisted user...', user);
     localStorage.setItem('authUser', JSON.stringify(user));
     this.userSignal.set(user);
   }
@@ -54,7 +75,9 @@ export class AuthStateService {
           this.clearToken();
         }
       } catch {
-        this.clearToken();
+        // Only clear if the token is genuinely gone or network failed — not on session expiry
+        // (session expiry is handled by the interceptor via SessionBus)
+        if (!this.getToken()) this.clearToken();
       }
     }
     this.loadingSignal.set(false);
@@ -66,9 +89,8 @@ export class AuthStateService {
     const response = await firstValueFrom(
       this.api.post<ApiResponse<{ token: string; user: User }>>(`/Auth/login?otp=${otp}`, { email, phone })
     );
-    
+
     if (response.success && response.data) {
-      console.log('email...', email, response.data.user);
       this.setToken(response.data.token);
       this.persistUser(response.data.user);
     } else {
@@ -117,8 +139,7 @@ export class AuthStateService {
   }
 
   logout(): void {
-    this.clearToken();
-    this.userSignal.set(null);
+    this.clearSession();
     this.router.navigate(['/login']);
   }
 }

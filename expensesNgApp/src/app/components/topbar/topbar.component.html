@@ -24,6 +24,12 @@
 
 
   <div class="topbar-right">
+    @if (currentBook.book()?.aiChatEnabled) {
+      <button class="icon-btn ai-chat-btn" (click)="toggleAiChat()" [title]="'AI Assistant'" [class.ai-chat-active]="chatService.isOpen()">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+      </button>
+    }
+
     <button class="icon-btn import-btn" (click)="openImportDrawer()" title="Import activity">
       <i class="fa-solid fa-file-import"></i>
       <span class="import-badge" *ngIf="importService.activeCount() > 0">

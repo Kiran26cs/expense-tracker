@@ -5,6 +5,8 @@ import { ActivatedRoute } from '@angular/router';
 import { SettingsService } from '../../services/settings.service';
 import { ThemeService } from '../../services/theme.service';
 import { ToastService } from '../../services/toast.service';
+import { ExpenseBookService } from '../../services/expense-book.service';
+import { CurrentBookService } from '../../services/current-book.service';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent } from '../../components/card/card.component';
 import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent, SelectComponent } from '../../components/input/input.component';
@@ -67,6 +69,11 @@ export class SettingsComponent implements OnInit {
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
   private fb = inject(FormBuilder);
+  private bookService = inject(ExpenseBookService);
+  readonly currentBook = inject(CurrentBookService);
+
+  aiChatEnabled = signal(false);
+  aiChatLoading = signal(false);
 
   generalForm: FormGroup = this.fb.group({
     defaultCurrency: ['USD'],
@@ -85,7 +92,34 @@ export class SettingsComponent implements OnInit {
   }
 
   async loadAll() {
+    this.aiChatEnabled.set(this.currentBook.book()?.aiChatEnabled ?? false);
     await Promise.all([this.loadCategories(), this.loadPaymentMethods(), this.loadGeneralSettings()]);
+  }
+
+  get canModifyBook(): boolean {
+    const role = this.currentBook.book()?.memberRole;
+    // null = owner; 'admin' also has CanModifyBook
+    return role === null || role === undefined || role === 'admin';
+  }
+
+  async toggleAiChat(enabled: boolean): Promise<void> {
+    if (!this.canModifyBook || this.aiChatLoading()) return;
+    this.aiChatLoading.set(true);
+    try {
+      const res = await this.bookService.updateAiChat(this.bookId, enabled);
+      if (res.success && res.data) {
+        this.aiChatEnabled.set(res.data.aiChatEnabled ?? enabled);
+        const current = this.currentBook.book();
+        if (current) this.currentBook.setBook({ ...current, aiChatEnabled: res.data.aiChatEnabled ?? enabled });
+        this.toast.success(`AI Chat ${enabled ? 'enabled' : 'disabled'}`);
+      } else {
+        this.toast.error(res.error || 'Failed to update AI Chat setting');
+      }
+    } catch (e: any) {
+      this.toast.error(e?.error?.error ?? 'Failed to update AI Chat setting');
+    } finally {
+      this.aiChatLoading.set(false);
+    }
   }
 
   async loadGeneralSettings() {

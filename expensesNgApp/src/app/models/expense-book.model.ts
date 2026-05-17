@@ -13,6 +13,7 @@ export interface ExpenseBook {
   expenseCount?: number;
   createdAt?: string;
   updatedAt?: string;
+  aiChatEnabled?: boolean;
   /** null = requesting user is the owner; otherwise their role in this shared book */
   memberRole?: string | null;
 }

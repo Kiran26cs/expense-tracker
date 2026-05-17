@@ -8,6 +8,7 @@ public interface IExpenseBookService
     Task<ExpenseBookResponse> GetExpenseBookByIdAsync(string userId, string expenseBookId);
     Task<ExpenseBookResponse> CreateExpenseBookAsync(string userId, CreateExpenseBookRequest request);
     Task<ExpenseBookResponse> UpdateExpenseBookAsync(string userId, string expenseBookId, UpdateExpenseBookRequest request);
+    Task<ExpenseBookResponse> UpdateAiChatAsync(string expenseBookId, bool aiChatEnabled);
     Task DeleteExpenseBookAsync(string userId, string expenseBookId);
     Task<List<string>> GetExpenseBookCategoriesAsync(string userId);
     Task<ExpenseBookResponse?> GetDefaultExpenseBookAsync(string userId);

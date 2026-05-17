@@ -1,8 +1,10 @@
-﻿import { Component, OnInit, inject, signal, computed } from '@angular/core';
+﻿import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BudgetService } from '../../services/budget.service';
+import { AiChatService } from '../../services/ai-chat.service';
 import { SettingsService } from '../../services/settings.service';
 import { MemberService } from '../../services/member.service';
 import { ToastService } from '../../services/toast.service';
@@ -86,12 +88,15 @@ export class BudgetComponent implements OnInit {
   private memberService = inject(MemberService);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
+  private aiChat = inject(AiChatService);
+  private destroyRef = inject(DestroyRef);
 
   ngOnInit() {
     this.route.parent?.params.subscribe(p => {
       this.bookId = p['bookId'] || '';
       this.loadData();
     });
+    this.aiChat.dataChanged$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadBudgets());
   }
 
   async loadData() {

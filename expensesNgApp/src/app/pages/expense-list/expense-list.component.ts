@@ -1,8 +1,10 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ExpenseService } from '../../services/expense.service';
+import { AiChatService } from '../../services/ai-chat.service';
 import { ImportService } from '../../services/import.service';
 import { ToastService } from '../../services/toast.service';
 import { SettingsService } from '../../services/settings.service';
@@ -113,6 +115,8 @@ export class ExpenseListComponent implements OnInit {
   private router = inject(Router);
   private fb = inject(FormBuilder);
   protected bookAccess = inject(BookAccessService);
+  private aiChat = inject(AiChatService);
+  private destroyRef = inject(DestroyRef);
 
   addForm: FormGroup = this.fb.group({
     type: ['expense'],
@@ -215,6 +219,10 @@ export class ExpenseListComponent implements OnInit {
       this.restoreFilters();
       this.loadExpenses();
       this.loadFilters();
+    });
+    this.aiChat.dataChanged$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.resetCursors();
+      this.loadExpenses();
     });
   }
 

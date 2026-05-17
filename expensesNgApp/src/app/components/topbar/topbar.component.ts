@@ -9,6 +9,7 @@ import { ImportService } from '../../services/import.service';
 import { CurrentBookService } from '../../services/current-book.service';
 import { ExpenseBookService } from '../../services/expense-book.service';
 import { ToastService } from '../../services/toast.service';
+import { AiChatService } from '../../services/ai-chat.service';
 
 @Component({
   selector: 'app-topbar',
@@ -26,6 +27,7 @@ export class TopbarComponent {
   themeService  = inject(ThemeService);
   importService = inject(ImportService);
   currentBook   = inject(CurrentBookService);
+  chatService   = inject(AiChatService);
   private bookService = inject(ExpenseBookService);
   private toast       = inject(ToastService);
 
@@ -86,6 +88,8 @@ getUserInitials(): string {
   }
 
   cancelEditName() { this.isEditingName = false; }
+
+  toggleAiChat() { this.chatService.toggle(); }
 
 
   onNameKeydown(event: KeyboardEvent) {

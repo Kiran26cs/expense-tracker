@@ -42,6 +42,12 @@ public class MongoDbContext
     public IMongoCollection<ImportSession> ImportSessions =>
         _database.GetCollection<ImportSession>("importSessions");
 
+    public IMongoCollection<BookCredits> BookCredits =>
+        _database.GetCollection<BookCredits>("bookCredits");
+
+    public IMongoCollection<CreditTransaction> CreditTransactions =>
+        _database.GetCollection<CreditTransaction>("creditTransactions");
+
     private void CreateIndexes()
     {
         // User indexes
@@ -261,5 +267,17 @@ public class MongoDbContext
                 ExpireAfter = TimeSpan.FromHours(24),
                 Sparse      = true   // only index documents where completedAt is set
             }));
+
+        // BookCredits indexes — one record per book
+        BookCredits.Indexes.CreateOne(new CreateIndexModel<BookCredits>(
+            Builders<BookCredits>.IndexKeys.Ascending(bc => bc.ExpenseBookId),
+            new CreateIndexOptions { Name = "idx_bookcredits_book", Unique = true }));
+
+        // CreditTransaction indexes
+        CreditTransactions.Indexes.CreateOne(new CreateIndexModel<CreditTransaction>(
+            Builders<CreditTransaction>.IndexKeys
+                .Ascending(ct => ct.ExpenseBookId)
+                .Descending(ct => ct.Timestamp),
+            new CreateIndexOptions { Name = "idx_credittx_book_time" }));
     }
 }

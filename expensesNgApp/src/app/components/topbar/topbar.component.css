@@ -124,6 +124,20 @@
   padding: 0 3px;
   line-height: 1;
 }
+.ai-chat-btn {
+  color: var(--color-text-secondary);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.ai-chat-btn.ai-chat-active {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.ai-chat-btn:hover {
+  color: var(--color-primary) !important;
+}
+
 @media (max-width: 767px) {
   .topbar { left: 0; bottom: auto; padding-bottom: 0; }
 }

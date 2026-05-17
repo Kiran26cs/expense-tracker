@@ -3,6 +3,7 @@ using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Infrastructure.Data;
 using ExpensesBackend.API.Middleware;
 using ExpensesBackend.API.Services;
+using ExpensesBackend.API.Services.AI;
 using ExpensesBackend.API.Services.Interfaces;
 using ExpensesBackend.API.Services.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -74,6 +75,14 @@ builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<ITemplateBookService, TemplateBookService>();
 builder.Services.AddSingleton<ITemplateBlobService, TemplateBlobService>();
 builder.Services.AddMemoryCache();
+
+// AI Chat & Credits
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<ICreditService, CreditService>();
+builder.Services.AddScoped<SystemPromptBuilder>();
+builder.Services.AddScoped<ToolRegistry>();
+builder.Services.AddScoped<ClaudeOrchestrator>();
+builder.Services.AddHttpClient("Claude");
 
 // Bounded channel: at most 50 queued import jobs; back-pressures callers if full
 builder.Services.AddSingleton(Channel.CreateBounded<ImportJobPayload>(

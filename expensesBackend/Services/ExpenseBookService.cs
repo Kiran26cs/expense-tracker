@@ -156,6 +156,23 @@ public class ExpenseBookService : IExpenseBookService
         return MapToExpenseBookResponse(expenseBook);
     }
 
+    public async Task<ExpenseBookResponse> UpdateAiChatAsync(string expenseBookId, bool aiChatEnabled)
+    {
+        var expenseBook = await _context.ExpenseBooks
+            .Find(eb => eb.Id == expenseBookId)
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Expense book not found");
+
+        var update = Builders<ExpenseBook>.Update
+            .Set(eb => eb.AiChatEnabled, aiChatEnabled)
+            .Set(eb => eb.UpdatedAt, DateTime.UtcNow);
+
+        await _context.ExpenseBooks.UpdateOneAsync(eb => eb.Id == expenseBookId, update);
+
+        expenseBook.AiChatEnabled = aiChatEnabled;
+        return MapToExpenseBookResponse(expenseBook);
+    }
+
     public async Task DeleteExpenseBookAsync(string userId, string expenseBookId)
     {
         var expenseBook = await _context.ExpenseBooks
@@ -245,9 +262,10 @@ public class ExpenseBookService : IExpenseBookService
             IsTemplate = expenseBook.IsTemplate,
             TotalExpenses = expenseBook.TotalExpenses,
             ExpenseCount = expenseBook.ExpenseCount,
-            CreatedAt = expenseBook.CreatedAt,
-            UpdatedAt = expenseBook.UpdatedAt,
-            MemberRole = memberRole
+            CreatedAt      = expenseBook.CreatedAt,
+            UpdatedAt      = expenseBook.UpdatedAt,
+            AiChatEnabled  = expenseBook.AiChatEnabled,
+            MemberRole     = memberRole
         };
     }
 }

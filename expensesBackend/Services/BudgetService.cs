@@ -88,11 +88,18 @@ public class BudgetService : IBudgetService
 
         var result = new List<Budget>();
 
+        // Also index budgets by category ID for backwards-compat with AI-created entries
+        var budgetById = allBudgets
+            .Where(b => nameById.ContainsKey(b.Category))
+            .ToDictionary(b => b.Category, b => b, StringComparer.OrdinalIgnoreCase);
+
         // ── Process categories in order ─────────────────────────────────────────
         foreach (var cat in allCategories)
         {
             var spent = GetSpent(cat.Name);
-            budgetByName.TryGetValue(cat.Name, out var budget);
+            // Prefer name match; fall back to ID match for data saved with raw category IDs
+            if (!budgetByName.TryGetValue(cat.Name, out var budget))
+                budgetById.TryGetValue(cat.Id, out budget);
             var effectiveVersion = budget != null ? ResolveEffectiveVersion(budget, requestedPeriod, monthEnd) : null;
 
             if (budget == null)

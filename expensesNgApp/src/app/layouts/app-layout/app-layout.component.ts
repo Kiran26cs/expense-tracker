@@ -7,13 +7,14 @@ import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../components/topbar/topbar.component';
 import { ToastContainerComponent } from '../../components/toast/toast-container.component';
 import { ImportDrawerComponent } from '../../components/import-drawer/import-drawer.component';
+import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-panel.component';
 import { ExpenseBookService } from '../../services/expense-book.service';
 import { CurrentBookService } from '../../services/current-book.service';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, SidebarComponent, TopbarComponent, ToastContainerComponent, ImportDrawerComponent],
+  imports: [CommonModule, RouterModule, SidebarComponent, TopbarComponent, ToastContainerComponent, ImportDrawerComponent, AiChatPanelComponent],
   templateUrl: './app-layout.component.html',
   styleUrl: './app-layout.component.css'
 })

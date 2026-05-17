@@ -38,8 +38,14 @@ public class ExpenseBookResponse
     public int ExpenseCount { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public bool AiChatEnabled { get; set; }
     /// <summary>null = requesting user is the owner; otherwise their role in this shared book.</summary>
     public string? MemberRole { get; set; }
+}
+
+public class UpdateAiChatRequest
+{
+    public bool AiChatEnabled { get; set; }
 }
 
 public class ExpenseBookCategoryResponse

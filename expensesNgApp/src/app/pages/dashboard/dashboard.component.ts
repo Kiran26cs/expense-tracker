@@ -1,10 +1,12 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed, effect } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, effect, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartData, ChartOptions } from 'chart.js';
 import { DashboardService } from '../../services/dashboard.service';
+import { AiChatService } from '../../services/ai-chat.service';
 import { SettingsService } from '../../services/settings.service';
 import { MemberService } from '../../services/member.service';
 import { ToastService } from '../../services/toast.service';
@@ -47,6 +49,8 @@ export class DashboardComponent implements OnInit {
   private memberService = inject(MemberService);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
+  private aiChat = inject(AiChatService);
+  private destroyRef = inject(DestroyRef);
 
   categories = signal<any[]>([]);
 
@@ -100,6 +104,7 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit() {
     this.route.parent?.params.subscribe(p => { this.bookId = p['bookId'] || ''; this.loadAll(); });
+    this.aiChat.dataChanged$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadAll());
   }
 
   async loadAll() {
