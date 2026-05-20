@@ -1,12 +1,14 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { SettingsService } from '../../services/settings.service';
 import { ThemeService } from '../../services/theme.service';
 import { ToastService } from '../../services/toast.service';
 import { ExpenseBookService } from '../../services/expense-book.service';
 import { CurrentBookService } from '../../services/current-book.service';
+import { AuthStateService } from '../../services/auth-state.service';
+import { UpgradeModalService } from '../../services/upgrade-modal.service';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent } from '../../components/card/card.component';
 import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent, SelectComponent } from '../../components/input/input.component';
@@ -17,11 +19,22 @@ import { CATEGORY_FA_ICONS, CATEGORY_COLOR_OPTIONS } from '../../utils/helpers';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent, ButtonComponent, InputComponent, SelectComponent, ModalComponent, LoadingComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule, CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent, ButtonComponent, InputComponent, SelectComponent, ModalComponent, LoadingComponent],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css'
 })
 export class SettingsComponent implements OnInit {
+  authState    = inject(AuthStateService);
+  upgradeModal = inject(UpgradeModalService);
+
+  get userPlan(): string { return this.authState.user()?.plan ?? 'Free'; }
+
+  readonly planLimits: Record<string, { books: string; expenses: string; categories: string; credits: string }> = {
+    Free:    { books: '3',         expenses: '150 / month', categories: '20',        credits: '40 (one-time trial)' },
+    Starter: { books: 'Unlimited', expenses: '1,000 / month', categories: '50',      credits: '100 / month' },
+    Pro:     { books: 'Unlimited', expenses: 'Unlimited',    categories: 'Unlimited', credits: '300 / month' },
+  };
+
   categories = signal<any[]>([]);
   paymentMethods = signal<any[]>([]);
   categoriesLoading = signal(false);
@@ -153,8 +166,16 @@ export class SettingsComponent implements OnInit {
     this.generalLoading = true;
     try {
       const res = await this.settingsService.updateSettings(this.bookId, this.generalForm.value);
-      if (res.success) this.toast.success('Settings saved');
-      else this.toast.error(res.error || 'Failed to save');
+      if (res.success) {
+        this.toast.success('Settings saved');
+        // Reflect currency change immediately in the current book signal
+        const current = this.currentBook.book();
+        if (current && res.data?.defaultCurrency) {
+          this.currentBook.setBook({ ...current, currency: res.data.defaultCurrency });
+        }
+      } else {
+        this.toast.error(res.error || 'Failed to save');
+      }
     } catch (e: any) { this.toast.error(e.message); }
     finally { this.generalLoading = false; }
   }

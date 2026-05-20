@@ -1,3 +1,4 @@
+using ExpensesBackend.API.Domain;
 using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Domain.Entities;
 using ExpensesBackend.API.Infrastructure.Data;
@@ -91,9 +92,9 @@ public class CreditService : ICreditService
         var now        = DateTime.UtcNow;
         var thisMonth  = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        // Find all books whose free credits were last reset before this calendar month
+        // Only reset paid-plan books; Free-plan books have one-time trial credits
         var staleBooks = await _context.BookCredits
-            .Find(bc => bc.LastResetDate < thisMonth)
+            .Find(bc => bc.LastResetDate < thisMonth && bc.PlanType != PlanType.Free)
             .ToListAsync();
 
         foreach (var book in staleBooks)
@@ -127,12 +128,16 @@ public class CreditService : ICreditService
 
         if (existing != null) return existing;
 
+        var plan           = await GetPlanForBookAsync(bookId);
+        var creditsLimit   = plan == PlanType.Free ? 40 : PlanLimits.MonthlyCredits(plan);
+
         var newRecord = new BookCredits
         {
             ExpenseBookId    = bookId,
-            FreeCreditsLeft  = 50,
+            FreeCreditsLeft  = creditsLimit,
             PaidCreditsLeft  = 0,
-            FreeCreditsLimit = 50,
+            FreeCreditsLimit = creditsLimit,
+            PlanType         = plan,
             LastResetDate    = DateTime.UtcNow,
         };
 
@@ -142,6 +147,9 @@ public class CreditService : ICreditService
 
     private async Task ApplyMonthlyResetIfDueAsync(BookCredits credits)
     {
+        // Free-plan books have one-time trial credits — never reset
+        if (credits.PlanType == PlanType.Free) return;
+
         var now       = DateTime.UtcNow;
         var thisMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         if (credits.LastResetDate >= thisMonth) return;
@@ -165,6 +173,21 @@ public class CreditService : ICreditService
             ToolsUsed         = [],
             Timestamp         = now,
         });
+    }
+
+    private async Task<PlanType> GetPlanForBookAsync(string bookId)
+    {
+        var book = await _context.ExpenseBooks
+            .Find(eb => eb.Id == bookId)
+            .FirstOrDefaultAsync();
+
+        if (book == null) return PlanType.Free;
+
+        var user = await _context.Users
+            .Find(u => u.Id == book.UserId)
+            .FirstOrDefaultAsync();
+
+        return user?.Plan ?? PlanType.Free;
     }
 
     private static CreditBalanceDto MapToDto(BookCredits bc) => new()

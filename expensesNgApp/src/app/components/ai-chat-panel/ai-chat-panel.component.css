@@ -349,3 +349,48 @@
 .send-btn:not(:disabled):hover {
   opacity: 0.85;
 }
+
+/* ── No credits state ─────────────────────────────────────────────── */
+.no-credits-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: rgba(239, 68, 68, 0.06);
+  border-top: 1px solid rgba(239, 68, 68, 0.15);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.no-credits-banner > i {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
+.no-credits-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.no-credits-text strong {
+  font-size: 0.8125rem;
+  color: #ef4444;
+}
+
+.no-credits-text span {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.chat-input-area.input-disabled {
+  background: #f9fafb;
+  opacity: 0.7;
+}
+
+.chat-input:disabled {
+  cursor: not-allowed;
+  color: #9ca3af;
+}

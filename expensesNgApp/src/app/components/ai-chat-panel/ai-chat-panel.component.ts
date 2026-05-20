@@ -68,9 +68,13 @@ export class AiChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked
 
   clearReference() { this.chatService.setReference(null); }
 
+  get noCredits(): boolean {
+    return this.creditsLeft !== null && this.creditsLeft <= 0;
+  }
+
   async send(): Promise<void> {
     const text = this.inputText.trim();
-    if (!text || this.loading || !this.book?.id) return;
+    if (!text || this.loading || !this.book?.id || this.noCredits) return;
     this.inputText = '';
     await this.chatService.sendMessage(this.book.id, text);
   }

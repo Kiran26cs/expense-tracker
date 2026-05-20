@@ -48,6 +48,9 @@ public class MongoDbContext
     public IMongoCollection<CreditTransaction> CreditTransactions =>
         _database.GetCollection<CreditTransaction>("creditTransactions");
 
+    public IMongoCollection<UserSubscription> UserSubscriptions =>
+        _database.GetCollection<UserSubscription>("userSubscriptions");
+
     private void CreateIndexes()
     {
         // User indexes

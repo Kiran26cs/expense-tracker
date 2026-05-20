@@ -2,6 +2,7 @@ import { Component, Input, inject, HostListener, ElementRef, ViewChild } from '@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { environment } from '../../../environments/environment';
 import { TruncateDirective } from '../../directives/truncate.directive';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ThemeService } from '../../services/theme.service';
@@ -10,6 +11,7 @@ import { CurrentBookService } from '../../services/current-book.service';
 import { ExpenseBookService } from '../../services/expense-book.service';
 import { ToastService } from '../../services/toast.service';
 import { AiChatService } from '../../services/ai-chat.service';
+import { UpgradeModalService } from '../../services/upgrade-modal.service';
 
 @Component({
   selector: 'app-topbar',
@@ -22,9 +24,11 @@ export class TopbarComponent {
   @Input() isSidebarCollapsed = false;
   @Input() isMobile = false;
   @Input() bookName = '';
+  @Input() noSidebar = false;
 
   authState     = inject(AuthStateService);
   themeService  = inject(ThemeService);
+  upgradeModal  = inject(UpgradeModalService);
   importService = inject(ImportService);
   currentBook   = inject(CurrentBookService);
   chatService   = inject(AiChatService);
@@ -34,6 +38,7 @@ export class TopbarComponent {
   isMenuOpen    = false;
   isEditingName = false;
   editName      = '';
+  readonly landingUrl = environment.landingUrl;
 
   @ViewChild('menuWrapper') menuWrapper!: ElementRef;
   @ViewChild('nameInput')   nameInput!: ElementRef<HTMLInputElement>;
@@ -90,6 +95,8 @@ getUserInitials(): string {
   cancelEditName() { this.isEditingName = false; }
 
   toggleAiChat() { this.chatService.toggle(); }
+
+  get userPlan(): string { return this.authState.user()?.plan ?? 'Free'; }
 
 
   onNameKeydown(event: KeyboardEvent) {

@@ -1,3 +1,5 @@
+export type PlanType = 'Free' | 'Starter' | 'Pro';
+
 export interface User {
   id: string;
   name: string;
@@ -5,7 +7,9 @@ export interface User {
   phone?: string;
   currency: string;
   monthlyIncome: number;
+  monthlySavingsGoal?: number;
   createdAt?: string;
+  plan?: PlanType;
 }
 
 export interface AuthCredentials {

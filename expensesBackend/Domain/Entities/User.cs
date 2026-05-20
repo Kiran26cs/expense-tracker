@@ -32,4 +32,8 @@ public class User
 
     [BsonElement("updatedAt")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [BsonElement("plan")]
+    [BsonRepresentation(BsonType.String)]
+    public PlanType Plan { get; set; } = PlanType.Free;
 }

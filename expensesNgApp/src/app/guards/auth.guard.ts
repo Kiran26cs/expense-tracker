@@ -33,6 +33,6 @@ export const publicGuard: CanActivateFn = async () => {
   }
 
   if (!auth.isAuthenticated()) return true;
-  router.navigate(['/']);
+  router.navigate(['/app']);
   return false;
 };

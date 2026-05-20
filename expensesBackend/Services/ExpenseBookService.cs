@@ -1,3 +1,4 @@
+using ExpensesBackend.API.Domain;
 using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Domain.Entities;
 using ExpensesBackend.API.Infrastructure.Data;
@@ -89,16 +90,24 @@ public class ExpenseBookService : IExpenseBookService
         var existingCount = await _context.ExpenseBooks.CountDocumentsAsync(eb => eb.UserId == userId);
         var isDefault = existingCount == 0 || request.IsDefault;
 
+        // Enforce per-plan book limit
+        var user      = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+        var maxBooks  = PlanLimits.MaxBooks(user?.Plan ?? PlanType.Free);
+        if (existingCount >= maxBooks)
+            throw new InvalidOperationException(
+                $"Free plan is limited to {maxBooks} expense book{(maxBooks == 1 ? "" : "s")}. Upgrade to create more.");
+
         var expenseBook = new ExpenseBook
         {
-            UserId = userId,
-            Name = request.Name,
-            Description = request.Description,
-            Category = request.Category,
-            Currency = request.Currency,
-            Color = request.Color,
-            Icon = request.Icon,
-            IsDefault = isDefault
+            UserId             = userId,
+            Name               = request.Name,
+            Description        = request.Description,
+            Category           = request.Category,
+            Currency           = request.Currency,
+            Color              = request.Color,
+            Icon               = request.Icon,
+            IsDefault          = isDefault,
+            MonthlySavingsGoal = user?.MonthlySavingsGoal ?? 0
         };
 
         await _context.ExpenseBooks.InsertOneAsync(expenseBook);

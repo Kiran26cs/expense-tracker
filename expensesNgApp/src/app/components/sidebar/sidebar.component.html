@@ -18,6 +18,30 @@
     </a>
   </nav>
 
+  <!-- Upgrade CTA (desktop only, hidden for Pro) -->
+  <div class="sidebar-upgrade-wrap" *ngIf="!isMobile && userPlan !== 'Pro'">
+    <ng-container *ngIf="!isCollapsed; else upgradeIconOnly">
+      <div class="upgrade-nudge">
+        <div class="upgrade-nudge-badge">
+          <i class="fa-solid fa-crown"></i>
+          {{ userPlan === 'Free' ? 'Free Plan' : 'Starter Plan' }}
+        </div>
+        <p class="upgrade-nudge-text">
+          {{ userPlan === 'Free' ? 'Unlock unlimited books, more AI credits & team features.' : 'Get unlimited expenses, categories & 300 AI credits/month.' }}
+        </p>
+        <button class="upgrade-nudge-btn" (click)="openUpgrade()">
+          <i class="fa-solid fa-arrow-trend-up"></i>
+          {{ userPlan === 'Free' ? 'Upgrade Plan' : 'Upgrade to Pro' }}
+        </button>
+      </div>
+    </ng-container>
+    <ng-template #upgradeIconOnly>
+      <button class="upgrade-icon-btn" (click)="openUpgrade()" title="Upgrade Plan">
+        <i class="fa-solid fa-arrow-trend-up"></i>
+      </button>
+    </ng-template>
+  </div>
+
   <!-- Collapse button (desktop only) -->
   <div class="sidebar-footer" *ngIf="!isMobile">
     <button class="collapse-btn" (click)="toggleCollapse()" [attr.aria-label]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">

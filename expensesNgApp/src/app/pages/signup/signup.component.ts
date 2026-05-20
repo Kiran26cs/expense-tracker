@@ -54,7 +54,7 @@ export class SignupComponent implements AfterViewInit {
       if (pendingToken) {
         this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
       } else {
-        this.router.navigate(['/']);
+        this.router.navigate(['/app']);
       }
     } catch (e: any) {
       this.error.set(e.message || 'Google sign-up failed');
@@ -110,7 +110,7 @@ export class SignupComponent implements AfterViewInit {
       if (pendingToken) {
         this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
       } else {
-        this.router.navigate(['/']);
+        this.router.navigate(['/app']);
       }
     } catch (e: any) { this.error.set(e.message || 'Signup failed'); }
     finally { this.loading.set(false); }

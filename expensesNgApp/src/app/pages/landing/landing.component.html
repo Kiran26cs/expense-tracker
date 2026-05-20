@@ -1,0 +1,597 @@
+<!-- NAVBAR -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/">
+      <div class="brand-icon"><i class="fa-solid fa-coins"></i></div>
+      <span class="brand-name">NidhiWise</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#ai">AI</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="nav-actions">
+      @if (auth.isAuthenticated()) {
+        <a class="btn btn-primary" [href]="appUrl + '/app'">
+          <i class="fa-solid fa-grid-2"></i> Go to App
+        </a>
+      } @else {
+        <a class="btn btn-ghost" [href]="appUrl + '/login'">Log in</a>
+        <a class="btn btn-primary" [href]="appUrl + '/signup'">Get Started Free</a>
+      }
+    </div>
+    <button class="hamburger" (click)="mobileMenuOpen = !mobileMenuOpen">
+      <i class="fa-solid" [class.fa-bars]="!mobileMenuOpen" [class.fa-xmark]="mobileMenuOpen"></i>
+    </button>
+  </div>
+  @if (mobileMenuOpen) {
+    <div class="mobile-menu">
+      <a href="#features" (click)="mobileMenuOpen = false">Features</a>
+      <a href="#ai" (click)="mobileMenuOpen = false">AI</a>
+      <a href="#pricing" (click)="mobileMenuOpen = false">Pricing</a>
+      <a href="#faq" (click)="mobileMenuOpen = false">FAQ</a>
+      <div class="mobile-menu-actions">
+        @if (auth.isAuthenticated()) {
+          <a class="btn btn-primary btn-full" [href]="appUrl + '/app'">Go to App</a>
+        } @else {
+          <a class="btn btn-ghost btn-full" [href]="appUrl + '/login'">Log in</a>
+          <a class="btn btn-primary btn-full" [href]="appUrl + '/signup'">Get Started Free</a>
+        }
+      </div>
+    </div>
+  }
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        Powered by Claude AI
+      </div>
+      <h1 class="hero-headline">
+        Smart finance<br>management,<br>
+        <span class="gradient-text">reimagined with AI</span>
+      </h1>
+      <p class="hero-subtitle">
+        Track expenses, set budgets, and manage money across books — just by chatting with your AI assistant. Built for individuals and teams.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary btn-lg" [href]="appUrl + '/signup'">
+          Start for Free <i class="fa-solid fa-arrow-right"></i>
+        </a>
+        <a class="btn btn-ghost btn-lg" [href]="appUrl + '/login'">
+          <i class="fa-solid fa-play"></i> Try Sandbox Demo
+        </a>
+      </div>
+      <div class="hero-trust">
+        <span><i class="fa-solid fa-circle-check"></i> No credit card required</span>
+        <span><i class="fa-solid fa-circle-check"></i> 40 free AI credits to start</span>
+        <span><i class="fa-solid fa-circle-check"></i> Cancel anytime</span>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="dashboard-mockup">
+        <!-- App topbar -->
+        <div class="mockup-topbar">
+          <div class="mockup-page-title">
+            <span class="mockup-title-text">Expenses</span>
+            <span class="mockup-subtitle">58 transaction(s)</span>
+          </div>
+          <div class="mockup-add-btn">
+            <i class="fa-solid fa-plus"></i> Add Transaction
+          </div>
+        </div>
+        <!-- Filter bar -->
+        <div class="mockup-filters">
+          <div class="mockup-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span>Search expenses...</span>
+          </div>
+          <div class="mockup-filter-chip">All Types <i class="fa-solid fa-chevron-down"></i></div>
+          <div class="mockup-filter-chip">All Categories <i class="fa-solid fa-chevron-down"></i></div>
+        </div>
+        <!-- Table header -->
+        <div class="mockup-table-header">
+          <span class="col-desc">Description</span>
+          <span class="col-cat">Category</span>
+          <span class="col-date">Date</span>
+          <span class="col-type">Type</span>
+          <span class="col-amt">Amount</span>
+        </div>
+        <!-- Transactions -->
+        <div class="mockup-transactions">
+          <div class="txn-row">
+            <div class="txn-left">
+              <div class="txn-icon cat-food"><i class="fa-solid fa-utensils"></i></div>
+              <span class="txn-name">Grocery Shopping</span>
+            </div>
+            <span class="txn-cat">Food &amp; Dining</span>
+            <span class="txn-date">16 May 2026</span>
+            <span class="txn-badge expense">expense</span>
+            <span class="txn-amount debit">-₹2,100</span>
+          </div>
+          <div class="txn-row">
+            <div class="txn-left">
+              <div class="txn-icon cat-salary"><i class="fa-solid fa-briefcase"></i></div>
+              <span class="txn-name">Monthly Salary</span>
+            </div>
+            <span class="txn-cat">Salary</span>
+            <span class="txn-date">16 May 2026</span>
+            <span class="txn-badge income">income</span>
+            <span class="txn-amount credit">+₹85,000</span>
+          </div>
+          <div class="txn-row">
+            <div class="txn-left">
+              <div class="txn-icon cat-housing"><i class="fa-solid fa-house"></i></div>
+              <span class="txn-name">Monthly Rent</span>
+            </div>
+            <span class="txn-cat">Housing</span>
+            <span class="txn-date">15 May 2026</span>
+            <span class="txn-badge expense">expense</span>
+            <span class="txn-amount debit">-₹18,000</span>
+          </div>
+          <div class="txn-row">
+            <div class="txn-left">
+              <div class="txn-icon cat-transport"><i class="fa-solid fa-car"></i></div>
+              <span class="txn-name">Fuel</span>
+            </div>
+            <span class="txn-cat">Transport</span>
+            <span class="txn-date">14 May 2026</span>
+            <span class="txn-badge expense">expense</span>
+            <span class="txn-amount debit">-₹3,500</span>
+          </div>
+          <div class="txn-row">
+            <div class="txn-left">
+              <div class="txn-icon cat-health"><i class="fa-solid fa-heart-pulse"></i></div>
+              <span class="txn-name">Doctor Visit</span>
+            </div>
+            <span class="txn-cat">Health</span>
+            <span class="txn-date">12 May 2026</span>
+            <span class="txn-badge expense">expense</span>
+            <span class="txn-amount debit">-₹1,200</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-tag">Features</span>
+      <h2>Everything you need to manage money</h2>
+      <p>A complete financial toolkit — not just another expense app.</p>
+    </div>
+    <div class="features-grid">
+      @for (feature of features; track feature.title) {
+        <div class="feature-card">
+          <div [class]="'feature-icon icon-' + feature.color">
+            <i [class]="'fa-solid ' + feature.icon"></i>
+          </div>
+          <h3>{{ feature.title }}</h3>
+          <p>{{ feature.desc }}</p>
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- AI SECTION -->
+<section class="ai-section" id="ai">
+  <div class="section-inner">
+    <div class="ai-inner">
+      <div class="ai-chat-demo">
+        <div class="chat-window">
+          <div class="chat-window-header">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>AI Assistant</span>
+            <span class="chat-status">● Online</span>
+          </div>
+          <div class="chat-messages">
+            <div class="chat-bubble user msg-1">
+              <i class="fa-solid fa-user"></i>
+              <span>Add ₹500 for groceries today</span>
+            </div>
+            <div class="chat-bubble ai msg-2">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span>Done! Added ₹500 under Groceries for today.</span>
+            </div>
+            <div class="chat-bubble user msg-3">
+              <i class="fa-solid fa-user"></i>
+              <span>Set a ₹3000 dining budget for May</span>
+            </div>
+            <div class="chat-bubble ai msg-4">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span>Budget set! ₹3,000 for Dining in May 2026.</span>
+            </div>
+            <div class="chat-bubble user msg-5">
+              <i class="fa-solid fa-user"></i>
+              <span>Invite alex&#64;email.com as a viewer</span>
+            </div>
+            <div class="chat-bubble ai msg-6">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span>Invitation sent to alex&#64;email.com as Viewer.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ai-content">
+        <span class="section-tag light">AI-Powered</span>
+        <h2>Your finance assistant that actually acts</h2>
+        <p>Powered by Claude (Anthropic), the NidhiWise AI doesn't just answer questions — it takes action on your behalf, with your permission.</p>
+        <ul class="ai-capabilities">
+          <li>
+            <div class="cap-icon"><i class="fa-solid fa-plus"></i></div>
+            <div>
+              <strong>Create &amp; update expenses</strong>
+              <span>Just say it — "Add ₹500 for groceries"</span>
+            </div>
+          </li>
+          <li>
+            <div class="cap-icon"><i class="fa-solid fa-chart-pie"></i></div>
+            <div>
+              <strong>Set and manage budgets</strong>
+              <span>"Set a ₹3000 dining budget for this month"</span>
+            </div>
+          </li>
+          <li>
+            <div class="cap-icon"><i class="fa-solid fa-user-plus"></i></div>
+            <div>
+              <strong>Manage team members</strong>
+              <span>"Invite john&#64;email.com as an admin"</span>
+            </div>
+          </li>
+          <li>
+            <div class="cap-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <div>
+              <strong>Permission-aware</strong>
+              <span>The AI respects your role in each book</span>
+            </div>
+          </li>
+        </ul>
+        <div class="claude-badge">
+          <i class="fa-solid fa-robot"></i>
+          Powered by Claude · Anthropic
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COLLABORATION -->
+<section class="collab">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-tag">Collaboration</span>
+      <h2>Built for teams, couples, and families</h2>
+      <p>Share any expense book with the right people, at the right access level.</p>
+    </div>
+    <div class="roles-grid">
+      <div class="role-card owner">
+        <div class="role-badge">Owner</div>
+        <div class="role-icon"><i class="fa-solid fa-crown"></i></div>
+        <h4>Full Control</h4>
+        <ul>
+          <li><i class="fa-solid fa-check"></i> All permissions</li>
+          <li><i class="fa-solid fa-check"></i> Delete book</li>
+          <li><i class="fa-solid fa-check"></i> Manage all members</li>
+          <li><i class="fa-solid fa-check"></i> AI assistant</li>
+        </ul>
+      </div>
+      <div class="role-card admin">
+        <div class="role-badge">Admin</div>
+        <div class="role-icon"><i class="fa-solid fa-user-tie"></i></div>
+        <h4>Management</h4>
+        <ul>
+          <li><i class="fa-solid fa-check"></i> Add/edit expenses</li>
+          <li><i class="fa-solid fa-check"></i> Manage budgets</li>
+          <li><i class="fa-solid fa-check"></i> Invite members</li>
+          <li><i class="fa-solid fa-check"></i> View dashboard</li>
+        </ul>
+      </div>
+      <div class="role-card member">
+        <div class="role-badge">Member</div>
+        <div class="role-icon"><i class="fa-solid fa-user"></i></div>
+        <h4>Contributor</h4>
+        <ul>
+          <li><i class="fa-solid fa-check"></i> Add/edit expenses</li>
+          <li><i class="fa-solid fa-check"></i> View budgets</li>
+          <li><i class="fa-solid fa-xmark muted"></i> Manage members</li>
+          <li><i class="fa-solid fa-check"></i> View dashboard</li>
+        </ul>
+      </div>
+      <div class="role-card viewer">
+        <div class="role-badge">Viewer</div>
+        <div class="role-icon"><i class="fa-solid fa-eye"></i></div>
+        <h4>Read-only</h4>
+        <ul>
+          <li><i class="fa-solid fa-xmark muted"></i> Add expenses</li>
+          <li><i class="fa-solid fa-check"></i> View all data</li>
+          <li><i class="fa-solid fa-xmark muted"></i> Manage members</li>
+          <li><i class="fa-solid fa-check"></i> View dashboard</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-tag">Pricing</span>
+      <h2>Simple, transparent pricing</h2>
+      <p>Start free. Upgrade when you need more. Cancel anytime.</p>
+    </div>
+
+    <!-- Plan cards -->
+    <div class="pricing-grid">
+      <div class="pricing-card free">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">
+          <span class="price-amount">$0</span>
+          <span class="price-period">/month</span>
+        </div>
+        <p class="plan-tagline">Perfect for getting started</p>
+        <ul class="plan-features">
+          <li><i class="fa-solid fa-check"></i> 3 expense books</li>
+          <li><i class="fa-solid fa-check"></i> 150 expenses/month</li>
+          <li><i class="fa-solid fa-check"></i> 20 categories</li>
+          <li><i class="fa-solid fa-check"></i> 2 members (you + 1)</li>
+          <li><i class="fa-solid fa-check"></i> 40 AI credits (one-time trial)</li>
+          <li><i class="fa-solid fa-check"></i> All core features</li>
+        </ul>
+        <a class="btn btn-outline btn-full" [href]="appUrl + '/signup'">Get Started Free</a>
+      </div>
+
+      <div class="pricing-card starter popular">
+        <div class="popular-badge">Most Popular</div>
+        <div class="plan-name">Starter</div>
+        <div class="plan-price">
+          <span class="price-amount">$3.99</span>
+          <span class="price-period">/month</span>
+        </div>
+        <p class="plan-tagline">For individuals who track seriously</p>
+        <ul class="plan-features">
+          <li><i class="fa-solid fa-check"></i> Unlimited expense books</li>
+          <li><i class="fa-solid fa-check"></i> 1,000 expenses/month</li>
+          <li><i class="fa-solid fa-check"></i> 50 categories</li>
+          <li><i class="fa-solid fa-check"></i> 5 members</li>
+          <li><i class="fa-solid fa-check"></i> 100 AI credits/month</li>
+          <li><i class="fa-solid fa-check"></i> Everything in Free</li>
+        </ul>
+        <a class="btn btn-primary btn-full" [href]="appUrl + '/signup'">Start Starter Plan</a>
+      </div>
+
+      <div class="pricing-card pro">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">
+          <span class="price-amount">$7.99</span>
+          <span class="price-period">/month</span>
+        </div>
+        <p class="plan-tagline">For teams and power users</p>
+        <ul class="plan-features">
+          <li><i class="fa-solid fa-check"></i> Unlimited expense books</li>
+          <li><i class="fa-solid fa-check"></i> Unlimited expenses</li>
+          <li><i class="fa-solid fa-check"></i> Unlimited categories</li>
+          <li><i class="fa-solid fa-check"></i> Up to 51 members</li>
+          <li><i class="fa-solid fa-check"></i> 300 AI credits/month</li>
+          <li><i class="fa-solid fa-check"></i> Everything in Starter</li>
+        </ul>
+        <a class="btn btn-outline btn-full" [href]="appUrl + '/signup'">Start Pro Plan</a>
+      </div>
+    </div>
+
+    <!-- Feature comparison table -->
+    <div class="compare-wrap">
+      <h3 class="compare-title">Compare plans in detail</h3>
+      <div class="compare-scroll">
+        <div class="compare-table">
+
+          <!-- Sticky column headers -->
+          <div class="compare-row compare-head">
+            <div class="compare-feature-col"></div>
+            <div class="compare-plan-col">Free</div>
+            <div class="compare-plan-col col-highlight">Starter</div>
+            <div class="compare-plan-col">Pro</div>
+          </div>
+
+          <!-- Usage limits -->
+          <div class="compare-section-label"><i class="fa-solid fa-sliders"></i> Usage limits</div>
+
+          <div class="compare-row">
+            <div class="compare-feature">Expenses per month</div>
+            <div class="compare-val">150</div>
+            <div class="compare-val col-highlight">1,000</div>
+            <div class="compare-val">Unlimited</div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Custom categories</div>
+            <div class="compare-val">20</div>
+            <div class="compare-val col-highlight">50</div>
+            <div class="compare-val">Unlimited</div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Team members</div>
+            <div class="compare-val">2</div>
+            <div class="compare-val col-highlight">5</div>
+            <div class="compare-val">51</div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Expense books</div>
+            <div class="compare-val">3</div>
+            <div class="compare-val col-highlight">Unlimited</div>
+            <div class="compare-val">Unlimited</div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">AI credits</div>
+            <div class="compare-val compare-val-note">40 trial</div>
+            <div class="compare-val col-highlight">100 / mo</div>
+            <div class="compare-val">300 / mo</div>
+          </div>
+
+          <!-- Core features -->
+          <div class="compare-section-label"><i class="fa-solid fa-box"></i> Core features</div>
+
+          <div class="compare-row">
+            <div class="compare-feature">Budget tracking</div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val col-highlight"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Lending tracker</div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val col-highlight"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Recurring expenses</div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val col-highlight"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">CSV import</div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val col-highlight"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Dashboard &amp; insights</div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val col-highlight"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Role-based permissions</div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val col-highlight"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+          </div>
+
+          <!-- AI features -->
+          <div class="compare-section-label"><i class="fa-solid fa-wand-magic-sparkles"></i> AI assistant</div>
+
+          <div class="compare-row">
+            <div class="compare-feature">Add expenses via chat</div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val col-highlight"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Set budgets via chat</div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val col-highlight"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Invite members via chat</div>
+            <div class="compare-val"><i class="fa-solid fa-xmark cval-no"></i></div>
+            <div class="compare-val col-highlight"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Extra credit top-ups</div>
+            <div class="compare-val"><i class="fa-solid fa-xmark cval-no"></i></div>
+            <div class="compare-val col-highlight"><i class="fa-solid fa-check cval-yes"></i></div>
+            <div class="compare-val"><i class="fa-solid fa-check cval-yes"></i></div>
+          </div>
+
+          <!-- CTA row -->
+          <div class="compare-row compare-cta-row">
+            <div class="compare-feature"></div>
+            <div class="compare-val"><a class="btn btn-outline" [href]="appUrl + '/signup'">Get Free</a></div>
+            <div class="compare-val col-highlight"><a class="btn btn-primary" [href]="appUrl + '/signup'">Get Starter</a></div>
+            <div class="compare-val"><a class="btn btn-outline" [href]="appUrl + '/signup'">Get Pro</a></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <p class="pricing-note">
+      <i class="fa-solid fa-circle-info"></i>
+      Payments powered by Razorpay — launching soon. Sign up now to be notified at launch.
+    </p>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <div class="section-inner">
+    <div class="section-header">
+      <span class="section-tag">FAQ</span>
+      <h2>Frequently asked questions</h2>
+    </div>
+    <div class="faq-list">
+      @for (item of faqs; track item.q; let i = $index) {
+        <div class="faq-item" [class.open]="openFaq === i">
+          <button class="faq-q" (click)="toggleFaq(i)">
+            {{ item.q }}
+            <i class="fa-solid fa-chevron-down faq-chevron"></i>
+          </button>
+          <div class="faq-a">
+            <p>{{ item.a }}</p>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- CTA BANNER -->
+<section class="cta-banner">
+  <div class="section-inner">
+    <div class="cta-inner">
+      <h2>Ready to take control of your finances?</h2>
+      <p>Join NidhiWise and start managing money smarter — for free.</p>
+      <div class="cta-actions">
+        <a class="btn btn-white btn-lg" [href]="appUrl + '/signup'">
+          Start for Free <i class="fa-solid fa-arrow-right"></i>
+        </a>
+        <a class="btn btn-ghost-white btn-lg" [href]="appUrl + '/login'">Log in</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <a class="brand" href="/">
+        <div class="brand-icon"><i class="fa-solid fa-coins"></i></div>
+        <span class="brand-name">NidhiWise</span>
+      </a>
+      <p>Smart financial management, powered by AI.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Product</h5>
+      <a href="#features">Features</a>
+      <a href="#ai">AI Assistant</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="footer-col">
+      <h5>Account</h5>
+      <a [href]="appUrl + '/login'">Log in</a>
+      <a [href]="appUrl + '/signup'">Sign up</a>
+    </div>
+    <div class="footer-col">
+      <h5>Legal</h5>
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Service</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2026 NidhiWise. All rights reserved.</p>
+    <p>Built with <i class="fa-solid fa-heart"></i> in India</p>
+  </div>
+</footer>
