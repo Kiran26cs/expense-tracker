@@ -4,6 +4,8 @@ import { RouterModule, Router, ActivatedRoute, NavigationEnd } from '@angular/ro
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { BookAccessService } from '../../services/book-access.service';
+import { AuthStateService } from '../../services/auth-state.service';
+import { UpgradeModalService } from '../../services/upgrade-modal.service';
 
 interface NavItem {
   id: string;
@@ -35,7 +37,13 @@ export class SidebarComponent implements OnInit, OnDestroy {
   @Input() isMobile = false;
   @Output() collapsedChange = new EventEmitter<boolean>();
 
-  private bookAccess = inject(BookAccessService);
+  private bookAccess    = inject(BookAccessService);
+  private authState     = inject(AuthStateService);
+  private upgradeModal  = inject(UpgradeModalService);
+
+  get userPlan(): string { return this.authState.user()?.plan ?? 'Free'; }
+
+  openUpgrade() { this.upgradeModal.open(this.userPlan === 'Starter' ? 'Pro' : 'Starter'); }
 
   /** Visible nav items filtered by the user's resolved permissions */
   navItems = computed(() => {

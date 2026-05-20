@@ -105,4 +105,19 @@ public class AuthController : ControllerBase
 
         return Ok(ApiResponse<UserDto>.SuccessResponse(user));
     }
+
+    [Authorize]
+    [HttpPatch("profile")]
+    public async Task<ActionResult<ApiResponse<UserDto>>> UpdateProfile([FromBody] UpdateProfileRequest req)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized(ApiResponse<UserDto>.ErrorResponse("User not authenticated"));
+
+        var updated = await _authService.UpdateProfileAsync(userId, req);
+        if (updated == null)
+            return NotFound(ApiResponse<UserDto>.ErrorResponse("User not found"));
+
+        return Ok(ApiResponse<UserDto>.SuccessResponse(updated));
+    }
 }

@@ -1,3 +1,4 @@
+using ExpensesBackend.API.Domain;
 using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Domain.Entities;
 using ExpensesBackend.API.Infrastructure.Cache;
@@ -268,6 +269,24 @@ public class ExpenseService : IExpenseService
                 IsRecurring = true,
                 CreatedAt = recurring.CreatedAt
             };
+        }
+
+        // Enforce monthly expense limit for Free plan
+        var owner = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+        var maxPerMonth = PlanLimits.MaxExpensesPerMonth(owner?.Plan ?? PlanType.Free);
+        if (maxPerMonth != int.MaxValue)
+        {
+            var monthStart = new DateTime(request.Date.Year, request.Date.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var monthEnd   = monthStart.AddMonths(1);
+            var monthCount = await _context.Expenses.CountDocumentsAsync(e =>
+                e.UserId        == userId &&
+                e.ExpenseBookId == request.ExpenseBookId &&
+                e.Date          >= monthStart &&
+                e.Date          < monthEnd);
+
+            if (monthCount >= maxPerMonth)
+                throw new InvalidOperationException(
+                    $"Free plan is limited to {maxPerMonth} expenses per month. Upgrade to add more.");
         }
 
         // Non-recurring: create the expense entry as usual

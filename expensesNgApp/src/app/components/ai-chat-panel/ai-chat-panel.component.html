@@ -75,20 +75,31 @@
       </div>
     }
 
+    <!-- No credits banner -->
+    @if (noCredits) {
+      <div class="no-credits-banner">
+        <i class="fa-solid fa-bolt-slash"></i>
+        <div class="no-credits-text">
+          <strong>No credits left</strong>
+          <span>Your free credits reset on the 1st of next month, or top up now.</span>
+        </div>
+      </div>
+    }
+
     <!-- Input -->
-    <div class="chat-input-area">
+    <div class="chat-input-area" [class.input-disabled]="noCredits">
       <textarea
         class="chat-input"
         [(ngModel)]="inputText"
         (keydown)="onKeydown($event)"
-        placeholder="Ask anything… (Enter to send)"
+        [placeholder]="noCredits ? 'No credits remaining' : 'Ask anything… (Enter to send)'"
         rows="1"
-        [disabled]="loading"
+        [disabled]="loading || noCredits"
       ></textarea>
       <button
         class="send-btn"
         (click)="send()"
-        [disabled]="!inputText.trim() || loading"
+        [disabled]="!inputText.trim() || loading || noCredits"
         aria-label="Send message"
       >
         <i class="fa-solid fa-paper-plane"></i>

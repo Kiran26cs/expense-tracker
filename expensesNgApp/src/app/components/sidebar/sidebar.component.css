@@ -72,6 +72,66 @@
 }
 .nav-icon { font-size: 1.25rem; flex-shrink: 0; }
 .nav-label { white-space: nowrap; }
+/* ── Upgrade CTA ── */
+.sidebar-upgrade-wrap {
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--color-border-light);
+}
+.upgrade-nudge {
+  background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
+  border: 1px solid rgba(99,102,241,0.25);
+  border-radius: var(--radius-lg);
+  padding: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.upgrade-nudge-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.upgrade-nudge-text {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  margin: 0;
+}
+.upgrade-nudge-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+.upgrade-nudge-btn:hover { opacity: 0.88; }
+.upgrade-icon-btn {
+  width: 100%;
+  padding: 0.6rem;
+  background: rgba(99,102,241,0.1);
+  border: 1px solid rgba(99,102,241,0.25);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.upgrade-icon-btn:hover { background: rgba(99,102,241,0.18); }
+
 .sidebar-footer { padding: var(--spacing-md); border-top: 1px solid var(--color-border-light); }
 .collapse-btn {
   width: 100%;

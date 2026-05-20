@@ -76,6 +76,10 @@ builder.Services.AddScoped<ITemplateBookService, TemplateBookService>();
 builder.Services.AddSingleton<ITemplateBlobService, TemplateBlobService>();
 builder.Services.AddMemoryCache();
 
+// Payment
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddHttpClient("Razorpay");
+
 // AI Chat & Credits
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<ICreditService, CreditService>();
@@ -142,6 +146,9 @@ var frontendUrl = builder.Configuration["App:FrontendUrl"];
 var corsOrigins = new List<string> { "http://localhost:4200", "http://localhost:5173" };
 if (!string.IsNullOrEmpty(frontendUrl))
     corsOrigins.Add(frontendUrl.TrimEnd('/'));
+// Always allow the production domains
+corsOrigins.Add("https://nidhiwise.com");
+corsOrigins.Add("https://app.nidhiwise.com");
 
 builder.Services.AddCors(options =>
 {

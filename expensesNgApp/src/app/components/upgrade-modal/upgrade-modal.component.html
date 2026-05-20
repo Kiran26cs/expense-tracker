@@ -1,0 +1,184 @@
+@if (modal.isOpen()) {
+  <!-- Overlay -->
+  <div class="upgrade-overlay" (click)="modal.close()"></div>
+
+  <!-- Panel slides in from right -->
+  <div class="upgrade-panel">
+
+    <!-- ── LEFT: Plan details ── -->
+    <div class="upgrade-left"
+         [class.bg-starter]="selectedPlan() === 'Starter'"
+         [class.bg-pro]="selectedPlan() === 'Pro'">
+
+      <div class="left-header">
+        <div class="brand-mark">
+          <i class="fa-solid fa-coins"></i>
+          <span>NidhiWise</span>
+        </div>
+        <button class="close-btn-left" (click)="modal.close()" aria-label="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <p class="left-eyebrow">Upgrade your plan</p>
+      <h2 class="left-title">Unlock the full<br>experience</h2>
+
+      <!-- Plan toggle (hidden when only one plan is available) -->
+      <div class="plan-toggle" *ngIf="availablePlans().length > 1">
+        @for (plan of availablePlans(); track plan) {
+          <button
+            class="toggle-btn"
+            [class.toggle-active]="selectedPlan() === plan"
+            (click)="selectPlan(plan)">
+            {{ plan }}
+            <span class="toggle-price">{{ planPrices[plan] }}/mo</span>
+          </button>
+        }
+      </div>
+
+      <!-- Price -->
+      <div class="price-display">
+        <span class="price-main">{{ planPrices[selectedPlan()] }}</span>
+        <span class="price-period">/ month</span>
+        <span class="price-inr">≈ {{ planPricesInr[selectedPlan()] }}/mo</span>
+      </div>
+
+      <!-- Features -->
+      <ul class="feature-list">
+        @for (f of planFeatures[selectedPlan()]; track f) {
+          <li class="feature-item">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>{{ f }}</span>
+          </li>
+        }
+      </ul>
+
+      <p class="left-footer">Cancel anytime. No hidden fees.</p>
+    </div>
+
+    <!-- ── RIGHT: Checkout ── -->
+    <div class="upgrade-right">
+      <div class="right-inner">
+
+        <h3 class="right-title">Complete your upgrade</h3>
+
+        <!-- Order summary -->
+        <div class="order-card">
+          <div class="order-row">
+            <span class="order-label">Plan</span>
+            <span class="order-val plan-val">{{ selectedPlan() }}</span>
+          </div>
+          <div class="order-row">
+            <span class="order-label">Billing</span>
+            <span class="order-val">Monthly</span>
+          </div>
+          <div class="order-divider"></div>
+          <div class="order-row order-total">
+            <span>Total today</span>
+            <span>{{ planPrices[selectedPlan()] }}</span>
+          </div>
+          <p class="order-note">
+            Renews on the same date each month. Cancel anytime from Settings.
+          </p>
+        </div>
+
+        <!-- Account info (read-only) -->
+        <div class="account-card">
+          <p class="account-label">Billing account</p>
+          <div class="account-row">
+            <i class="fa-solid fa-user"></i>
+            <span>{{ auth.user()?.name }}</span>
+          </div>
+          <div class="account-row">
+            <i class="fa-solid fa-envelope"></i>
+            <span>{{ auth.user()?.email || auth.user()?.phone }}</span>
+          </div>
+        </div>
+
+        <!-- CTA -->
+        <button
+          class="pay-btn"
+          [class.bg-starter]="selectedPlan() === 'Starter'"
+          [class.bg-pro]="selectedPlan() === 'Pro'"
+          [disabled]="loading()"
+          (click)="subscribe()">
+          @if (loading()) {
+            <i class="fa-solid fa-spinner fa-spin"></i> Processing…
+          } @else {
+            <i class="fa-solid fa-lock"></i>
+            Pay {{ planPrices[selectedPlan()] }} · Subscribe to {{ selectedPlan() }}
+          }
+        </button>
+
+        <!-- Security badge -->
+        <div class="secure-row">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Secured by <strong>Razorpay</strong>. Your card details are never stored.</span>
+        </div>
+
+        <!-- Compare with current plan -->
+        <div class="compare-free">
+          <p class="compare-title">
+            What changes from {{ (auth.user()?.plan ?? 'Free') === 'Starter' ? 'Starter' : 'Free' }}?
+          </p>
+          <!-- Free → Starter -->
+          @if ((auth.user()?.plan ?? 'Free') === 'Free' && selectedPlan() === 'Starter') {
+            <div class="compare-row-item">
+              <span class="compare-col compare-col-label">Expense books</span>
+              <span class="compare-col compare-col-free">3</span>
+              <span class="compare-col compare-col-paid">Unlimited</span>
+            </div>
+            <div class="compare-row-item">
+              <span class="compare-col compare-col-label">Expenses/month</span>
+              <span class="compare-col compare-col-free">150</span>
+              <span class="compare-col compare-col-paid">1,000</span>
+            </div>
+            <div class="compare-row-item">
+              <span class="compare-col compare-col-label">AI credits</span>
+              <span class="compare-col compare-col-free">40 (trial)</span>
+              <span class="compare-col compare-col-paid">100/mo</span>
+            </div>
+          }
+          <!-- Free → Pro -->
+          @if ((auth.user()?.plan ?? 'Free') === 'Free' && selectedPlan() === 'Pro') {
+            <div class="compare-row-item">
+              <span class="compare-col compare-col-label">Expense books</span>
+              <span class="compare-col compare-col-free">3</span>
+              <span class="compare-col compare-col-paid">Unlimited</span>
+            </div>
+            <div class="compare-row-item">
+              <span class="compare-col compare-col-label">Expenses/month</span>
+              <span class="compare-col compare-col-free">150</span>
+              <span class="compare-col compare-col-paid">Unlimited</span>
+            </div>
+            <div class="compare-row-item">
+              <span class="compare-col compare-col-label">AI credits</span>
+              <span class="compare-col compare-col-free">40 (trial)</span>
+              <span class="compare-col compare-col-paid">300/mo</span>
+            </div>
+          }
+          <!-- Starter → Pro -->
+          @if ((auth.user()?.plan ?? 'Free') === 'Starter') {
+            <div class="compare-row-item">
+              <span class="compare-col compare-col-label">Expenses/month</span>
+              <span class="compare-col compare-col-free">1,000</span>
+              <span class="compare-col compare-col-paid">Unlimited</span>
+            </div>
+            <div class="compare-row-item">
+              <span class="compare-col compare-col-label">Categories</span>
+              <span class="compare-col compare-col-free">50</span>
+              <span class="compare-col compare-col-paid">Unlimited</span>
+            </div>
+            <div class="compare-row-item">
+              <span class="compare-col compare-col-label">AI credits</span>
+              <span class="compare-col compare-col-free">100/mo</span>
+              <span class="compare-col compare-col-paid">300/mo</span>
+            </div>
+          }
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+}

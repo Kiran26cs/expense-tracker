@@ -1,29 +1,13 @@
+<app-topbar [noSidebar]="true"></app-topbar>
+
 <div class="page-container">
   <!-- Header -->
   <div class="page-header">
-    <div class="header-left">
-      <div class="logo-mark">E</div>
-      <div>
-        <h1 class="page-title">My Expense Books</h1>
-        <p class="page-subtitle">Select a book to track expenses</p>
-      </div>
+    <div>
+      <h1 class="page-title">My Expense Books</h1>
+      <p class="page-subtitle">Select a book to track expenses</p>
     </div>
     <div class="header-actions">
-      <div class="profile-menu-wrapper" #profileMenuWrapper>
-        <button class="profile-avatar-btn" (click)="toggleProfileMenu()" title="Account">
-          <div class="profile-avatar">{{ getUserInitials() }}</div>
-        </button>
-        <div class="profile-dropdown" *ngIf="profileMenuOpen">
-          <div class="profile-user-info">
-            <div class="profile-name">{{ auth.user()?.name }}</div>
-            <div class="profile-email">{{ auth.user()?.email || auth.user()?.phone }}</div>
-          </div>
-          <div class="profile-divider"></div>
-          <button class="profile-signout" (click)="auth.logout()">
-            <i class="fa-solid fa-sign-out-alt"></i> Sign Out
-          </button>
-        </div>
-      </div>
       <button
         *ngIf="showTemplatBtn()"
         class="template-btn"
@@ -38,6 +22,25 @@
       </div>
       <app-button (clicked)="openCreateModal()">+ New Book</app-button>
     </div>
+  </div>
+
+  <!-- Upgrade banner (Free / Starter only) -->
+  <div class="upgrade-banner" *ngIf="userPlan !== 'Pro'" [class.is-starter]="userPlan === 'Starter'">
+    <div class="upgrade-banner-left">
+      <span class="upgrade-banner-plan">
+        <i class="fa-solid" [class.fa-seedling]="userPlan === 'Free'" [class.fa-bolt]="userPlan === 'Starter'"></i>
+        {{ userPlan }} Plan
+      </span>
+      <span class="upgrade-banner-text">
+        {{ userPlan === 'Free'
+          ? 'You have 3 books & 150 expenses/month. Upgrade for unlimited books, more AI credits & team collaboration.'
+          : 'Upgrade to Pro for unlimited expenses, unlimited categories & 300 AI credits/month.' }}
+      </span>
+    </div>
+    <button class="upgrade-banner-btn" (click)="upgradeModal.open(userPlan === 'Starter' ? 'Pro' : 'Starter')">
+      <i class="fa-solid fa-arrow-trend-up"></i>
+      {{ userPlan === 'Free' ? 'Upgrade Plan' : 'Upgrade to Pro' }}
+    </button>
   </div>
 
   <!-- Loading / Error -->

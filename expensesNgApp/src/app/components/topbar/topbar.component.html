@@ -1,6 +1,6 @@
-<header class="topbar" [class.sidebar-collapsed]="isSidebarCollapsed && !isMobile">
+<header class="topbar" [class.sidebar-collapsed]="isSidebarCollapsed && !isMobile" [class.no-sidebar]="noSidebar">
   <div class="topbar-left">
-    <a *ngIf="!bookName" routerLink="/" class="app-name-link">
+    <a *ngIf="!bookName" routerLink="/app" class="app-name-link">
       <h2 class="app-name">ExpenseTracker</h2>
     </a>
     <ng-container *ngIf="bookName">
@@ -30,7 +30,7 @@
       </button>
     }
 
-    <button class="icon-btn import-btn" (click)="openImportDrawer()" title="Import activity">
+    <button *ngIf="currentBook.book()" class="icon-btn import-btn" (click)="openImportDrawer()" title="Import activity">
       <i class="fa-solid fa-file-import"></i>
       <span class="import-badge" *ngIf="importService.activeCount() > 0">
         {{ importService.activeCount() }}
@@ -41,6 +41,17 @@
       <i [class]="themeService.theme() === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'" [style.color]="themeService.theme() !== 'light' ? '#f59e0b' : ''"></i>
     </button>
 
+    <div class="topbar-plan-pill"
+         [class.plan-free]="userPlan === 'Free'"
+         [class.plan-starter]="userPlan === 'Starter'"
+         [class.plan-pro]="userPlan === 'Pro'">
+      <i class="fa-solid"
+         [class.fa-seedling]="userPlan === 'Free'"
+         [class.fa-bolt]="userPlan === 'Starter'"
+         [class.fa-crown]="userPlan === 'Pro'"></i>
+      {{ userPlan }}
+    </div>
+
     <div class="user-menu-wrapper" #menuWrapper>
       <button class="avatar-btn" (click)="toggleMenu()">
         <div class="avatar">{{ getUserInitials() }}</div>
@@ -49,7 +60,26 @@
         <div class="dropdown-user-info">
           <div class="dropdown-name">{{ authState.user()?.name }}</div>
           <div class="dropdown-email">{{ authState.user()?.email || authState.user()?.phone }}</div>
+          <div class="dropdown-plan-pill"
+               [class.plan-free]="userPlan === 'Free'"
+               [class.plan-starter]="userPlan === 'Starter'"
+               [class.plan-pro]="userPlan === 'Pro'">
+            <i class="fa-solid" [class.fa-seedling]="userPlan === 'Free'" [class.fa-bolt]="userPlan === 'Starter'" [class.fa-crown]="userPlan === 'Pro'"></i>
+            {{ userPlan }} Plan
+          </div>
         </div>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" routerLink="/account" (click)="isMenuOpen = false">
+          <i class="fa-solid fa-gear"></i> Account Settings
+        </a>
+        @if (userPlan === 'Free') {
+          <button class="dropdown-item upgrade-item" (click)="upgradeModal.open('Starter'); isMenuOpen = false">
+            <i class="fa-solid fa-arrow-trend-up"></i> Upgrade Plan
+          </button>
+        }
+        <a class="dropdown-item" [href]="landingUrl" target="_blank" rel="noopener" (click)="isMenuOpen = false">
+          <i class="fa-solid fa-globe"></i> Visit nidhiwise.com
+        </a>
         <div class="dropdown-divider"></div>
         <button class="dropdown-item logout-item" (click)="authState.logout()">
           <i class="fa-solid fa-sign-out-alt"></i> Sign Out

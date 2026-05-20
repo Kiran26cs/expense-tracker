@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed, ViewChildren, QueryList, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, ViewChildren, QueryList, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -10,6 +10,7 @@ import { ToastService } from '../../services/toast.service';
 import { CurrentBookService } from '../../services/current-book.service';
 import { ExpenseBook, CreateExpenseBookRequest } from '../../models/expense-book.model';
 import { PendingInvite } from '../../models/member.model';
+import { TopbarComponent } from '../../components/topbar/topbar.component';
 import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent } from '../../components/input/input.component';
 import { SelectComponent } from '../../components/input/select.component';
@@ -17,6 +18,7 @@ import { ModalComponent } from '../../components/modal/modal.component';
 import { LoadingComponent, EmptyStateComponent, ErrorStateComponent } from '../../components/loading/loading.component';
 import { TruncateDirective } from '../../directives/truncate.directive';
 import { formatCurrency, CURRENCY_OPTIONS, BOOK_ICON_OPTIONS } from '../../utils/helpers';
+import { UpgradeModalService } from '../../services/upgrade-modal.service';
 
 const LOCALE_CURRENCY: Record<string, string> = {
   IN: 'INR', US: 'USD', GB: 'GBP', AU: 'AUD', CA: 'CAD',
@@ -29,30 +31,12 @@ const LOCALE_CURRENCY: Record<string, string> = {
 @Component({
   selector: 'app-expense-book-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonComponent, InputComponent, SelectComponent, ModalComponent, LoadingComponent, EmptyStateComponent, ErrorStateComponent, TruncateDirective],
+  imports: [CommonModule, FormsModule, TopbarComponent, ButtonComponent, InputComponent, SelectComponent, ModalComponent, LoadingComponent, EmptyStateComponent, ErrorStateComponent, TruncateDirective],
   templateUrl: './expense-book-dashboard.component.html',
   styleUrl: './expense-book-dashboard.component.css'
 })
 export class ExpenseBookDashboardComponent implements OnInit, OnDestroy {
   @ViewChildren('bookNameInput') bookNameInputs!: QueryList<ElementRef<HTMLInputElement>>;
-  @ViewChild('profileMenuWrapper') profileMenuWrapper!: ElementRef;
-
-  profileMenuOpen = false;
-
-  @HostListener('document:mousedown', ['$event'])
-  onDocumentClick(event: MouseEvent) {
-    if (this.profileMenuWrapper && !this.profileMenuWrapper.nativeElement.contains(event.target)) {
-      this.profileMenuOpen = false;
-    }
-  }
-
-  toggleProfileMenu() { this.profileMenuOpen = !this.profileMenuOpen; }
-
-  getUserInitials(): string {
-    const name = this.auth.user()?.name;
-    if (!name) return 'U';
-    return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-  }
   books          = signal<ExpenseBook[]>([]);
   pendingInvites = signal<PendingInvite[]>([]);
   loading        = signal(true);
@@ -97,9 +81,12 @@ export class ExpenseBookDashboardComponent implements OnInit, OnDestroy {
   private importService = inject(ImportService);
   private memberService = inject(MemberService);
   auth                  = inject(AuthStateService);
+  upgradeModal          = inject(UpgradeModalService);
   private toast         = inject(ToastService);
   private router        = inject(Router);
   private currentBook   = inject(CurrentBookService);
+
+  get userPlan(): string { return this.auth.user()?.plan ?? 'Free'; }
 
   ngOnInit() { this.loadAll(); }
 
@@ -181,7 +168,8 @@ export class ExpenseBookDashboardComponent implements OnInit, OnDestroy {
   }
 
   openCreateModal() {
-    this.createForm = { name: '', description: '', currency: 'USD', icon: 'fa fa-book' };
+    const defaultCurrency = this.auth.user()?.currency || 'USD';
+    this.createForm = { name: '', description: '', currency: defaultCurrency, icon: 'fa fa-book' };
     this.createError = '';
     this.iconSelection.set('fa fa-book');
     this.showCustomIcon.set(false);

@@ -1,3 +1,4 @@
+using ExpensesBackend.API.Domain;
 using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Domain.Entities;
 using ExpensesBackend.API.Infrastructure.Cache;
@@ -60,6 +61,22 @@ public class CategoryService : ICategoryService
 
         if (await _context.Categories.Find(dupFilter).AnyAsync())
             throw new ArgumentException($"Category '{request.Name}' already exists");
+
+        // Enforce per-plan category limit
+        var book       = await _context.ExpenseBooks.Find(eb => eb.Id == expenseBookId).FirstOrDefaultAsync();
+        var bookOwner  = book != null
+            ? await _context.Users.Find(u => u.Id == book.UserId).FirstOrDefaultAsync()
+            : null;
+        var maxCats    = PlanLimits.MaxCategories(bookOwner?.Plan ?? PlanType.Free);
+        if (maxCats != int.MaxValue)
+        {
+            var catCount = await _context.Categories.CountDocumentsAsync(
+                c => c.ExpenseBookId == expenseBookId);
+
+            if (catCount >= maxCats)
+                throw new InvalidOperationException(
+                    $"Free plan is limited to {maxCats} categories per book. Upgrade to add more.");
+        }
 
         var category = new Category
         {

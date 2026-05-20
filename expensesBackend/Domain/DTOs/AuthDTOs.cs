@@ -38,6 +38,14 @@ public class UserDto
     public string Name { get; set; } = string.Empty;
     public string Currency { get; set; } = "USD";
     public decimal MonthlyIncome { get; set; }
+    public decimal MonthlySavingsGoal { get; set; }
+    public string Plan { get; set; } = "Free";
+}
+
+public class UpdateProfileRequest
+{
+    public string? Currency { get; set; }
+    public decimal? MonthlySavingsGoal { get; set; }
 }
 
 public class GoogleAuthRequest

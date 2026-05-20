@@ -1,0 +1,120 @@
+<app-topbar [noSidebar]="true"></app-topbar>
+
+<div class="us-page">
+  <div class="us-header">
+    <div>
+      <h1 class="us-title">Account Settings</h1>
+      <p class="us-subtitle">Manage your plan, appearance and default preferences</p>
+    </div>
+  </div>
+
+  <div class="us-grid">
+
+    <!-- Plan & Billing -->
+    <app-card class="plan-card">
+      <app-card-header>
+        <app-card-title>
+          <i class="fa-solid fa-crown" style="color:#f59e0b;margin-right:6px"></i>
+          Plan &amp; Billing
+        </app-card-title>
+      </app-card-header>
+      <app-card-content>
+        <div class="plan-layout">
+          <div class="plan-status"
+               [class.plan-banner-free]="userPlan === 'Free'"
+               [class.plan-banner-starter]="userPlan === 'Starter'"
+               [class.plan-banner-pro]="userPlan === 'Pro'">
+            <span class="plan-badge">
+              <i class="fa-solid"
+                 [class.fa-seedling]="userPlan === 'Free'"
+                 [class.fa-bolt]="userPlan === 'Starter'"
+                 [class.fa-crown]="userPlan === 'Pro'"></i>
+              {{ userPlan }}
+            </span>
+            <span class="plan-price" *ngIf="userPlan === 'Free'">$0 / month</span>
+            <span class="plan-price" *ngIf="userPlan === 'Starter'">$3.99 / month</span>
+            <span class="plan-price" *ngIf="userPlan === 'Pro'">$7.99 / month</span>
+            <ng-container *ngIf="userPlan !== 'Pro'">
+              <button class="btn-upgrade" (click)="upgradeModal.open(userPlan === 'Starter' ? 'Pro' : 'Starter')">
+                <i class="fa-solid fa-arrow-trend-up"></i>
+                {{ userPlan === 'Starter' ? 'Upgrade to Pro' : 'Upgrade Plan' }}
+              </button>
+            </ng-container>
+            <span *ngIf="userPlan === 'Pro'" class="plan-active-badge">
+              <i class="fa-solid fa-circle-check"></i> Active
+            </span>
+          </div>
+
+          <div class="plan-limits">
+            <div class="plan-limit-pill">
+              <i class="fa-solid fa-book-open"></i>
+              <span class="limit-label">Books</span>
+              <span class="limit-val">{{ planLimits[userPlan].books }}</span>
+            </div>
+            <div class="plan-limit-pill">
+              <i class="fa-solid fa-receipt"></i>
+              <span class="limit-label">Expenses</span>
+              <span class="limit-val">{{ planLimits[userPlan].expenses }}</span>
+            </div>
+            <div class="plan-limit-pill">
+              <i class="fa-solid fa-tags"></i>
+              <span class="limit-label">Categories</span>
+              <span class="limit-val">{{ planLimits[userPlan].categories }}</span>
+            </div>
+            <div class="plan-limit-pill">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span class="limit-label">AI Credits</span>
+              <span class="limit-val">{{ planLimits[userPlan].credits }}</span>
+            </div>
+          </div>
+        </div>
+      </app-card-content>
+    </app-card>
+
+    <!-- Appearance -->
+    <app-card>
+      <app-card-header><app-card-title>Appearance</app-card-title></app-card-header>
+      <app-card-content>
+        <div class="setting-row">
+          <div class="setting-info">
+            <p class="setting-name">Dark Mode</p>
+            <p class="setting-desc">Switch between light and dark theme</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" [checked]="themeService.isDark()" (change)="themeService.toggle()" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </app-card-content>
+    </app-card>
+
+    <!-- Preferences -->
+    <app-card>
+      <app-card-header><app-card-title>Preferences</app-card-title></app-card-header>
+      <app-card-content>
+        <p class="prefs-hint">These values are used as defaults when you create a new expense book.</p>
+        <form [formGroup]="prefsForm" (ngSubmit)="savePreferences()" class="prefs-form">
+          <app-select label="Default Currency" formControlName="currency">
+            <option value="USD">USD – US Dollar</option>
+            <option value="EUR">EUR – Euro</option>
+            <option value="GBP">GBP – British Pound</option>
+            <option value="INR">INR – Indian Rupee</option>
+            <option value="CAD">CAD – Canadian Dollar</option>
+            <option value="AUD">AUD – Australian Dollar</option>
+            <option value="JPY">JPY – Japanese Yen</option>
+            <option value="SGD">SGD – Singapore Dollar</option>
+            <option value="AED">AED – UAE Dirham</option>
+          </app-select>
+          <app-input
+            label="Monthly Savings Goal"
+            type="number"
+            formControlName="monthlySavingsGoal"
+            placeholder="e.g. 500">
+          </app-input>
+          <app-button type="submit" [loading]="saving()">Save Preferences</app-button>
+        </form>
+      </app-card-content>
+    </app-card>
+
+  </div>
+</div>

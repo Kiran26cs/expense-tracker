@@ -65,7 +65,7 @@ export class AcceptInviteComponent implements OnInit {
       const lmsg = (backendMsg || '').toLowerCase();
       // Already a member or token already used → silently go home
       if (lmsg.includes('already a member') || lmsg.includes('not found') || lmsg.includes('already used')) {
-        this.router.navigate(['/']);
+        this.router.navigate(['/app']);
         return;
       }
       this.state.set('error');

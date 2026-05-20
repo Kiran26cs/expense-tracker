@@ -327,7 +327,9 @@ public class AuthService : IAuthService
             Phone = user.Phone,
             Name = user.Name,
             Currency = user.Currency,
-            MonthlyIncome = user.MonthlyIncome
+            MonthlyIncome = user.MonthlyIncome,
+            MonthlySavingsGoal = user.MonthlySavingsGoal,
+            Plan = user.Plan.ToString()
         };
     }
 
@@ -335,5 +337,26 @@ public class AuthService : IAuthService
     {
         var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
         return user == null ? null : MapToUserDto(user);
+    }
+
+    public async Task<UserDto?> UpdateProfileAsync(string userId, UpdateProfileRequest req)
+    {
+        var updates = new List<UpdateDefinition<User>>();
+        if (req.Currency != null)
+            updates.Add(Builders<User>.Update.Set(u => u.Currency, req.Currency));
+        if (req.MonthlySavingsGoal.HasValue)
+            updates.Add(Builders<User>.Update.Set(u => u.MonthlySavingsGoal, req.MonthlySavingsGoal.Value));
+
+        if (updates.Count == 0)
+        {
+            var unchanged = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+            return unchanged == null ? null : MapToUserDto(unchanged);
+        }
+
+        updates.Add(Builders<User>.Update.Set(u => u.UpdatedAt, DateTime.UtcNow));
+        var combined = Builders<User>.Update.Combine(updates);
+        var opts = new FindOneAndUpdateOptions<User> { ReturnDocument = ReturnDocument.After };
+        var updated = await _context.Users.FindOneAndUpdateAsync(u => u.Id == userId, combined, opts);
+        return updated == null ? null : MapToUserDto(updated);
     }
 }

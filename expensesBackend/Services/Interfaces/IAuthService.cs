@@ -11,6 +11,7 @@ public interface IAuthService
     Task<AuthResponse> LoginAsync(string? email, string? phone, string otp);
     Task<AuthResponse> GoogleLoginAsync(string credential);
     Task<UserDto?> GetUserByIdAsync(string userId);
+    Task<UserDto?> UpdateProfileAsync(string userId, UpdateProfileRequest req);
     string GenerateJwtToken(User user);
     string GenerateRefreshToken();
 }

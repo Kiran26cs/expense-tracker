@@ -2,7 +2,17 @@
 .page-header { margin-bottom: 0.5rem; }
 .page-title { font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); margin: 0; }
 .page-subtitle { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0; }
-.settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.5rem; }
+.settings-grid {
+  column-count: 3;
+  column-gap: 1.5rem;
+}
+.settings-grid > * {
+  display: block;
+  break-inside: avoid;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 1100px) { .settings-grid { column-count: 2; } }
+@media (max-width: 640px)  { .settings-grid { column-count: 1; } }
 app-card-content { display: block; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .setting-name { font-weight: var(--font-weight-medium); margin: 0; font-size: var(--font-size-sm); }
@@ -36,6 +46,92 @@ app-card-content { display: block; }
 .result-warning { color: var(--color-warning); margin: 0; font-size: var(--font-size-sm); }
 .quick-add-form { display: flex; flex-direction: column; gap: 1rem; }
 .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+/* ── Plan & Billing card — full-width + horizontal layout ── */
+.settings-grid .plan-billing-card { column-span: all; }
+
+.plan-billing-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 1.5rem;
+}
+
+/* Left column: plan status box */
+.plan-status-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border);
+  min-width: 220px;
+  flex-shrink: 0;
+}
+.plan-banner-free    { background: var(--color-background); }
+.plan-banner-starter { background: color-mix(in srgb, #6366f1 6%, transparent); border-color: color-mix(in srgb, #6366f1 25%, transparent); }
+.plan-banner-pro     { background: color-mix(in srgb, #f59e0b 6%, transparent); border-color: color-mix(in srgb, #f59e0b 25%, transparent); }
+
+.plan-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.8125rem; font-weight: 700; padding: 4px 12px;
+  border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+.plan-banner-starter .plan-badge { background: rgba(99,102,241,0.12); border-color: transparent; color: #4f46e5; }
+.plan-banner-pro     .plan-badge { background: rgba(245,158,11,0.12); border-color: transparent; color: #d97706; }
+
+.plan-price { font-size: 1rem; font-weight: 600; color: var(--color-text-primary); }
+
+.btn-upgrade {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0.45rem 1rem; border-radius: 0.5rem;
+  background: var(--color-primary); color: #fff;
+  font-size: 0.8125rem; font-weight: 600; text-decoration: none;
+  transition: opacity 0.15s; margin-top: 0.25rem;
+}
+.btn-upgrade:hover { opacity: 0.85; }
+
+.plan-active-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.8125rem; color: var(--color-success); font-weight: 500;
+}
+
+.plan-upgrade-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Right: 4 limit pills in a responsive row */
+.plan-limits-row {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  align-content: center;
+}
+
+.plan-limit-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 1rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 0.625rem;
+}
+.plan-limit-pill i { color: var(--color-primary); font-size: 1rem; }
+.plan-limit-label { font-size: 0.75rem; color: var(--color-text-secondary); }
+.plan-limit-val { font-size: 0.9375rem; font-weight: 700; color: var(--color-text-primary); }
+
+@media (max-width: 900px) {
+  .plan-billing-layout { flex-direction: column; }
+  .plan-limits-row { grid-template-columns: repeat(2, 1fr); }
+}
 
 /* ── Category count badge on settings card ── */
 .cat-count-badge {

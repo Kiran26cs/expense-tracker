@@ -1,27 +1,10 @@
 <div class="settings-page">
   <div class="page-header">
-    <h1 class="page-title">Settings</h1>
-    <p class="page-subtitle">Customize your expense tracker</p>
+    <h1 class="page-title">Book Settings</h1>
+    <p class="page-subtitle">Configure categories, payment methods and preferences for this book</p>
   </div>
 
   <div class="settings-grid">
-    <!-- Appearance -->
-    <app-card>
-      <app-card-header><app-card-title>Appearance</app-card-title></app-card-header>
-      <app-card-content>
-        <div class="setting-row">
-          <div class="setting-info">
-            <p class="setting-name">Dark Mode</p>
-            <p class="setting-desc">Switch between light and dark theme</p>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" [checked]="themeService.isDark()" (change)="themeService.toggle()" />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-      </app-card-content>
-    </app-card>
-
     <!-- AI Features -->
     <app-card>
       <app-card-header>

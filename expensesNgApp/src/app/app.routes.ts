@@ -3,6 +3,15 @@ import { authGuard, publicGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   {
+    path: '',
+    loadComponent: () => import('./pages/landing/landing.component').then(m => m.LandingComponent),
+  },
+  {
+    path: 'app',
+    loadComponent: () => import('./pages/expense-book-dashboard/expense-book-dashboard.component').then(m => m.ExpenseBookDashboardComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: 'login',
     loadComponent: () => import('./pages/login/login.component').then(m => m.LoginComponent),
     canActivate: [publicGuard]
@@ -13,13 +22,13 @@ export const routes: Routes = [
     canActivate: [publicGuard]
   },
   {
-    path: 'accept-invite',
-    loadComponent: () => import('./pages/accept-invite/accept-invite.component').then(m => m.AcceptInviteComponent),
+    path: 'account',
+    loadComponent: () => import('./pages/user-settings/user-settings.component').then(m => m.UserSettingsComponent),
+    canActivate: [authGuard],
   },
   {
-    path: '',
-    loadComponent: () => import('./pages/expense-book-dashboard/expense-book-dashboard.component').then(m => m.ExpenseBookDashboardComponent),
-    canActivate: [authGuard]
+    path: 'accept-invite',
+    loadComponent: () => import('./pages/accept-invite/accept-invite.component').then(m => m.AcceptInviteComponent),
   },
   {
     path: ':bookId',

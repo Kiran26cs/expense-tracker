@@ -53,7 +53,7 @@ export class LoginComponent implements AfterViewInit {
       if (pendingToken) {
         this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
       } else {
-        this.router.navigate(['/']);
+        this.router.navigate(['/app']);
       }
     } catch (e: any) {
       this.error.set(e.message || 'Google login failed');
@@ -118,7 +118,7 @@ export class LoginComponent implements AfterViewInit {
       if (pendingToken) {
         this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
       } else {
-        this.router.navigate(['/']);
+        this.router.navigate(['/app']);
       }
     } catch (e: any) {
       this.error.set(e.message || 'Login failed');
