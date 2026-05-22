@@ -14,13 +14,13 @@ public class BookCredits
     public string ExpenseBookId { get; set; } = string.Empty;
 
     [BsonElement("freeCreditsLeft")]
-    public int FreeCreditsLeft { get; set; } = 40;
+    public int FreeCreditsLeft { get; set; } = 15;
 
     [BsonElement("paidCreditsLeft")]
     public int PaidCreditsLeft { get; set; } = 0;
 
     [BsonElement("freeCreditsLimit")]
-    public int FreeCreditsLimit { get; set; } = 40;
+    public int FreeCreditsLimit { get; set; } = 15;
 
     [BsonElement("lastResetDate")]
     public DateTime LastResetDate { get; set; } = DateTime.UtcNow;

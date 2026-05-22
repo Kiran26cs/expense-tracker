@@ -68,6 +68,11 @@ export class ExpenseBookDashboardComponent implements OnInit, OnDestroy {
     this.templateStatus() !== 'done'
   );
 
+  // Owned books count (excludes shared books) vs plan limit
+  readonly ownedBooksCount = computed(() => this.books().filter(b => !b.memberRole).length);
+  readonly bookLimit       = computed(() => this.userPlan === 'Free' ? 3 : -1);
+  readonly atBookLimit     = computed(() => this.bookLimit() !== -1 && this.ownedBooksCount() >= this.bookLimit());
+
   // Inline title editing
   editingBookId = signal<string | null>(null);
   editingName   = '';
@@ -168,6 +173,10 @@ export class ExpenseBookDashboardComponent implements OnInit, OnDestroy {
   }
 
   openCreateModal() {
+    if (this.atBookLimit()) {
+      this.upgradeModal.open('Starter');
+      return;
+    }
     const defaultCurrency = this.auth.user()?.currency || 'USD';
     this.createForm = { name: '', description: '', currency: defaultCurrency, icon: 'fa fa-book' };
     this.createError = '';
@@ -188,7 +197,7 @@ export class ExpenseBookDashboardComponent implements OnInit, OnDestroy {
         this.toast.success('Expense book created');
         this.closeCreateModal();
       } else { this.createError = res.error || 'Failed to create'; }
-    } catch (e: any) { this.createError = e.message || 'Failed to create'; }
+    } catch (e: any) { this.createError = e?.error?.error ?? e?.error?.message ?? e?.message ?? 'Failed to create'; }
     finally { this.createLoading = false; }
   }
 

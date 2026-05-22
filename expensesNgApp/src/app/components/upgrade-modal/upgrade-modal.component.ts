@@ -12,7 +12,7 @@ const PLAN_FEATURES: Record<PlanKey, string[]> = {
     'Unlimited expense books',
     '1,000 expenses / month',
     '50 custom categories',
-    '100 AI credits / month (resets monthly)',
+    '50 AI credits / month (resets monthly)',
     'Up to 5 team members',
     'All core features',
   ],
@@ -20,15 +20,15 @@ const PLAN_FEATURES: Record<PlanKey, string[]> = {
     'Unlimited expense books',
     'Unlimited expenses',
     'Unlimited categories',
-    '300 AI credits / month (resets monthly)',
+    '150 AI credits / month (resets monthly)',
     'Up to 51 team members',
     'Priority support',
     'Everything in Starter',
   ],
 };
 
-const PLAN_PRICES: Record<PlanKey, string> = { Starter: '$3.99', Pro: '$7.99' };
-const PLAN_PRICES_INR: Record<PlanKey, string> = { Starter: '₹335', Pro: '₹670' };
+const PLAN_PRICES: Record<PlanKey, string> = { Starter: '$1.99', Pro: '$3.99' };
+const PLAN_PRICES_INR: Record<PlanKey, string> = { Starter: '₹165', Pro: '₹332' };
 
 @Component({
   selector: 'app-upgrade-modal',

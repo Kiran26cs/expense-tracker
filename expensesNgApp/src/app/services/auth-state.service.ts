@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
 import { SessionBus } from './session-bus.service';
 import { ToastService } from './toast.service';
+import { ThemeService } from './theme.service';
 import { User, ApiResponse } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
@@ -21,6 +22,7 @@ export class AuthStateService {
     private router: Router,
     private sessionBus: SessionBus,
     private toast: ToastService,
+    private themeService: ThemeService,
   ) {
     this.sessionBus.expired$.subscribe(() => this.onSessionExpired());
     this.checkAuth();
@@ -139,6 +141,7 @@ export class AuthStateService {
   }
 
   logout(): void {
+    this.themeService.reset();
     this.clearSession();
     this.router.navigate(['/login']);
   }

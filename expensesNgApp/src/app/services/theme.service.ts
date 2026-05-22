@@ -19,5 +19,10 @@ export class ThemeService {
   toggle(): void {
     this.theme.set(this.theme() === 'light' ? 'dark' : 'light');
   }
+
+  reset(): void {
+    localStorage.removeItem('theme');
+    this.theme.set('light');
+  }
 }
 

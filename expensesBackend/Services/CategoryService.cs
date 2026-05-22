@@ -50,7 +50,7 @@ public class CategoryService : ICategoryService
         }, CategoryCacheTtl) ?? throw new KeyNotFoundException("Category not found");
     }
 
-    public async Task<CategoryDto> CreateCategoryAsync(string expenseBookId, CreateCategoryRequest request)
+    public async Task<CategoryDto> CreateCategoryAsync(string expenseBookId, string requestingUserId, CreateCategoryRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new ArgumentException("Category name is required");
@@ -62,35 +62,52 @@ public class CategoryService : ICategoryService
         if (await _context.Categories.Find(dupFilter).AnyAsync())
             throw new ArgumentException($"Category '{request.Name}' already exists");
 
-        // Enforce per-plan category limit
-        var book       = await _context.ExpenseBooks.Find(eb => eb.Id == expenseBookId).FirstOrDefaultAsync();
-        var bookOwner  = book != null
-            ? await _context.Users.Find(u => u.Id == book.UserId).FirstOrDefaultAsync()
-            : null;
-        var maxCats    = PlanLimits.MaxCategories(bookOwner?.Plan ?? PlanType.Free);
-        if (maxCats != int.MaxValue)
-        {
-            var catCount = await _context.Categories.CountDocumentsAsync(
-                c => c.ExpenseBookId == expenseBookId);
+        // Enforce plan limit — Pro is unlimited, skip entirely
+        var user = await _context.Users.Find(u => u.Id == requestingUserId).FirstOrDefaultAsync();
+        var plan = user?.Plan ?? PlanType.Free;
 
-            if (catCount >= maxCats)
+        if (plan == PlanType.Free)
+        {
+            // Global limit: sum CategoriesUsed across all books
+            var memberDocs = await _context.ExpenseBookMembers
+                .Find(m => m.UserId == requestingUserId && !m.IsDeleted)
+                .ToListAsync();
+            var totalUsed = memberDocs.Sum(m => m.CategoriesUsed);
+            if (totalUsed >= PlanLimits.MaxCategories(PlanType.Free))
                 throw new InvalidOperationException(
-                    $"Free plan is limited to {maxCats} categories per book. Upgrade to add more.");
+                    $"Free plan is limited to {PlanLimits.MaxCategories(PlanType.Free)} categories in total. Upgrade to add more.");
         }
+        else if (plan == PlanType.Starter)
+        {
+            // Per-book limit: check only this book's stored counter
+            var memberDoc = await _context.ExpenseBookMembers
+                .Find(m => m.UserId == requestingUserId && m.ExpenseBookId == expenseBookId && !m.IsDeleted)
+                .FirstOrDefaultAsync();
+            var bookUsed = memberDoc?.CategoriesUsed ?? 0;
+            if (bookUsed >= PlanLimits.MaxCategories(PlanType.Starter))
+                throw new InvalidOperationException(
+                    $"Starter plan is limited to {PlanLimits.MaxCategories(PlanType.Starter)} categories per book. Upgrade to add more.");
+        }
+        // Pro: no check
 
         var category = new Category
         {
             ExpenseBookId = expenseBookId,
-            Name = request.Name.Trim(),
-            Type = request.Type ?? "expense",
-            Icon = request.Icon ?? "fa-solid fa-tag",
-            Color = request.Color ?? "#6366f1",
-            IsDefault = false,
-            CreatedAt = DateTime.UtcNow
+            Name          = request.Name.Trim(),
+            Type          = request.Type  ?? "expense",
+            Icon          = request.Icon  ?? "fa-solid fa-tag",
+            Color         = request.Color ?? "#6366f1",
+            IsDefault     = false,
+            CreatedAt     = DateTime.UtcNow
         };
 
         await _context.Categories.InsertOneAsync(category);
         await _cache.RemoveAsync(CacheKeys.Categories(expenseBookId));
+
+        // Increment counter in member doc (skip for Pro)
+        if (plan != PlanType.Pro)
+            await IncrementMemberCategoryCountAsync(expenseBookId, requestingUserId, +1);
+
         return MapToDto(category);
     }
 
@@ -137,7 +154,7 @@ public class CategoryService : ICategoryService
         return MapToDto((await _context.Categories.Find(filter).FirstOrDefaultAsync())!);
     }
 
-    public async Task<bool> DeleteCategoryAsync(string expenseBookId, string categoryId)
+    public async Task<bool> DeleteCategoryAsync(string expenseBookId, string categoryId, string requestingUserId)
     {
         var filter = Builders<Category>.Filter.And(
             Builders<Category>.Filter.Eq(c => c.Id, categoryId),
@@ -153,10 +170,15 @@ public class CategoryService : ICategoryService
             _cache.RemoveAsync(CacheKeys.CategoryById(expenseBookId, categoryId))
         );
 
+        // Decrement counter (skip for Pro)
+        var user = await _context.Users.Find(u => u.Id == requestingUserId).FirstOrDefaultAsync();
+        if (user?.Plan != PlanType.Pro)
+            await IncrementMemberCategoryCountAsync(expenseBookId, requestingUserId, -1);
+
         return true;
     }
 
-    public async Task<ImportCategoriesResponse> ImportCategoriesAsync(string expenseBookId, ImportCategoriesRequest request)
+    public async Task<ImportCategoriesResponse> ImportCategoriesAsync(string expenseBookId, string requestingUserId, ImportCategoriesRequest request)
     {
         var response = new ImportCategoriesResponse();
 
@@ -164,7 +186,7 @@ public class CategoryService : ICategoryService
         {
             try
             {
-                await CreateCategoryAsync(expenseBookId, catReq);
+                await CreateCategoryAsync(expenseBookId, requestingUserId, catReq);
                 response.Imported++;
             }
             catch (Exception ex)
@@ -183,6 +205,35 @@ public class CategoryService : ICategoryService
         // Seeding is handled by ExpenseBookDependencyService.CopyDefaultCategoriesToBookAsync
         // which is called automatically when an expense book is created.
         return Task.CompletedTask;
+    }
+
+    private async Task IncrementMemberCategoryCountAsync(string expenseBookId, string userId, int delta)
+    {
+        var filter = Builders<ExpenseBookMember>.Filter.And(
+            Builders<ExpenseBookMember>.Filter.Eq(m => m.UserId, userId),
+            Builders<ExpenseBookMember>.Filter.Eq(m => m.ExpenseBookId, expenseBookId),
+            Builders<ExpenseBookMember>.Filter.Eq(m => m.IsDeleted, false));
+
+        var update = Builders<ExpenseBookMember>.Update
+            .Inc(m => m.CategoriesUsed, delta)
+            .Set(m => m.UpdatedAt, DateTime.UtcNow);
+
+        var result = await _context.ExpenseBookMembers.UpdateOneAsync(filter, update);
+
+        // Owner may not have a member doc yet — create one
+        if (result.MatchedCount == 0 && delta > 0)
+        {
+            await _context.ExpenseBookMembers.InsertOneAsync(new ExpenseBookMember
+            {
+                ExpenseBookId  = expenseBookId,
+                UserId         = userId,
+                Role           = "owner",
+                InviteStatus   = "accepted",
+                AddedBy        = userId,
+                CategoriesUsed = 1,
+                IsDeleted      = false,
+            });
+        }
     }
 
     private static CategoryDto MapToDto(Category category) => new()

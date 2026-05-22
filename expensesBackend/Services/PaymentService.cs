@@ -24,8 +24,8 @@ public class PaymentService : IPaymentService
 
     private static readonly Dictionary<string, (decimal Amount, string Description)> PlanMeta = new()
     {
-        ["Starter"] = (399,  "Starter Plan – 1,000 expenses/month, 100 AI credits"),
-        ["Pro"]      = (799,  "Pro Plan – Unlimited expenses, 300 AI credits"),
+        ["Starter"] = (199,  "Starter Plan – 1,000 expenses/month, 50 AI credits"),
+        ["Pro"]      = (399,  "Pro Plan – Unlimited expenses, 150 AI credits"),
     };
 
     public PaymentService(MongoDbContext context, IHttpClientFactory httpFactory, IConfiguration config, IMessagingService messaging)

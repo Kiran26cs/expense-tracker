@@ -67,6 +67,9 @@ public class ExpenseBookMember
     [BsonElement("updatedAt")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    [BsonElement("categoriesUsed")]
+    public int CategoriesUsed { get; set; } = 0;
+
     [BsonElement("isDeleted")]
     public bool IsDeleted { get; set; } = false;
 

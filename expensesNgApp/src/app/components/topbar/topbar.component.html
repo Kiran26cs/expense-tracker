@@ -37,6 +37,12 @@
       </span>
     </button>
 
+    <a class="topbar-text-link" [href]="landingUrl + '#pricing'" target="_blank" rel="noopener">Pricing</a>
+
+    <a class="icon-btn" [href]="landingUrl" target="_blank" rel="noopener" title="Visit nidhiwise.com">
+      <i class="fa-solid fa-globe"></i>
+    </a>
+
     <button class="icon-btn" (click)="themeService.toggle()" [title]="themeService.theme() === 'light' ? 'Dark mode' : 'Light mode'">
       <i [class]="themeService.theme() === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'" [style.color]="themeService.theme() !== 'light' ? '#f59e0b' : ''"></i>
     </button>
@@ -77,9 +83,6 @@
             <i class="fa-solid fa-arrow-trend-up"></i> Upgrade Plan
           </button>
         }
-        <a class="dropdown-item" [href]="landingUrl" target="_blank" rel="noopener" (click)="isMenuOpen = false">
-          <i class="fa-solid fa-globe"></i> Visit nidhiwise.com
-        </a>
         <div class="dropdown-divider"></div>
         <button class="dropdown-item logout-item" (click)="authState.logout()">
           <i class="fa-solid fa-sign-out-alt"></i> Sign Out

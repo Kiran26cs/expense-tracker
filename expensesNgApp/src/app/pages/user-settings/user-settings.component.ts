@@ -15,6 +15,15 @@ import { InputComponent } from '../../components/input/input.component';
 import { ApiResponse } from '../../models/user.model';
 import { firstValueFrom } from 'rxjs';
 
+interface UsageDto {
+  booksOwned: number;
+  booksLimit: number;
+  expensesThisMonth: number;
+  expensesLimit: number;
+  categoriesUsed: number;
+  categoriesLimit: number;  // -1 = not applicable for this plan
+}
+
 @Component({
   selector: 'app-user-settings',
   standalone: true,
@@ -34,12 +43,14 @@ export class UserSettingsComponent implements OnInit {
   private api   = inject(ApiService);
   private fb    = inject(FormBuilder);
 
-  saving = signal(false);
+  saving      = signal(false);
+  usageLoading = signal(false);
+  usage       = signal<UsageDto | null>(null);
 
   readonly planLimits: Record<string, { books: string; expenses: string; categories: string; credits: string }> = {
-    Free:    { books: '3',         expenses: '150 / month',   categories: '20',        credits: '40 (one-time trial)' },
-    Starter: { books: 'Unlimited', expenses: '1,000 / month', categories: '50',        credits: '100 / month' },
-    Pro:     { books: 'Unlimited', expenses: 'Unlimited',     categories: 'Unlimited', credits: '300 / month' },
+    Free:    { books: '3',         expenses: '150 / month',   categories: '20',        credits: '15 (one-time trial)' },
+    Starter: { books: 'Unlimited', expenses: '1,000 / month', categories: '50',        credits: '50 / month' },
+    Pro:     { books: 'Unlimited', expenses: 'Unlimited',     categories: 'Unlimited', credits: '150 / month' },
   };
 
   get userPlan(): string { return this.authState.user()?.plan ?? 'Free'; }
@@ -57,6 +68,27 @@ export class UserSettingsComponent implements OnInit {
         monthlySavingsGoal: u.monthlySavingsGoal ?? null,
       });
     }
+    this.loadUsage();
+  }
+
+  async loadUsage() {
+    this.usageLoading.set(true);
+    try {
+      const res = await firstValueFrom(this.api.get<ApiResponse<UsageDto>>('/usage'));
+      if (res.success && res.data) this.usage.set(res.data);
+    } catch {}
+    finally { this.usageLoading.set(false); }
+  }
+
+  usagePct(used: number, limit: number): number {
+    if (limit <= 0) return 0;
+    return Math.min(100, Math.round((used / limit) * 100));
+  }
+
+  usageBarClass(pct: number): string {
+    if (pct >= 90) return 'bar-danger';
+    if (pct >= 70) return 'bar-warning';
+    return 'bar-ok';
   }
 
   async savePreferences() {

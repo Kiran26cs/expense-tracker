@@ -9,6 +9,14 @@ import { ExpenseBookService } from '../../services/expense-book.service';
 import { CurrentBookService } from '../../services/current-book.service';
 import { AuthStateService } from '../../services/auth-state.service';
 import { UpgradeModalService } from '../../services/upgrade-modal.service';
+import { ApiService } from '../../services/api.service';
+import { ApiResponse } from '../../models/user.model';
+import { firstValueFrom } from 'rxjs';
+
+interface UsageDto {
+  categoriesUsed: number;
+  categoriesLimit: number;
+}
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent } from '../../components/card/card.component';
 import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent, SelectComponent } from '../../components/input/input.component';
@@ -29,12 +37,40 @@ export class SettingsComponent implements OnInit {
 
   get userPlan(): string { return this.authState.user()?.plan ?? 'Free'; }
 
+  // Per-book count from loaded list (Starter only — 50/book limit)
+  get nonDefaultCategoryCount(): number {
+    return this.categories().filter((c: any) => !c.isDefault).length;
+  }
+
+  get atCategoryLimit(): boolean {
+    if (this.userPlan === 'Starter') return this.nonDefaultCategoryCount >= 50;
+    if (this.userPlan === 'Free') {
+      const u = this.usage();
+      return !!u && u.categoriesLimit > 0 && u.categoriesUsed >= u.categoriesLimit;
+    }
+    return false; // Pro: unlimited
+  }
+
+  get categoryUsagePct(): number {
+    if (this.userPlan === 'Starter')
+      return Math.min(100, Math.round((this.nonDefaultCategoryCount / 50) * 100));
+    return 0;
+  }
+
+  get categoryUsageBarClass(): string {
+    const pct = this.categoryUsagePct;
+    if (pct >= 90) return 'cat-bar-danger';
+    if (pct >= 70) return 'cat-bar-warning';
+    return 'cat-bar-ok';
+  }
+
   readonly planLimits: Record<string, { books: string; expenses: string; categories: string; credits: string }> = {
-    Free:    { books: '3',         expenses: '150 / month', categories: '20',        credits: '40 (one-time trial)' },
-    Starter: { books: 'Unlimited', expenses: '1,000 / month', categories: '50',      credits: '100 / month' },
-    Pro:     { books: 'Unlimited', expenses: 'Unlimited',    categories: 'Unlimited', credits: '300 / month' },
+    Free:    { books: '3',         expenses: '150 / month', categories: '20',        credits: '15 (one-time trial)' },
+    Starter: { books: 'Unlimited', expenses: '1,000 / month', categories: '50',      credits: '50 / month' },
+    Pro:     { books: 'Unlimited', expenses: 'Unlimited',    categories: 'Unlimited', credits: '150 / month' },
   };
 
+  usage = signal<UsageDto | null>(null);
   categories = signal<any[]>([]);
   paymentMethods = signal<any[]>([]);
   categoriesLoading = signal(false);
@@ -84,6 +120,7 @@ export class SettingsComponent implements OnInit {
   private fb = inject(FormBuilder);
   private bookService = inject(ExpenseBookService);
   readonly currentBook = inject(CurrentBookService);
+  private api = inject(ApiService);
 
   aiChatEnabled = signal(false);
   aiChatLoading = signal(false);
@@ -106,7 +143,14 @@ export class SettingsComponent implements OnInit {
 
   async loadAll() {
     this.aiChatEnabled.set(this.currentBook.book()?.aiChatEnabled ?? false);
-    await Promise.all([this.loadCategories(), this.loadPaymentMethods(), this.loadGeneralSettings()]);
+    await Promise.all([this.loadCategories(), this.loadPaymentMethods(), this.loadGeneralSettings(), this.loadUsage()]);
+  }
+
+  async loadUsage() {
+    try {
+      const res = await firstValueFrom(this.api.get<ApiResponse<UsageDto>>('/usage'));
+      if (res.success && res.data) this.usage.set(res.data);
+    } catch {}
   }
 
   get canModifyBook(): boolean {
@@ -234,9 +278,9 @@ export class SettingsComponent implements OnInit {
       if (res.success) {
         this.showCatSuccess('Category added successfully!');
         this.catView.set('main');
-        await this.loadCategories();
+        await Promise.all([this.loadCategories(), this.loadUsage()]);
       } else { this.catError.set(res.error || 'Failed to create category'); }
-    } catch (e: any) { this.catError.set(e.message); }
+    } catch (e: any) { this.catError.set(e?.error?.error ?? e?.error?.message ?? e?.message ?? 'Failed to create category'); }
     finally { this.catModalLoading.set(false); }
   }
 
@@ -246,7 +290,7 @@ export class SettingsComponent implements OnInit {
     this.catError.set('');
     try {
       const res = await this.settingsService.deleteCategory(this.bookId, cat.id);
-      if (res.success) { this.showCatSuccess('Category deleted'); await this.loadCategories(); }
+      if (res.success) { this.showCatSuccess('Category deleted'); await Promise.all([this.loadCategories(), this.loadUsage()]); }
       else this.catError.set(res.error || 'Failed to delete');
     } catch (e: any) { this.catError.set(e.message || 'Cannot delete this category'); }
     finally { this.catModalLoading.set(false); }

@@ -32,8 +32,8 @@
               {{ userPlan }}
             </span>
             <span class="plan-price" *ngIf="userPlan === 'Free'">$0 / month</span>
-            <span class="plan-price" *ngIf="userPlan === 'Starter'">$3.99 / month</span>
-            <span class="plan-price" *ngIf="userPlan === 'Pro'">$7.99 / month</span>
+            <span class="plan-price" *ngIf="userPlan === 'Starter'">$1.99 / month</span>
+            <span class="plan-price" *ngIf="userPlan === 'Pro'">$3.99 / month</span>
             <ng-container *ngIf="userPlan !== 'Pro'">
               <button class="btn-upgrade" (click)="upgradeModal.open(userPlan === 'Starter' ? 'Pro' : 'Starter')">
                 <i class="fa-solid fa-arrow-trend-up"></i>
@@ -46,26 +46,86 @@
           </div>
 
           <div class="plan-limits">
+
+            <!-- Books meter -->
             <div class="plan-limit-pill">
-              <i class="fa-solid fa-book-open"></i>
-              <span class="limit-label">Books</span>
-              <span class="limit-val">{{ planLimits[userPlan].books }}</span>
+              <div class="pill-header">
+                <span class="pill-icon-label">
+                  <i class="fa-solid fa-book-open"></i> Books
+                </span>
+                <span class="pill-count" *ngIf="usage()">
+                  {{ usage()!.booksOwned }} / {{ usage()!.booksLimit < 0 ? '∞' : usage()!.booksLimit }}
+                </span>
+                <span class="pill-count" *ngIf="!usage()">{{ planLimits[userPlan].books }}</span>
+              </div>
+              <div class="usage-bar" *ngIf="usage() && usage()!.booksLimit > 0">
+                <div class="usage-bar-fill"
+                     [class]="usageBarClass(usagePct(usage()!.booksOwned, usage()!.booksLimit))"
+                     [style.width.%]="usagePct(usage()!.booksOwned, usage()!.booksLimit)">
+                </div>
+              </div>
+              <span class="pill-unlimited" *ngIf="usage() && usage()!.booksLimit < 0">Unlimited</span>
             </div>
+
+            <!-- Expenses this month meter -->
             <div class="plan-limit-pill">
-              <i class="fa-solid fa-receipt"></i>
-              <span class="limit-label">Expenses</span>
-              <span class="limit-val">{{ planLimits[userPlan].expenses }}</span>
+              <div class="pill-header">
+                <span class="pill-icon-label">
+                  <i class="fa-solid fa-receipt"></i> Expenses
+                </span>
+                <span class="pill-count" *ngIf="usage()">
+                  {{ usage()!.expensesThisMonth }} / {{ usage()!.expensesLimit < 0 ? '∞' : usage()!.expensesLimit }}
+                </span>
+                <span class="pill-count" *ngIf="!usage()">{{ planLimits[userPlan].expenses }}</span>
+              </div>
+              <span class="pill-sub" *ngIf="usage()">this month</span>
+              <div class="usage-bar" *ngIf="usage() && usage()!.expensesLimit > 0">
+                <div class="usage-bar-fill"
+                     [class]="usageBarClass(usagePct(usage()!.expensesThisMonth, usage()!.expensesLimit))"
+                     [style.width.%]="usagePct(usage()!.expensesThisMonth, usage()!.expensesLimit)">
+                </div>
+              </div>
+              <span class="pill-unlimited" *ngIf="usage() && usage()!.expensesLimit < 0">Unlimited</span>
             </div>
+
+            <!-- Free: live global category meter; Starter: hidden (shown per-book in book settings); Pro: unlimited -->
+            <div class="plan-limit-pill" *ngIf="userPlan === 'Free'">
+              <div class="pill-header">
+                <span class="pill-icon-label">
+                  <i class="fa-solid fa-tags"></i> Categories
+                </span>
+                <span class="pill-count" *ngIf="usage()">
+                  {{ usage()!.categoriesUsed }} / {{ usage()!.categoriesLimit }}
+                </span>
+                <span class="pill-count" *ngIf="!usage()">{{ planLimits[userPlan].categories }}</span>
+              </div>
+              <div class="usage-bar" *ngIf="usage()">
+                <div class="usage-bar-fill"
+                     [class]="usageBarClass(usagePct(usage()!.categoriesUsed, usage()!.categoriesLimit))"
+                     [style.width.%]="usagePct(usage()!.categoriesUsed, usage()!.categoriesLimit)">
+                </div>
+              </div>
+            </div>
+            <div class="plan-limit-pill" *ngIf="userPlan === 'Pro'">
+              <div class="pill-header">
+                <span class="pill-icon-label">
+                  <i class="fa-solid fa-tags"></i> Categories
+                </span>
+              </div>
+              <span class="pill-unlimited">Unlimited</span>
+            </div>
+
+            <!-- AI Credits — static allocation -->
             <div class="plan-limit-pill">
-              <i class="fa-solid fa-tags"></i>
-              <span class="limit-label">Categories</span>
-              <span class="limit-val">{{ planLimits[userPlan].categories }}</span>
+              <div class="pill-header">
+                <span class="pill-icon-label">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i> AI Credits
+                </span>
+                <span class="pill-count">{{ planLimits[userPlan].credits }}</span>
+              </div>
+              <span class="pill-sub">per book</span>
             </div>
-            <div class="plan-limit-pill">
-              <i class="fa-solid fa-wand-magic-sparkles"></i>
-              <span class="limit-label">AI Credits</span>
-              <span class="limit-val">{{ planLimits[userPlan].credits }}</span>
-            </div>
+
           </div>
         </div>
       </app-card-content>

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { AuthStateService } from '../../services/auth-state.service';
 import { environment } from '../../../environments/environment';
 
@@ -9,10 +9,20 @@ import { environment } from '../../../environments/environment';
   templateUrl: './landing.component.html',
   styleUrl: './landing.component.css'
 })
-export class LandingComponent {
+export class LandingComponent implements OnInit {
   auth = inject(AuthStateService);
   mobileMenuOpen = false;
   readonly appUrl = environment.appUrl;
+
+  ngOnInit() {
+    const hash = window.location.hash;
+    if (hash) {
+      setTimeout(() => {
+        const el = document.querySelector(hash);
+        el?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    }
+  }
   openFaq: number | null = null;
 
   features = [

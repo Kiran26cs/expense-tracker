@@ -69,6 +69,16 @@
             {{ categories().length }} {{ categories().length === 1 ? 'Category' : 'Categories' }}
           </span>
         </div>
+        <!-- Per-book category meter (Starter only) -->
+        <div class="cat-usage-bar-wrap" *ngIf="userPlan === 'Starter'" style="margin-bottom:1rem">
+          <div class="cat-usage-label">
+            <span>{{ nonDefaultCategoryCount }} / 50 categories used in this book</span>
+            <span *ngIf="atCategoryLimit" class="cat-limit-badge"><i class="fa-solid fa-lock"></i> Limit reached</span>
+          </div>
+          <div class="cat-usage-track">
+            <div class="cat-usage-fill" [class]="categoryUsageBarClass" [style.width.%]="categoryUsagePct"></div>
+          </div>
+        </div>
         <app-button (clicked)="openCategoryModal()">Manage Categories</app-button>
       </app-card-content>
     </app-card>
@@ -127,7 +137,7 @@
       </div>
 
       <div class="cat-actions">
-        <button class="cat-action-card" (click)="openCatAddView('manual')">
+        <button class="cat-action-card" (click)="openCatAddView('manual')" [disabled]="atCategoryLimit" [title]="atCategoryLimit ? 'Category limit reached. Upgrade to add more.' : ''">
           <i class="fa-solid fa-plus"></i>
           <span>Add Category</span>
         </button>
@@ -264,7 +274,7 @@
             <app-button variant="ghost" (clicked)="backToMainView()" [disabled]="catModalLoading()">
               <i class="fa-solid fa-arrow-left"></i> Back
             </app-button>
-            <app-button (clicked)="handleAddCategory()" [loading]="catModalLoading()" [disabled]="!newCatName().trim()">
+            <app-button (clicked)="handleAddCategory()" [loading]="catModalLoading()" [disabled]="!newCatName().trim() || atCategoryLimit">
               SUBMIT
             </app-button>
           </div>

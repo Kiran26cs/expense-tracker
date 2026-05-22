@@ -25,6 +25,9 @@ public class CreditService : ICreditService
 
     public async Task<bool> HasCreditsAsync(string bookId)
     {
+        // Demo books always have credits — AI is free to explore
+        if (await IsDemoBookAsync(bookId)) return true;
+
         var credits = await GetOrCreateAsync(bookId);
         await ApplyMonthlyResetIfDueAsync(credits);
         return credits.FreeCreditsLeft + credits.PaidCreditsLeft > 0;
@@ -32,6 +35,21 @@ public class CreditService : ICreditService
 
     public async Task DeductAsync(string bookId, string triggeredByUserId, List<string> toolsUsed)
     {
+        // Demo books: log usage for analytics but do NOT deduct from the credit balance
+        if (await IsDemoBookAsync(bookId))
+        {
+            await _context.CreditTransactions.InsertOneAsync(new CreditTransaction
+            {
+                ExpenseBookId     = bookId,
+                TriggeredByUserId = triggeredByUserId,
+                Amount            = 0,
+                Reason            = "demo_ai_chat",
+                ToolsUsed         = toolsUsed,
+                Timestamp         = DateTime.UtcNow,
+            });
+            return;
+        }
+
         var credits = await GetOrCreateAsync(bookId);
         await ApplyMonthlyResetIfDueAsync(credits);
 
@@ -129,7 +147,7 @@ public class CreditService : ICreditService
         if (existing != null) return existing;
 
         var plan           = await GetPlanForBookAsync(bookId);
-        var creditsLimit   = plan == PlanType.Free ? 40 : PlanLimits.MonthlyCredits(plan);
+        var creditsLimit   = plan == PlanType.Free ? 15 : PlanLimits.MonthlyCredits(plan);
 
         var newRecord = new BookCredits
         {
@@ -173,6 +191,14 @@ public class CreditService : ICreditService
             ToolsUsed         = [],
             Timestamp         = now,
         });
+    }
+
+    private async Task<bool> IsDemoBookAsync(string bookId)
+    {
+        var book = await _context.ExpenseBooks
+            .Find(eb => eb.Id == bookId)
+            .FirstOrDefaultAsync();
+        return book?.IsTemplate == true;
     }
 
     private async Task<PlanType> GetPlanForBookAsync(string bookId)

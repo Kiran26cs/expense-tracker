@@ -20,7 +20,12 @@
       <div *ngIf="templateStatus() === 'processing' && !templateLoading()" class="template-progress-pill">
         <i class="fa-solid fa-spinner fa-spin"></i> Building demo book…
       </div>
-      <app-button (clicked)="openCreateModal()">+ New Book</app-button>
+      <div class="new-book-wrap" [title]="atBookLimit() ? 'You\'ve reached your ' + bookLimit() + '-book limit. Upgrade to add more.' : ''">
+        <app-button (clicked)="openCreateModal()" [disabled]="atBookLimit()">
+          <i class="fa-solid fa-lock" *ngIf="atBookLimit()"></i>
+          + New Book
+        </app-button>
+      </div>
     </div>
   </div>
 
@@ -33,8 +38,8 @@
       </span>
       <span class="upgrade-banner-text">
         {{ userPlan === 'Free'
-          ? 'You have 3 books & 150 expenses/month. Upgrade for unlimited books, more AI credits & team collaboration.'
-          : 'Upgrade to Pro for unlimited expenses, unlimited categories & 300 AI credits/month.' }}
+          ? 'You have ' + ownedBooksCount() + ' of 3 books & 150 expenses/month. Upgrade for unlimited books, more AI credits & team collaboration.'
+          : 'Upgrade to Pro for unlimited expenses, unlimited categories & 150 AI credits/month.' }}
       </span>
     </div>
     <button class="upgrade-banner-btn" (click)="upgradeModal.open(userPlan === 'Starter' ? 'Pro' : 'Starter')">

@@ -23,7 +23,7 @@ public static class PlanLimits
     public static int MonthlyCredits(PlanType plan) => plan switch
     {
         PlanType.Free    => 0,
-        PlanType.Starter => 100,
-        _                => 300
+        PlanType.Starter => 50,
+        _                => 150
     };
 }

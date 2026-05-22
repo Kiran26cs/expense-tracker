@@ -236,7 +236,7 @@ public class SettingsController : ControllerBase
             var userId = GetUserId();
             await VerifyBookOwnershipAsync(userId, request.ExpenseBookId);
 
-            var category = await _categoryService.CreateCategoryAsync(request.ExpenseBookId, request);
+            var category = await _categoryService.CreateCategoryAsync(request.ExpenseBookId, userId, request);
             return CreatedAtAction(
                 nameof(GetCategory),
                 new { id = category.Id },
@@ -298,7 +298,7 @@ public class SettingsController : ControllerBase
             var userId = GetUserId();
             await VerifyBookOwnershipAsync(userId, expenseBookId);
 
-            await _categoryService.DeleteCategoryAsync(expenseBookId, id);
+            await _categoryService.DeleteCategoryAsync(expenseBookId, id, userId);
             return Ok(ApiResponse<bool>.SuccessResponse(true));
         }
         catch (KeyNotFoundException)
@@ -327,7 +327,7 @@ public class SettingsController : ControllerBase
             var userId = GetUserId();
             await VerifyBookOwnershipAsync(userId, request.ExpenseBookId);
 
-            var result = await _categoryService.ImportCategoriesAsync(request.ExpenseBookId, request);
+            var result = await _categoryService.ImportCategoriesAsync(request.ExpenseBookId, userId, request);
             return Ok(ApiResponse<ImportCategoriesResponse>.SuccessResponse(result));
         }
         catch (KeyNotFoundException)

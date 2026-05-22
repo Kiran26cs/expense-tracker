@@ -6,9 +6,9 @@ public interface ICategoryService
 {
     Task<List<CategoryDto>> GetCategoriesAsync(string expenseBookId);
     Task<CategoryDto> GetCategoryByIdAsync(string expenseBookId, string categoryId);
-    Task<CategoryDto> CreateCategoryAsync(string expenseBookId, CreateCategoryRequest request);
+    Task<CategoryDto> CreateCategoryAsync(string expenseBookId, string requestingUserId, CreateCategoryRequest request);
     Task<CategoryDto> UpdateCategoryAsync(string expenseBookId, string categoryId, UpdateCategoryRequest request);
-    Task<bool> DeleteCategoryAsync(string expenseBookId, string categoryId);
-    Task<ImportCategoriesResponse> ImportCategoriesAsync(string expenseBookId, ImportCategoriesRequest request);
+    Task<bool> DeleteCategoryAsync(string expenseBookId, string categoryId, string requestingUserId);
+    Task<ImportCategoriesResponse> ImportCategoriesAsync(string expenseBookId, string requestingUserId, ImportCategoriesRequest request);
     Task SeedDefaultCategoriesAsync(string expenseBookId);
 }

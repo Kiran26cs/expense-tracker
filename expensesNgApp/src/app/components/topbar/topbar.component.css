@@ -40,6 +40,17 @@
   padding: 0.1rem 0.2rem; min-width: 120px; max-width: 320px; width: auto;
 }
 .topbar-right { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+.topbar-text-link {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+.topbar-text-link:hover { color: var(--color-primary); }
+
 .icon-btn {
   width: 36px;
   height: 36px;

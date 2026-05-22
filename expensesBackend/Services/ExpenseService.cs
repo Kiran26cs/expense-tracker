@@ -271,22 +271,21 @@ public class ExpenseService : IExpenseService
             };
         }
 
-        // Enforce monthly expense limit for Free plan
+        // Enforce monthly expense limit across all books
         var owner = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
         var maxPerMonth = PlanLimits.MaxExpensesPerMonth(owner?.Plan ?? PlanType.Free);
         if (maxPerMonth != int.MaxValue)
         {
-            var monthStart = new DateTime(request.Date.Year, request.Date.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
             var monthEnd   = monthStart.AddMonths(1);
             var monthCount = await _context.Expenses.CountDocumentsAsync(e =>
-                e.UserId        == userId &&
-                e.ExpenseBookId == request.ExpenseBookId &&
-                e.Date          >= monthStart &&
-                e.Date          < monthEnd);
+                e.UserId == userId &&
+                e.Date   >= monthStart &&
+                e.Date   < monthEnd);
 
             if (monthCount >= maxPerMonth)
                 throw new InvalidOperationException(
-                    $"Free plan is limited to {maxPerMonth} expenses per month. Upgrade to add more.");
+                    $"Your {owner?.Plan.ToString() ?? "current"} plan is limited to {maxPerMonth} expenses per month. Upgrade to add more.");
         }
 
         // Non-recurring: create the expense entry as usual
@@ -305,6 +304,18 @@ public class ExpenseService : IExpenseService
         };
 
         await _context.Expenses.InsertOneAsync(expense);
+
+        // When user adds their first real expense to the demo book, graduate it out of demo mode
+        // so subsequent AI chat turns are charged against the user's real credit balance.
+        var book = await _context.ExpenseBooks
+            .Find(eb => eb.Id == request.ExpenseBookId)
+            .FirstOrDefaultAsync();
+        if (book?.IsTemplate == true)
+        {
+            await _context.ExpenseBooks.UpdateOneAsync(
+                eb => eb.Id == request.ExpenseBookId,
+                Builders<ExpenseBook>.Update.Set(eb => eb.IsTemplate, false));
+        }
 
         // Update daily expense summary
         await UpdateDailyExpenseSummaryAsync(userId, request.ExpenseBookId, expense.Date, expense.Category, expense.Amount, isAdd: true);
