@@ -350,6 +350,18 @@
   opacity: 0.85;
 }
 
+/* ── Mobile layout ────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .chat-panel {
+    bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 8px);
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-height: calc(100vh - var(--topbar-height) - var(--mobile-nav-height) - env(safe-area-inset-bottom, 0px) - 24px);
+    border-radius: 16px;
+  }
+}
+
 /* ── No credits state ─────────────────────────────────────────────── */
 .no-credits-banner {
   display: flex;

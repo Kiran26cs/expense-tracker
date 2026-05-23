@@ -18,7 +18,9 @@
     "@angular/core": "^21.2.0",
     "@angular/forms": "^21.2.0",
     "@angular/platform-browser": "^21.2.0",
+    "@angular/pwa": "^21.2.12",
     "@angular/router": "^21.2.0",
+    "@angular/service-worker": "^21.2.12",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
     "ng2-charts": "^10.0.0",
@@ -30,6 +32,7 @@
     "@angular/cli": "^21.2.3",
     "@angular/compiler-cli": "^21.2.0",
     "prettier": "^3.8.1",
+    "sharp": "^0.34.5",
     "typescript": "~5.9.2"
   }
 }

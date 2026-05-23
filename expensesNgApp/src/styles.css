@@ -124,3 +124,9 @@ body {
 ::selection { background-color: var(--color-primary-light); color: white; }
 
 .container { width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 var(--spacing-md); }
+
+/* Prevent horizontal scroll globally without breaking position:fixed elements.
+   Setting on html (not body) avoids the iOS Safari bug where body overflow
+   causes fixed elements to move with page scroll. */
+html { overflow-x: hidden; }
+

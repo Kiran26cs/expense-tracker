@@ -6,6 +6,63 @@
 app-card-content { display: block; }
 .filter-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; }
 .search-input { flex: 1; min-width: 200px; }
+
+/* ─── Filter controls (desktop: inline row; mobile: collapsible panel) ── */
+.filter-controls { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
+
+.filter-toggle-btn {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+.filter-toggle-btn:hover,
+.filter-toggle-btn.has-active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+@media (max-width: 767px) {
+  .filter-toggle-btn { display: flex; }
+  .search-input { min-width: 0; }
+  .filter-controls {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border);
+  }
+  .filter-controls.filter-open { display: flex; }
+  .filter-controls app-select,
+  .filter-controls app-date-range-picker { width: 100%; }
+}
 .table-container { overflow-x: auto; }
 .expense-table { width: 100%; border-collapse: collapse; }
 .expense-table th { padding: 0.75rem 1rem; text-align: left; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; color: var(--color-text-secondary); border-bottom: 1px solid var(--color-border); white-space: nowrap; }

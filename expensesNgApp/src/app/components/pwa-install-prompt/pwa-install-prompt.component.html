@@ -1,0 +1,38 @@
+@if (pwa.canInstall()) {
+  <div class="pwa-banner" role="banner" aria-label="Install NidhiWise app">
+    <div class="pwa-banner-content">
+      <div class="pwa-banner-icon">
+        <img src="icons/icon-192.svg" alt="NidhiWise" width="36" height="36" />
+      </div>
+      <div class="pwa-banner-text">
+        <strong>Install NidhiWise</strong>
+        <span>Add to home screen for quick access</span>
+      </div>
+    </div>
+    <div class="pwa-banner-actions">
+      <button class="pwa-btn-install" (click)="install()">Install</button>
+      <button class="pwa-btn-dismiss" (click)="dismiss()" aria-label="Dismiss">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+  </div>
+}
+
+@if (pwa.showIosInstructions()) {
+  <div class="pwa-banner pwa-banner-ios" role="banner" aria-label="Install NidhiWise on iPhone">
+    <div class="pwa-banner-content">
+      <div class="pwa-banner-icon">
+        <img src="icons/icon-192.svg" alt="NidhiWise" width="36" height="36" />
+      </div>
+      <div class="pwa-banner-text">
+        <strong>Install NidhiWise</strong>
+        <span>Tap <i class="fa-solid fa-arrow-up-from-bracket"></i> then <em>Add to Home Screen</em></span>
+      </div>
+    </div>
+    <div class="pwa-banner-actions">
+      <button class="pwa-btn-dismiss" (click)="dismiss()" aria-label="Dismiss">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+  </div>
+}

@@ -3,11 +3,12 @@ import { RouterOutlet } from '@angular/router';
 import { ToastContainerComponent } from './components/toast/toast-container.component';
 import { UpgradeModalComponent } from './components/upgrade-modal/upgrade-modal.component';
 import { AuthStateService } from './services/auth-state.service';
+import { PwaInstallPromptComponent } from './components/pwa-install-prompt/pwa-install-prompt.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ToastContainerComponent, UpgradeModalComponent],
+  imports: [RouterOutlet, ToastContainerComponent, UpgradeModalComponent, PwaInstallPromptComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })

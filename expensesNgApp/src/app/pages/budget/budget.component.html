@@ -7,7 +7,8 @@
       <p class="page-subtitle">Monthly spending limits by category</p>
     </div>
     <div class="header-actions">
-      <app-button
+      <!-- Desktop-only: Copy button -->
+      <app-button class="desktop-only-btn"
         *ngIf="isEditable()"
         variant="ghost"
         size="sm"
@@ -15,14 +16,42 @@
         (clicked)="showCopyConfirm.set(true)">
         <i class="fa-solid fa-copy"></i> Copy from {{ formatMonthLabel(prevMonthStr()) }}
       </app-button>
+
+      <!-- Search: always visible -->
       <div class="search-wrap">
         <i class="fa-solid fa-magnifying-glass search-icon"></i>
         <input type="text" class="search-input" placeholder="Search category..."
           [ngModel]="categorySearch()" (ngModelChange)="categorySearch.set($event)">
       </div>
-      <input type="month" class="filter-month"
+
+      <!-- Desktop-only: Month picker -->
+      <input type="month" class="filter-month desktop-only-btn"
         [ngModel]="filterMonthStr()"
         (ngModelChange)="filterMonthStr.set($event); onFilterChange()">
+
+      <!-- Mobile-only: context menu -->
+      <div class="budget-menu-backdrop" *ngIf="showBudgetMenu()" (click)="showBudgetMenu.set(false)"></div>
+      <div class="budget-menu-wrap">
+        <button class="budget-menu-btn" (click)="showBudgetMenu.set(!showBudgetMenu())" title="Options">
+          <i class="fa-solid fa-ellipsis-vertical"></i>
+        </button>
+        <div class="budget-dropdown" *ngIf="showBudgetMenu()">
+          <!-- Month picker -->
+          <label class="budget-menu-item budget-menu-month-row">
+            <i class="fa-solid fa-calendar-days"></i>
+            <input type="month"
+              [ngModel]="filterMonthStr()"
+              (ngModelChange)="filterMonthStr.set($event); onFilterChange()">
+          </label>
+          <!-- Copy button -->
+          <button *ngIf="isEditable()" class="budget-menu-item"
+            (click)="showCopyConfirm.set(true); showBudgetMenu.set(false)"
+            [disabled]="copyLoading()">
+            <i class="fa-solid fa-copy"></i>
+            Copy from {{ formatMonthLabel(prevMonthStr()) }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

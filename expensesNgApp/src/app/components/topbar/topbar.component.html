@@ -1,7 +1,14 @@
 <header class="topbar" [class.sidebar-collapsed]="isSidebarCollapsed && !isMobile" [class.no-sidebar]="noSidebar">
   <div class="topbar-left">
     <a *ngIf="!bookName" routerLink="/app" class="app-name-link">
-      <h2 class="app-name">ExpenseTracker</h2>
+      <div class="topbar-logo">N</div>
+      <div class="topbar-brand">
+        <h2 class="app-name">NidhiWise</h2>
+        <span class="app-subtitle">Smart finance management</span>
+      </div>
+    </a>
+    <a *ngIf="bookName" routerLink="/app" class="icon-btn mobile-home-btn" title="My Books">
+      <i class="fa-solid fa-house"></i>
     </a>
     <ng-container *ngIf="bookName">
       <ng-container *ngIf="isEditingName; else displayBookName">
@@ -24,13 +31,14 @@
 
 
   <div class="topbar-right">
+    <!-- Desktop-only buttons -->
     @if (currentBook.book()?.aiChatEnabled) {
-      <button class="icon-btn ai-chat-btn" (click)="toggleAiChat()" [title]="'AI Assistant'" [class.ai-chat-active]="chatService.isOpen()">
+      <button class="icon-btn ai-chat-btn desktop-only" (click)="toggleAiChat()" [title]="'AI Assistant'" [class.ai-chat-active]="chatService.isOpen()">
         <i class="fa-solid fa-wand-magic-sparkles"></i>
       </button>
     }
 
-    <button *ngIf="currentBook.book()" class="icon-btn import-btn" (click)="openImportDrawer()" title="Import activity">
+    <button *ngIf="currentBook.book()" class="icon-btn import-btn desktop-only" (click)="openImportDrawer()" title="Import activity">
       <i class="fa-solid fa-file-import"></i>
       <span class="import-badge" *ngIf="importService.activeCount() > 0">
         {{ importService.activeCount() }}
@@ -39,11 +47,11 @@
 
     <a class="topbar-text-link" [href]="landingUrl + '#pricing'" target="_blank" rel="noopener">Pricing</a>
 
-    <a class="icon-btn" [href]="landingUrl" target="_blank" rel="noopener" title="Visit nidhiwise.com">
+    <a class="icon-btn globe-link" [href]="landingUrl" target="_blank" rel="noopener" title="Visit nidhiwise.com">
       <i class="fa-solid fa-globe"></i>
     </a>
 
-    <button class="icon-btn" (click)="themeService.toggle()" [title]="themeService.theme() === 'light' ? 'Dark mode' : 'Light mode'">
+    <button class="icon-btn desktop-only" (click)="themeService.toggle()" [title]="themeService.theme() === 'light' ? 'Dark mode' : 'Light mode'">
       <i [class]="themeService.theme() === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'" [style.color]="themeService.theme() !== 'light' ? '#f59e0b' : ''"></i>
     </button>
 
@@ -58,6 +66,35 @@
       {{ userPlan }}
     </div>
 
+    <!-- Mobile-only context menu -->
+    <div class="mobile-menu-wrapper" #mobileMenuWrapper>
+      <button class="icon-btn mobile-menu-btn" (click)="toggleMobileMenu()" title="More options">
+        <i class="fa-solid fa-ellipsis-vertical"></i>
+      </button>
+      <div class="mobile-dropdown" *ngIf="isMobileMenuOpen">
+        <button class="mobile-menu-item" (click)="themeService.toggle(); isMobileMenuOpen = false">
+          <i [class]="themeService.theme() === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun'"></i>
+          {{ themeService.theme() === 'light' ? 'Dark Mode' : 'Light Mode' }}
+        </button>
+        @if (currentBook.book()?.aiChatEnabled) {
+          <button class="mobile-menu-item" (click)="toggleAiChat(); isMobileMenuOpen = false" [class.mobile-menu-active]="chatService.isOpen()">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            AI Assistant
+          </button>
+        }
+        <button *ngIf="currentBook.book()" class="mobile-menu-item" (click)="openImportDrawer(); isMobileMenuOpen = false">
+          <i class="fa-solid fa-file-import"></i>
+          Import
+          <span class="import-badge" *ngIf="importService.activeCount() > 0">{{ importService.activeCount() }}</span>
+        </button>
+        <a class="mobile-menu-item" [href]="landingUrl + '#pricing'" target="_blank" rel="noopener" (click)="isMobileMenuOpen = false">
+          <i class="fa-solid fa-tag"></i>
+          Pricing
+        </a>
+      </div>
+    </div>
+
+    <!-- Avatar (always visible) -->
     <div class="user-menu-wrapper" #menuWrapper>
       <button class="avatar-btn" (click)="toggleMenu()">
         <div class="avatar">{{ getUserInitials() }}</div>

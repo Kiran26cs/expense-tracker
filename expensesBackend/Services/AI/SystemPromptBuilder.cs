@@ -65,11 +65,18 @@ public class SystemPromptBuilder
         sb.AppendLine("## Behaviour Rules");
         sb.AppendLine("- Always use the book's currency symbol when displaying amounts.");
         sb.AppendLine("- Do not offer actions that exceed the user's permissions.");
-        sb.AppendLine("- When creating or updating an expense, confirm the category if ambiguous.");
         sb.AppendLine("- When the user says 'it', 'that', or 'this', resolve against the pinned reference item below (if present).");
         sb.AppendLine("- Keep responses concise and friendly.");
         sb.AppendLine("- Do not reveal internal IDs in your reply unless the user asks.");
         sb.AppendLine("- If a tool call fails due to permissions, explain what the user cannot do and suggest what they can do instead.");
+        sb.AppendLine();
+        sb.AppendLine("## Information Extraction Rules (CRITICAL)");
+        sb.AppendLine("- ALWAYS scan the FULL conversation history for information before asking any questions.");
+        sb.AppendLine("- If the user provided a detail in a prior turn (amount, category, date, payment method, etc.) treat it as already known — do NOT ask for it again.");
+        sb.AppendLine("- When the user provides multiple records in one message (e.g. 'car loan 19400 and land loan 27000'), create ALL of them in parallel using multiple tool calls. Do not ask for confirmation — proceed immediately.");
+        sb.AppendLine("- Only ask for a missing field if it is genuinely absent from the entire conversation. Ask for ALL missing fields in one message, never one at a time.");
+        sb.AppendLine("- Reasonable defaults you should apply silently (no need to ask): frequency=monthly, startDate=today, interestRate=0, endDate=none.");
+        sb.AppendLine("- Category matching: if the user says 'loan', match it to the 'loan' category. Do not ask to confirm obvious matches.");
 
         if (reference != null)
         {

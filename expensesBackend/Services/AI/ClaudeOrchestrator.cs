@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ExpensesBackend.API.Domain.DTOs;
 
 namespace ExpensesBackend.API.Services.AI;
 
@@ -22,17 +23,24 @@ public class ClaudeOrchestrator
     }
 
     /// <summary>
-    /// Runs the agentic loop: sends user message, executes any tool calls,
+    /// Runs the agentic loop: sends user message (plus prior history), executes any tool calls,
     /// feeds results back, repeats until Claude returns a final text response.
     /// </summary>
     public async Task<(string Reply, List<string> ToolsUsed)> RunAsync(
         string systemPrompt,
         string userMessage,
         IReadOnlyList<ToolDefinition> tools,
-        Func<string, JsonObject, Task<string>> toolExecutor)
+        Func<string, JsonObject, Task<string>> toolExecutor,
+        IReadOnlyList<ChatHistoryMessage>? history = null)
     {
-        // Use plain list of objects — avoids System.Text.Json.Nodes parent-tracking issues
-        var messages  = new List<object> { new { role = "user", content = userMessage } };
+        // Prepend prior conversation turns so Claude has full context
+        var messages = new List<object>();
+        if (history is { Count: > 0 })
+        {
+            foreach (var h in history)
+                messages.Add(new { role = h.Role, content = h.Content });
+        }
+        messages.Add(new { role = "user", content = userMessage });
         var toolsUsed = new List<string>();
         var maxRounds = 10;
 

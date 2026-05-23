@@ -1,8 +1,11 @@
 <aside class="sidebar" [class.collapsed]="isCollapsed && !isMobile">
   <!-- Desktop header -->
   <a routerLink="/app" class="sidebar-header" *ngIf="!isMobile">
-    <div class="sidebar-logo">E</div>
-    <span class="sidebar-title" *ngIf="!isCollapsed">ExpenseTracker</span>
+    <div class="sidebar-logo">N</div>
+    <div class="sidebar-brand" *ngIf="!isCollapsed">
+      <span class="sidebar-title">NidhiWise</span>
+      <span class="sidebar-subtitle">Smart finance management</span>
+    </div>
   </a>
 
   <!-- Nav items -->

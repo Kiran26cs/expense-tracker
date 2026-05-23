@@ -35,22 +35,28 @@ export class TopbarComponent {
   private bookService = inject(ExpenseBookService);
   private toast       = inject(ToastService);
 
-  isMenuOpen    = false;
-  isEditingName = false;
-  editName      = '';
+  isMenuOpen       = false;
+  isMobileMenuOpen = false;
+  isEditingName    = false;
+  editName         = '';
   readonly landingUrl = environment.landingUrl;
 
-  @ViewChild('menuWrapper') menuWrapper!: ElementRef;
-  @ViewChild('nameInput')   nameInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('menuWrapper')       menuWrapper!: ElementRef;
+  @ViewChild('mobileMenuWrapper') mobileMenuWrapper!: ElementRef;
+  @ViewChild('nameInput')         nameInput!: ElementRef<HTMLInputElement>;
 
   @HostListener('document:mousedown', ['$event'])
   onDocumentClick(event: MouseEvent) {
     if (this.menuWrapper && !this.menuWrapper.nativeElement.contains(event.target)) {
       this.isMenuOpen = false;
     }
+    if (this.mobileMenuWrapper && !this.mobileMenuWrapper.nativeElement.contains(event.target)) {
+      this.isMobileMenuOpen = false;
+    }
   }
 
-  toggleMenu() { this.isMenuOpen = !this.isMenuOpen; }
+  toggleMenu()       { this.isMenuOpen = !this.isMenuOpen; }
+  toggleMobileMenu() { this.isMobileMenuOpen = !this.isMobileMenuOpen; }
 
   openImportDrawer() {
     const bookId = this.currentBook.book()?.id;

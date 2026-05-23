@@ -16,10 +16,16 @@ export interface AiChatMessage {
   timestamp: Date;
 }
 
+export interface ChatHistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface AiChatRequest {
   message: string;
   bookId: string;
   referenceContext?: { type: string; id: string } | null;
+  history: ChatHistoryMessage[];
 }
 
 export interface AiChatResponse {
@@ -51,8 +57,11 @@ export class AiChatService {
 
   private static readonly MUTATING_TOOLS = new Set([
     'create_expense', 'update_expense', 'delete_expense',
+    'create_recurring_expense',
+    'create_lending',
     'set_budget', 'delete_budget',
     'invite_member', 'remove_member',
+    'create_category', 'update_category', 'delete_category',
   ]);
 
   isOpen = this._isOpen.asReadonly();
@@ -98,6 +107,11 @@ export class AiChatService {
   async sendMessage(bookId: string, message: string): Promise<void> {
     const ref = this._referenceContext();
 
+    // Snapshot history BEFORE adding the current user message
+    const history: ChatHistoryMessage[] = this._messages()
+      .slice(-20)
+      .map(m => ({ role: m.role, content: m.content }));
+
     this._messages.update(msgs => [...msgs, {
       role: 'user',
       content: message,
@@ -111,6 +125,7 @@ export class AiChatService {
         message,
         bookId,
         referenceContext: ref ? { type: ref.type, id: ref.id } : null,
+        history,
       };
 
       const res = await firstValueFrom(

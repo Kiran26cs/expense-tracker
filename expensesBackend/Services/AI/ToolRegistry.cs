@@ -13,6 +13,7 @@ public class ToolRegistry
     private readonly IDashboardService _dashboard;
     private readonly IMemberService _members;
     private readonly IPermissionService _permissions;
+    private readonly ILendingService _lendings;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -27,7 +28,8 @@ public class ToolRegistry
         ICategoryService categories,
         IDashboardService dashboard,
         IMemberService members,
-        IPermissionService permissions)
+        IPermissionService permissions,
+        ILendingService lendings)
     {
         _expenses    = expenses;
         _budgets     = budgets;
@@ -35,6 +37,7 @@ public class ToolRegistry
         _dashboard   = dashboard;
         _members     = members;
         _permissions = permissions;
+        _lendings    = lendings;
     }
 
     // ── Tool definitions exposed to Claude ────────────────────────────────────
@@ -70,6 +73,14 @@ public class ToolRegistry
             tools.Add(new("update_expense",
                 "Update an existing expense. Only provide fields that should change.",
                 """{"type":"object","properties":{"expenseId":{"type":"string"},"amount":{"type":"number"},"description":{"type":"string"},"category":{"type":"string"},"date":{"type":"string","description":"ISO date YYYY-MM-DD"},"paymentMethod":{"type":"string"},"notes":{"type":"string"}},"required":["expenseId"]}"""));
+
+            tools.Add(new("create_recurring_expense",
+                "Set up a recurring expense (e.g. monthly loan EMI, rent, subscription). Creates a scheduled entry tracked in Finance Tools. The expense is recorded each time the user marks it as paid.",
+                """{"type":"object","properties":{"amount":{"type":"number"},"category":{"type":"string","description":"Category name or ID"},"description":{"type":"string","description":"Label for the recurring expense, e.g. 'Home Loan EMI'"},"paymentMethod":{"type":"string","description":"e.g. cash, card, UPI, bank transfer"},"frequency":{"type":"string","enum":["daily","weekly","monthly","yearly"],"description":"How often it recurs (default: monthly)"},"startDate":{"type":"string","description":"ISO date YYYY-MM-DD — date of first occurrence"},"endDate":{"type":"string","description":"ISO date YYYY-MM-DD — optional end date"},"notes":{"type":"string"}},"required":["amount","category","paymentMethod","startDate"]}"""));
+
+            tools.Add(new("create_lending",
+                "Record money lent to someone. Tracks the principal, optional interest rate, repayments, and due date. Use this when the user says they lent money to a person.",
+                """{"type":"object","properties":{"borrowerName":{"type":"string","description":"Name of the person who borrowed the money"},"borrowerContact":{"type":"string","description":"Optional phone or email of the borrower"},"principalAmount":{"type":"number","description":"Amount lent"},"annualInterestRate":{"type":"number","description":"Annual interest rate in percent, e.g. 12 for 12%. Default 0 for interest-free."},"startDate":{"type":"string","description":"ISO date YYYY-MM-DD — date money was lent (defaults to today)"},"dueDate":{"type":"string","description":"ISO date YYYY-MM-DD — optional repayment deadline"},"notes":{"type":"string"}},"required":["borrowerName","principalAmount"]}"""));
         }
 
         if (perms.CanDeleteExpenses)
@@ -112,6 +123,22 @@ public class ToolRegistry
                 """{"type":"object","properties":{"memberId":{"type":"string"}},"required":["memberId"]}"""));
         }
 
+        // Categories — owner-only (mirrors VerifyBookOwnershipAsync in SettingsController)
+        if (perms.IsOwner)
+        {
+            tools.Add(new("create_category",
+                "Create a new custom expense category in this book.",
+                """{"type":"object","properties":{"name":{"type":"string","description":"Category name, e.g. 'Groceries', 'Loan'"},"type":{"type":"string","enum":["expense","income"],"description":"Whether this category is for expenses or income (default: expense)"},"icon":{"type":"string","description":"Font Awesome icon class, e.g. 'fa-solid fa-tag' (default if omitted)"},"color":{"type":"string","description":"Hex color code, e.g. '#6366f1' (default if omitted)"}},"required":["name"]}"""));
+
+            tools.Add(new("update_category",
+                "Rename or change the icon/color of an existing custom category. Cannot modify default categories.",
+                """{"type":"object","properties":{"category":{"type":"string","description":"Category name or ID to update"},"name":{"type":"string","description":"New name for the category"},"type":{"type":"string","enum":["expense","income"]},"icon":{"type":"string","description":"New Font Awesome icon class"},"color":{"type":"string","description":"New hex color code"}},"required":["category"]}"""));
+
+            tools.Add(new("delete_category",
+                "Delete a custom category from this book. Default categories cannot be deleted.",
+                """{"type":"object","properties":{"category":{"type":"string","description":"Category name or ID to delete"}},"required":["category"]}"""));
+        }
+
         return tools;
     }
 
@@ -121,21 +148,26 @@ public class ToolRegistry
     {
         return toolName switch
         {
-            "list_categories"      => await ListCategoriesAsync(ctx),
-            "get_dashboard_summary"=> await GetDashboardSummaryAsync(args, ctx),
-            "get_spending_trends"  => await GetSpendingTrendsAsync(args, ctx),
-            "list_expenses"        => await ListExpensesAsync(args, ctx),
-            "get_expense"          => await GetExpenseAsync(args, ctx),
-            "create_expense"       => await CreateExpenseAsync(args, ctx),
-            "update_expense"       => await UpdateExpenseAsync(args, ctx),
-            "delete_expense"       => await DeleteExpenseAsync(args, ctx),
-            "list_budgets"         => await ListBudgetsAsync(args, ctx),
-            "set_budget"           => await SetBudgetAsync(args, ctx),
-            "delete_budget"        => await DeleteBudgetAsync(args, ctx),
-            "list_members"         => await ListMembersAsync(ctx),
-            "invite_member"        => await InviteMemberAsync(args, ctx),
-            "remove_member"        => await RemoveMemberAsync(args, ctx),
-            _                      => $"Unknown tool: {toolName}"
+            "list_categories"          => await ListCategoriesAsync(ctx),
+            "get_dashboard_summary"    => await GetDashboardSummaryAsync(args, ctx),
+            "get_spending_trends"      => await GetSpendingTrendsAsync(args, ctx),
+            "list_expenses"            => await ListExpensesAsync(args, ctx),
+            "get_expense"              => await GetExpenseAsync(args, ctx),
+            "create_expense"           => await CreateExpenseAsync(args, ctx),
+            "update_expense"           => await UpdateExpenseAsync(args, ctx),
+            "delete_expense"           => await DeleteExpenseAsync(args, ctx),
+            "create_recurring_expense" => await CreateRecurringExpenseAsync(args, ctx),
+            "list_budgets"             => await ListBudgetsAsync(args, ctx),
+            "set_budget"               => await SetBudgetAsync(args, ctx),
+            "delete_budget"            => await DeleteBudgetAsync(args, ctx),
+            "list_members"             => await ListMembersAsync(ctx),
+            "invite_member"            => await InviteMemberAsync(args, ctx),
+            "remove_member"            => await RemoveMemberAsync(args, ctx),
+            "create_lending"           => await CreateLendingAsync(args, ctx),
+            "create_category"          => await CreateCategoryAsync(args, ctx),
+            "update_category"          => await UpdateCategoryAsync(args, ctx),
+            "delete_category"          => await DeleteCategoryAsync(args, ctx),
+            _                          => $"Unknown tool: {toolName}"
         };
     }
 
@@ -212,10 +244,12 @@ public class ToolRegistry
     {
         await _permissions.AssertCanAsync(ctx.BookId, ctx.UserId, "expenses", "write");
 
-        var category = args["category"]!.GetValue<string>();
+        var categoryArg = args["category"]!.GetValue<string>();
+        var (categoryName, categoryId) = await ResolveCategoryAsync(categoryArg, ctx.BookId);
+
         if (ctx.Permissions.AllowedCategoryIds.Count > 0
-            && !ctx.Permissions.AllowedCategoryIds.Contains(category))
-            throw new UnauthorizedAccessException("You are not allowed to use this category.");
+            && !ctx.Permissions.AllowedCategoryIds.Contains(categoryId))
+            throw new UnauthorizedAccessException($"You are not allowed to use the category '{categoryName}'.");
 
         var dateStr = args["date"]?.GetValue<string>();
         var date    = string.IsNullOrEmpty(dateStr) ? DateTime.UtcNow : DateTime.Parse(dateStr);
@@ -225,7 +259,7 @@ public class ToolRegistry
             ExpenseBookId = ctx.BookId,
             Amount        = args["amount"]!.GetValue<decimal>(),
             Description   = args["description"]?.GetValue<string>(),
-            Category      = category,
+            Category      = categoryName,
             Date          = date,
             PaymentMethod = args["paymentMethod"]!.GetValue<string>(),
             Notes         = args["notes"]?.GetValue<string>(),
@@ -239,17 +273,22 @@ public class ToolRegistry
     {
         await _permissions.AssertCanAsync(ctx.BookId, ctx.UserId, "expenses", "write");
 
-        var category = args["category"]?.GetValue<string>();
-        if (category != null && ctx.Permissions.AllowedCategoryIds.Count > 0
-            && !ctx.Permissions.AllowedCategoryIds.Contains(category))
-            throw new UnauthorizedAccessException("You are not allowed to use this category.");
+        string? categoryName = null;
+        if (args["category"] is not null)
+        {
+            var (name, id) = await ResolveCategoryAsync(args["category"]!.GetValue<string>(), ctx.BookId);
+            if (ctx.Permissions.AllowedCategoryIds.Count > 0
+                && !ctx.Permissions.AllowedCategoryIds.Contains(id))
+                throw new UnauthorizedAccessException($"You are not allowed to use the category '{name}'.");
+            categoryName = name;
+        }
 
         var dateStr = args["date"]?.GetValue<string>();
         var req = new UpdateExpenseRequest
         {
             Amount        = args["amount"]?.GetValue<decimal>(),
             Description   = args["description"]?.GetValue<string>(),
-            Category      = category,
+            Category      = categoryName,
             Date          = string.IsNullOrEmpty(dateStr) ? null : DateTime.Parse(dateStr),
             PaymentMethod = args["paymentMethod"]?.GetValue<string>(),
             Notes         = args["notes"]?.GetValue<string>(),
@@ -264,6 +303,89 @@ public class ToolRegistry
         await _permissions.AssertCanDeleteExpensesAsync(ctx.BookId, ctx.UserId);
         var deleted = await _expenses.DeleteExpenseAsync(ctx.UserId, args["expenseId"]!.GetValue<string>());
         return deleted ? "Expense deleted successfully." : "Expense not found.";
+    }
+
+    private async Task<string> CreateRecurringExpenseAsync(JsonObject args, ToolExecutionContext ctx)
+    {
+        await _permissions.AssertCanAsync(ctx.BookId, ctx.UserId, "expenses", "write");
+
+        var categoryArg = args["category"]!.GetValue<string>();
+        var (categoryName, categoryId) = await ResolveCategoryAsync(categoryArg, ctx.BookId);
+
+        if (ctx.Permissions.AllowedCategoryIds.Count > 0
+            && !ctx.Permissions.AllowedCategoryIds.Contains(categoryId))
+            throw new UnauthorizedAccessException($"You are not allowed to use the category '{categoryName}'.");
+
+        var startDateStr = args["startDate"]!.GetValue<string>();
+        var startDate    = DateTime.Parse(startDateStr);
+        var endDateStr   = args["endDate"]?.GetValue<string>();
+        var frequency    = args["frequency"]?.GetValue<string>() ?? "monthly";
+
+        var req = new CreateExpenseRequest
+        {
+            ExpenseBookId   = ctx.BookId,
+            Amount          = args["amount"]!.GetValue<decimal>(),
+            Category        = categoryName,
+            PaymentMethod   = args["paymentMethod"]!.GetValue<string>(),
+            Description     = args["description"]?.GetValue<string>(),
+            Notes           = args["notes"]?.GetValue<string>(),
+            Date            = startDate,
+            IsRecurring     = true,
+            RecurringConfig = new RecurringConfig
+            {
+                Frequency = frequency,
+                StartDate = startDate,
+                EndDate   = string.IsNullOrEmpty(endDateStr) ? null : DateTime.Parse(endDateStr),
+            },
+        };
+
+        var result = await _expenses.CreateExpenseAsync(ctx.UserId, req);
+        return Serialize(new
+        {
+            result.Id,
+            result.Amount,
+            result.Category,
+            result.Description,
+            Frequency   = frequency,
+            StartDate   = startDate.ToString("yyyy-MM-dd"),
+            EndDate     = string.IsNullOrEmpty(endDateStr) ? null : endDateStr,
+            result.IsRecurring,
+            Message = $"Recurring expense '{result.Description ?? categoryName}' set up successfully. It will appear in Finance Tools and you can mark it as paid each {frequency}.",
+        });
+    }
+
+    private async Task<string> CreateLendingAsync(JsonObject args, ToolExecutionContext ctx)
+    {
+        await _permissions.AssertCanAsync(ctx.BookId, ctx.UserId, "expenses", "write");
+
+        var startDateStr = args["startDate"]?.GetValue<string>();
+        var dueDateStr   = args["dueDate"]?.GetValue<string>();
+
+        var req = new CreateLendingRequest
+        {
+            ExpenseBookId      = ctx.BookId,
+            BorrowerName       = args["borrowerName"]!.GetValue<string>(),
+            BorrowerContact    = args["borrowerContact"]?.GetValue<string>(),
+            PrincipalAmount    = args["principalAmount"]!.GetValue<decimal>(),
+            AnnualInterestRate = args["annualInterestRate"]?.GetValue<decimal>() ?? 0,
+            StartDate          = string.IsNullOrEmpty(startDateStr) ? DateTime.UtcNow : DateTime.Parse(startDateStr),
+            DueDate            = string.IsNullOrEmpty(dueDateStr) ? null : DateTime.Parse(dueDateStr),
+            Notes              = args["notes"]?.GetValue<string>(),
+        };
+
+        var lending = await _lendings.CreateLendingAsync(ctx.UserId, req);
+        return Serialize(new
+        {
+            lending.Id,
+            lending.BorrowerName,
+            lending.PrincipalAmount,
+            lending.AnnualInterestRate,
+            StartDate = lending.StartDate.ToString("yyyy-MM-dd"),
+            DueDate   = lending.DueDate?.ToString("yyyy-MM-dd"),
+            lending.Status,
+            lending.OutstandingPrincipal,
+            Message = $"Lending of {lending.PrincipalAmount} to {lending.BorrowerName} recorded. You can track repayments in Finance Tools.",
+        });
     }
 
     // ── Budget tools ──────────────────────────────────────────────────────────
@@ -299,16 +421,22 @@ public class ToolRegistry
     }
 
     /// <summary>
-    /// Accepts either a category ID or name and always returns the canonical name.
-    /// Falls back to the raw value if no match is found.
+    /// Accepts either a category ID or name and returns (canonicalName, id).
+    /// Falls back to (rawValue, rawValue) if no match — keeps backward compat for unrecognised values.
     /// </summary>
-    private async Task<string> ResolveCategoryNameAsync(string idOrName, string bookId)
+    private async Task<(string Name, string Id)> ResolveCategoryAsync(string idOrName, string bookId)
     {
         var cats = await _categories.GetCategoriesAsync(bookId);
         var match = cats.FirstOrDefault(c =>
             c.Id.Equals(idOrName, StringComparison.OrdinalIgnoreCase) ||
             c.Name.Equals(idOrName, StringComparison.OrdinalIgnoreCase));
-        return match?.Name ?? idOrName;
+        return match is not null ? (match.Name, match.Id) : (idOrName, idOrName);
+    }
+
+    private async Task<string> ResolveCategoryNameAsync(string idOrName, string bookId)
+    {
+        var (name, _) = await ResolveCategoryAsync(idOrName, bookId);
+        return name;
     }
 
     private async Task<string> DeleteBudgetAsync(JsonObject args, ToolExecutionContext ctx)
@@ -344,6 +472,69 @@ public class ToolRegistry
         await _permissions.AssertCanManageMembersAsync(ctx.BookId, ctx.UserId);
         await _members.RemoveMemberAsync(ctx.BookId, args["memberId"]!.GetValue<string>(), ctx.UserId);
         return "Member removed successfully.";
+    }
+
+    // ── Category tools ────────────────────────────────────────────────────────
+
+    private async Task<string> CreateCategoryAsync(JsonObject args, ToolExecutionContext ctx)
+    {
+        await _permissions.AssertIsOwnerAsync(ctx.BookId, ctx.UserId);
+
+        var req = new CreateCategoryRequest
+        {
+            ExpenseBookId = ctx.BookId,
+            Name          = args["name"]!.GetValue<string>(),
+            Type          = args["type"]?.GetValue<string>()  ?? "expense",
+            Icon          = args["icon"]?.GetValue<string>()  ?? "fa-solid fa-tag",
+            Color         = args["color"]?.GetValue<string>() ?? "#6366f1",
+        };
+
+        var category = await _categories.CreateCategoryAsync(ctx.BookId, ctx.UserId, req);
+        return Serialize(new
+        {
+            category.Id,
+            category.Name,
+            category.Type,
+            category.Icon,
+            category.Color,
+            Message = $"Category '{category.Name}' created successfully.",
+        });
+    }
+
+    private async Task<string> UpdateCategoryAsync(JsonObject args, ToolExecutionContext ctx)
+    {
+        await _permissions.AssertIsOwnerAsync(ctx.BookId, ctx.UserId);
+
+        var (_, categoryId) = await ResolveCategoryAsync(args["category"]!.GetValue<string>(), ctx.BookId);
+
+        var req = new UpdateCategoryRequest
+        {
+            Name  = args["name"]?.GetValue<string>(),
+            Type  = args["type"]?.GetValue<string>(),
+            Icon  = args["icon"]?.GetValue<string>(),
+            Color = args["color"]?.GetValue<string>(),
+        };
+
+        var category = await _categories.UpdateCategoryAsync(ctx.BookId, categoryId, req);
+        return Serialize(new
+        {
+            category.Id,
+            category.Name,
+            category.Type,
+            category.Icon,
+            category.Color,
+            Message = $"Category '{category.Name}' updated successfully.",
+        });
+    }
+
+    private async Task<string> DeleteCategoryAsync(JsonObject args, ToolExecutionContext ctx)
+    {
+        await _permissions.AssertIsOwnerAsync(ctx.BookId, ctx.UserId);
+
+        var (categoryName, categoryId) = await ResolveCategoryAsync(args["category"]!.GetValue<string>(), ctx.BookId);
+
+        await _categories.DeleteCategoryAsync(ctx.BookId, categoryId, ctx.UserId);
+        return $"Category '{categoryName}' deleted successfully.";
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

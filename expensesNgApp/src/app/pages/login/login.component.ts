@@ -1,4 +1,4 @@
-import { Component, inject, signal, AfterViewInit } from '@angular/core';
+import { Component, inject, signal, OnInit, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -15,7 +15,7 @@ import { environment } from '../../../environments/environment';
   templateUrl: './login.component.html',
   styleUrl: './login.component.css'
 })
-export class LoginComponent implements AfterViewInit {
+export class LoginComponent implements OnInit, AfterViewInit {
   emailOrPhone = signal('');
   otp = '';
   step = signal<'input' | 'otp'>('input');
@@ -26,6 +26,22 @@ export class LoginComponent implements AfterViewInit {
 
   private auth = inject(AuthStateService);
   private router = inject(Router);
+
+  ngOnInit(): void {
+    // Handle redirect back from Google OAuth (PWA standalone flow)
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      const params = new URLSearchParams(hash);
+      const idToken = params.get('id_token');
+      const oauthError = params.get('error');
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+      if (idToken) {
+        this.onGoogleCredential({ credential: idToken });
+      } else if (oauthError) {
+        this.error.set(`Google Sign-In failed: ${oauthError}`);
+      }
+    }
+  }
 
   ngAfterViewInit() {
     this.setupGoogleButton();
@@ -60,6 +76,47 @@ export class LoginComponent implements AfterViewInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  handleGoogleLogin() {
+    if (this.isPwaStandalone()) {
+      this.initiateGooglePwaRedirect();
+      return;
+    }
+    const google = (window as any)['google'];
+    if (!google?.accounts?.id) {
+      this.error.set('Google Sign-In is unavailable. Please refresh the page and try again.');
+      return;
+    }
+    this.error.set('');
+    const container = document.getElementById('g-btn-login');
+    if (container && !container.hasChildNodes()) {
+      this.setupGoogleButton();
+    }
+    const btn = container?.querySelector<HTMLElement>('[role="button"]');
+    if (btn) {
+      btn.click();
+    } else {
+      this.error.set('Google Sign-In is unavailable. Please refresh the page and try again.');
+    }
+  }
+
+  private isPwaStandalone(): boolean {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           !!(window.navigator as any)['standalone'];
+  }
+
+  private initiateGooglePwaRedirect(): void {
+    const nonce = (crypto as any).randomUUID?.() ?? Math.random().toString(36).slice(2);
+    sessionStorage.setItem('gauth_nonce', nonce);
+    const params = new URLSearchParams({
+      client_id: environment.googleClientId,
+      redirect_uri: `${environment.appUrl}/login`,
+      response_type: 'id_token',
+      scope: 'openid email profile',
+      nonce
+    });
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
   }
 
   onOtpInput(event: Event, idx: number) {
@@ -134,26 +191,6 @@ export class LoginComponent implements AfterViewInit {
       this.startResendTimer();
     } catch { this.error.set('Failed to resend OTP'); }
     finally { this.loading.set(false); }
-  }
-
-  handleGoogleLogin() {
-    const google = (window as any)['google'];
-    if (!google?.accounts?.id) {
-      this.error.set('Google Sign-In is unavailable. Please refresh the page and try again.');
-      return;
-    }
-    this.error.set('');
-    const container = document.getElementById('g-btn-login');
-    // Render on first click if script loaded after component init
-    if (container && !container.hasChildNodes()) {
-      this.setupGoogleButton();
-    }
-    const btn = container?.querySelector<HTMLElement>('[role="button"]');
-    if (btn) {
-      btn.click();
-    } else {
-      this.error.set('Google Sign-In is unavailable. Please refresh the page and try again.');
-    }
   }
 
   startResendTimer() {

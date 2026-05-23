@@ -123,3 +123,13 @@
   text-align: center;
   color: var(--color-muted, #6b7280);
 }
+
+.table-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767px) {
+  .members-table th:nth-child(4),
+  .members-table td:nth-child(4) { display: none; }
+}
