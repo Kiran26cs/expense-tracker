@@ -1,7 +1,14 @@
 <header class="topbar" [class.sidebar-collapsed]="isSidebarCollapsed && !isMobile" [class.no-sidebar]="noSidebar">
   <div class="topbar-left">
     <a *ngIf="!bookName" routerLink="/app" class="app-name-link">
-      <h2 class="app-name">ExpenseTracker</h2>
+      <div class="topbar-logo">N</div>
+      <div class="topbar-brand">
+        <h2 class="app-name">NidhiWise</h2>
+        <span class="app-subtitle">Smart finance management</span>
+      </div>
+    </a>
+    <a *ngIf="bookName" routerLink="/app" class="icon-btn mobile-home-btn" title="My Books">
+      <i class="fa-solid fa-house"></i>
     </a>
     <ng-container *ngIf="bookName">
       <ng-container *ngIf="isEditingName; else displayBookName">
@@ -39,7 +46,7 @@
 
     <a class="topbar-text-link" [href]="landingUrl + '#pricing'" target="_blank" rel="noopener">Pricing</a>
 
-    <a class="icon-btn" [href]="landingUrl" target="_blank" rel="noopener" title="Visit nidhiwise.com">
+    <a class="icon-btn globe-link" [href]="landingUrl" target="_blank" rel="noopener" title="Visit nidhiwise.com">
       <i class="fa-solid fa-globe"></i>
     </a>
 

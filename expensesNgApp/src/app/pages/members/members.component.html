@@ -29,6 +29,7 @@
         <p>No members yet. Invite someone to get started.</p>
       </div>
 
+      <div class="table-scroll-wrap">
       <table class="members-table" *ngIf="!loading() && members().length > 0">
         <thead>
           <tr>
@@ -68,6 +69,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </app-card-content>
   </app-card>
 </div>

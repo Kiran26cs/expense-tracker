@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, inject, signal, computed, ViewChildren, QueryList, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { ExpenseBookService } from '../../services/expense-book.service';
 import { ImportService } from '../../services/import.service';
 import { MemberService } from '../../services/member.service';
@@ -31,7 +31,7 @@ const LOCALE_CURRENCY: Record<string, string> = {
 @Component({
   selector: 'app-expense-book-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, TopbarComponent, ButtonComponent, InputComponent, SelectComponent, ModalComponent, LoadingComponent, EmptyStateComponent, ErrorStateComponent, TruncateDirective],
+  imports: [CommonModule, FormsModule, RouterModule, TopbarComponent, ButtonComponent, InputComponent, SelectComponent, ModalComponent, LoadingComponent, EmptyStateComponent, ErrorStateComponent, TruncateDirective],
   templateUrl: './expense-book-dashboard.component.html',
   styleUrl: './expense-book-dashboard.component.css'
 })

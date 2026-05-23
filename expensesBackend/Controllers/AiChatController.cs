@@ -92,12 +92,14 @@ public class AiChatController : ControllerBase
             // 8. Get tool definitions filtered by user permissions
             var tools = _toolRegistry.GetDefinitions(resolvedPerms);
 
-            // 9. Run the agentic loop
+            // 9. Run the agentic loop (pass up to last 20 history messages for context)
+            var history = request.History.TakeLast(20).ToList();
             (string reply, List<string> toolsUsed) = await _orchestrator.RunAsync(
                 systemPrompt,
                 request.Message,
                 tools,
-                (string name, JsonObject args) => _toolRegistry.ExecuteAsync(name, args, execCtx));
+                (string name, JsonObject args) => _toolRegistry.ExecuteAsync(name, args, execCtx),
+                history);
 
             // 10. Deduct credit and get updated balance
             await _credits.DeductAsync(request.BookId, userId, toolsUsed);

@@ -16,8 +16,20 @@
 .topbar.sidebar-collapsed { left: var(--sidebar-width-collapsed); }
 .topbar.no-sidebar { left: 0; }
 .topbar-left { display: flex; align-items: center; gap: 0.75rem; }
-.app-name-link { text-decoration: none; color: inherit; }
-.app-name { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); white-space: nowrap; margin: 0; }
+.app-name-link { text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.65rem; }
+.topbar-logo {
+  width: 34px; height: 34px;
+  border-radius: var(--radius-lg);
+  background: #7c5bf6;
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+  flex-shrink: 0;
+}
+.topbar-brand { display: flex; flex-direction: column; gap: 1px; }
+.app-name { font-size: var(--font-size-base); font-weight: var(--font-weight-bold); white-space: nowrap; margin: 0; line-height: 1.2; }
+.app-subtitle { font-size: 0.65rem; color: var(--color-text-secondary); white-space: nowrap; line-height: 1.2; }
 
 .app-name-btn {
   display: flex; align-items: center; gap: 0.4rem;
@@ -187,6 +199,12 @@
   color: var(--color-primary) !important;
 }
 
+.mobile-home-btn { display: none; color: var(--color-text-secondary); }
+
 @media (max-width: 767px) {
-  .topbar { left: 0; bottom: auto; padding-bottom: 0; }
+  .topbar { left: 0; bottom: auto; padding: 0 var(--spacing-md); }
+  .topbar-text-link { display: none; }
+  .globe-link { display: none; }
+  .topbar-plan-pill { display: none; }
+  .mobile-home-btn { display: flex; }
 }

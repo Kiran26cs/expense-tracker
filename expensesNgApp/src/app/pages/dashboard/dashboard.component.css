@@ -14,12 +14,12 @@
 .card-value { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); margin: 0; }
 .positive { color: var(--color-success); }
 .negative { color: var(--color-danger); }
-.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-.chart-wrapper { display: flex; gap: 1.5rem; align-items: flex-start; }
-.pie-canvas-wrap { width: 240px; min-width: 240px; height: 240px; position: relative; flex-shrink: 0; }
-.pie-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
-.bar-chart-wrapper { display: block; height: 300px; }
-.bar-chart-wrapper canvas { height: 100% !important; }
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; overflow: hidden; }
+.chart-wrapper { display: flex; gap: 1.5rem; align-items: flex-start; overflow: hidden; }
+.pie-canvas-wrap { width: 240px; min-width: 240px; height: 240px; position: relative; flex-shrink: 0; overflow: hidden; }
+.pie-canvas-wrap canvas { display: block; }
+.bar-chart-wrapper { display: block; height: 300px; position: relative; overflow: hidden; }
+.bar-chart-wrapper canvas { display: block; }
 .pie-legend { flex: 1; display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; }
 .legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: var(--font-size-xs); }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -47,4 +47,11 @@
 .txn-amount.expense { color: var(--color-danger); }
 .mark-paid-amount { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-primary); }
 .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem; }
-@media (max-width: 767px) { .charts-row { grid-template-columns: 1fr; } .chart-wrapper { flex-direction: column; } }
+@media (max-width: 767px) {
+  .dashboard { overflow-x: hidden; }
+  .charts-row { grid-template-columns: 1fr; }
+  .chart-wrapper { flex-direction: column; align-items: stretch; }
+  .pie-canvas-wrap { width: 100%; min-width: 0; height: 220px; flex-shrink: unset; }
+  .bar-chart-wrapper { height: 220px; }
+  .payment-item { flex-wrap: wrap; }
+}
