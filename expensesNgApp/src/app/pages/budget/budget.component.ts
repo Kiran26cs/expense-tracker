@@ -54,6 +54,7 @@ export class BudgetComponent implements OnInit {
       .map(c => ({ category: c.name, budget: budgetMap.get(c.name) ?? null }));
   });
 
+  showBudgetMenu = signal(false);
   editingCategory = signal<string | null>(null);
   editAmount = signal<number>(0);
   editDate = signal('');

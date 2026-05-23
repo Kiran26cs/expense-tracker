@@ -77,6 +77,13 @@ export class ExpenseListComponent implements OnInit {
   sortField = signal<'date' | 'amount'>('date');
   sortDir = signal<'asc' | 'desc'>('desc');
 
+  // Mobile filter panel
+  showFilterPanel = signal(false);
+  activeFilterCount = computed(() =>
+    [this.filterType(), this.filterCategory(), this.filterPayment(), this.dateStart() || this.dateEnd()]
+      .filter(Boolean).length
+  );
+
   // Cursor stack: index 0 = first page cursor (undefined), each push = next page cursor
   private cursorStack: (string | undefined)[] = [undefined];
 

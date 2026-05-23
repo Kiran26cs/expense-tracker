@@ -15,16 +15,27 @@
     <app-card-content>
       <div class="filter-row">
         <app-input placeholder="Search expenses..." [value]="searchQuery()" (valueChange)="onSearch($event)" class="search-input"></app-input>
-        <app-select [value]="filterType()" (valueChange)="filterType.set($event); onFilterChange()" label="">
-          <option value="">All Types</option>
-          <option value="expense">Expense</option>
-          <option value="income">Income</option>
-        </app-select>
-        <app-select [options]="categoryOptions()" [value]="filterCategory()" (valueChange)="filterCategory.set($event); onFilterChange()" label="">
-        </app-select>
-        <app-select [options]="paymentMethodOptions()" [value]="filterPayment()" (valueChange)="filterPayment.set($event); onFilterChange()" label="">
-        </app-select>
-        <app-date-range-picker [startDate]="dateStart()" [endDate]="dateEnd()" (rangeChange)="onDateRangeChange($event)"></app-date-range-picker>
+
+        <!-- Mobile-only filter toggle -->
+        <button class="filter-toggle-btn" (click)="showFilterPanel.set(!showFilterPanel())" [class.has-active]="activeFilterCount() > 0">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Filters</span>
+          <span class="filter-badge" *ngIf="activeFilterCount() > 0">{{ activeFilterCount() }}</span>
+        </button>
+
+        <!-- Filter controls: always visible on desktop, collapsible on mobile -->
+        <div class="filter-controls" [class.filter-open]="showFilterPanel()">
+          <app-select [value]="filterType()" (valueChange)="filterType.set($event); onFilterChange()" label="">
+            <option value="">All Types</option>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </app-select>
+          <app-select [options]="categoryOptions()" [value]="filterCategory()" (valueChange)="filterCategory.set($event); onFilterChange()" label="">
+          </app-select>
+          <app-select [options]="paymentMethodOptions()" [value]="filterPayment()" (valueChange)="filterPayment.set($event); onFilterChange()" label="">
+          </app-select>
+          <app-date-range-picker [startDate]="dateStart()" [endDate]="dateEnd()" (rangeChange)="onDateRangeChange($event)"></app-date-range-picker>
+        </div>
       </div>
     </app-card-content>
   </app-card>

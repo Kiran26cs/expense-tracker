@@ -49,6 +49,17 @@
 .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem; }
 @media (max-width: 767px) {
   .dashboard { overflow-x: hidden; }
+
+  /* 2-column summary cards on mobile */
+  .summary-cards { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+  .summary-card app-card-content { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .card-icon { width: 36px; height: 36px; font-size: 1rem; }
+  .card-label { font-size: 0.625rem; }
+  .card-value { font-size: var(--font-size-lg); }
+
+  /* Header actions wrap so date picker + refresh don't overflow */
+  .header-actions { flex-wrap: wrap; }
+
   .charts-row { grid-template-columns: 1fr; }
   .chart-wrapper { flex-direction: column; align-items: stretch; }
   .pie-canvas-wrap { width: 100%; min-width: 0; height: 220px; flex-shrink: unset; }

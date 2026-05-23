@@ -1,3 +1,4 @@
+:host { display: block; }
 .input-wrapper { display: flex; flex-direction: column; gap: 0.375rem; }
 .input-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--color-text-secondary); }
 .required { color: var(--color-danger); margin-left: 2px; }

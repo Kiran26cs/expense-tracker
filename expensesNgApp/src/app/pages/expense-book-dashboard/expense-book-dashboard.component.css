@@ -77,6 +77,7 @@
   background: var(--color-surface); border-radius: var(--radius-xl); padding: 1.5rem;
   cursor: pointer; display: flex; align-items: flex-start; gap: 1rem;
   border: 1px solid var(--color-border); transition: all var(--transition-normal); position: relative;
+  min-width: 0;
 }
 .book-card:hover { border-color: var(--color-primary); box-shadow: var(--shadow-lg); transform: translateY(-2px); }
 
