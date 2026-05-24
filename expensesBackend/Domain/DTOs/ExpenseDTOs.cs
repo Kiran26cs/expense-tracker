@@ -18,6 +18,10 @@ public class CreateExpenseRequest
     public string? Notes { get; set; }
     public bool IsRecurring { get; set; }
     public RecurringConfig? RecurringConfig { get; set; }
+    /// <summary>Original amount in <see cref="OriginalCurrency"/> before conversion. Omit when same as book currency.</summary>
+    public decimal? OriginalAmount { get; set; }
+    /// <summary>ISO 4217 code of the original currency. Omit when same as book currency.</summary>
+    public string? OriginalCurrency { get; set; }
 }
 
 public class UpdateExpenseRequest
@@ -45,6 +49,9 @@ public class ExpenseDto
     public string? ReceiptUrl { get; set; }
     public bool IsRecurring { get; set; }
     public DateTime CreatedAt { get; set; }
+    public decimal? OriginalAmount { get; set; }
+    public string? OriginalCurrency { get; set; }
+    public decimal? FxRate { get; set; }
 }
 
 public class RecurringConfig

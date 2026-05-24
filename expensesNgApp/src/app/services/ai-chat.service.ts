@@ -14,6 +14,20 @@ export interface AiChatMessage {
   content: string;
   toolsUsed?: string[];
   timestamp: Date;
+  imagePreview?: string;
+}
+
+export interface ReceiptExtractResponse {
+  description: string | null;
+  amount: number | null;
+  currency: string | null;
+  date: string | null;
+  category: string | null;
+  paymentMethod: string | null;
+  type: string | null;
+  notes: string | null;
+  confidence: number;
+  missingFields: string[];
 }
 
 export interface ChatHistoryMessage {
@@ -158,6 +172,20 @@ export class AiChatService {
       }]);
     } finally {
       this._loading.set(false);
+    }
+  }
+
+  async extractReceipt(bookId: string, fileBase64: string, mimeType: string): Promise<ReceiptExtractResponse | null> {
+    try {
+      const res = await firstValueFrom(
+        this.api.post<ApiResponse<ReceiptExtractResponse>>('/ai/extract-receipt', { bookId, fileBase64, mimeType })
+      );
+      if (res.success && res.data) {
+        return res.data;
+      }
+      return null;
+    } catch {
+      return null;
     }
   }
 

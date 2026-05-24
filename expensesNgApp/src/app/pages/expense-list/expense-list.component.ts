@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -10,6 +10,8 @@ import { ToastService } from '../../services/toast.service';
 import { SettingsService } from '../../services/settings.service';
 import { MemberService } from '../../services/member.service';
 import { BookAccessService } from '../../services/book-access.service';
+import { CurrentBookService } from '../../services/current-book.service';
+import { CurrencyService, SUPPORTED_CURRENCIES } from '../../services/currency.service';
 import { Expense } from '../../models/expense.model';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent } from '../../components/card/card.component';
 import { ButtonComponent } from '../../components/button/button.component';
@@ -102,6 +104,19 @@ export class ExpenseListComponent implements OnInit {
   addImportData = signal<any[]>([]);
   addImportErrors = signal<string[]>([]);
   addImportLoading = signal(false);
+  addSelectedCurrency = signal('');
+  addCurrentRate = signal<number | null>(null);
+  addRateLoading = signal(false);
+
+  // Edit Expense Modal
+  showEditModal = signal(false);
+  editExpenseId = signal('');
+  editLoading = signal(false);
+  editPageLoading = signal(false);
+  editError = signal('');
+  editOriginalAmount = signal<number | null>(null);
+  editOriginalCurrency = signal<string | null>(null);
+  editFxRate = signal<number | null>(null);
 
   // Add Category Sub-modal
   showAddCategoryModal = signal(false);
@@ -117,11 +132,13 @@ export class ExpenseListComponent implements OnInit {
   private importService  = inject(ImportService);
   private settingsService = inject(SettingsService);
   private memberService = inject(MemberService);
+  private currencyService = inject(CurrencyService);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private fb = inject(FormBuilder);
   protected bookAccess = inject(BookAccessService);
+  currentBook = inject(CurrentBookService);
   private aiChat = inject(AiChatService);
   private destroyRef = inject(DestroyRef);
 
@@ -137,6 +154,45 @@ export class ExpenseListComponent implements OnInit {
     isRecurring: [false],
     recurringFrequency: ['monthly'],
   });
+
+  editForm: FormGroup = this.fb.group({
+    type: ['expense'],
+    description: ['', Validators.required],
+    amount: [null, [Validators.required, Validators.min(0.01)]],
+    date: ['', Validators.required],
+    category: [''],
+    paymentMethod: [''],
+    currency: [''],
+    notes: [''],
+    isRecurring: [false],
+    recurringFrequency: ['monthly'],
+    recurringEndDate: [''],
+  });
+
+  private addFormValues = toSignal(this.addForm.valueChanges, { initialValue: this.addForm.value });
+
+  addCurrencyOptions = computed(() => {
+    const book = this.currentBook.currency();
+    return [book, ...SUPPORTED_CURRENCIES.filter(c => c !== book)];
+  });
+
+  addIsForeignCurrency = computed(() => {
+    const sel = this.addSelectedCurrency();
+    return sel !== '' && sel !== this.currentBook.currency();
+  });
+
+  addConversionPreview = computed(() => {
+    if (!this.addIsForeignCurrency() || this.addCurrentRate() === null) return null;
+    const vals = this.addFormValues();
+    const amount = Number(vals?.amount);
+    if (!amount || isNaN(amount) || amount <= 0) return null;
+    const converted = Math.round(amount * this.addCurrentRate()! * 100) / 100;
+    return { converted, rate: this.addCurrentRate()!, bookCurrency: this.currentBook.currency() };
+  });
+
+  addNoRateWarning = computed(() =>
+    this.addIsForeignCurrency() && !this.addRateLoading() && this.addCurrentRate() === null
+  );
 
   protected readonly formatCurrency = formatCurrency;
   protected readonly formatDate = formatDate;
@@ -244,6 +300,22 @@ export class ExpenseListComponent implements OnInit {
       this.paymentMethods.set(methodsResult.value.data || []);
   }
 
+  async onAddCurrencyChange(currency: string) {
+    this.addSelectedCurrency.set(currency);
+    await this.loadAddRate();
+  }
+
+  private async loadAddRate() {
+    const sel = this.addSelectedCurrency();
+    const book = this.currentBook.currency();
+    if (sel === '' || sel === book) { this.addCurrentRate.set(null); return; }
+    const date: string = this.addForm.get('date')?.value ?? new Date().toISOString().split('T')[0];
+    this.addRateLoading.set(true);
+    const rate = await this.currencyService.getRate(sel, book, date);
+    this.addCurrentRate.set(rate);
+    this.addRateLoading.set(false);
+  }
+
   async loadExpenses() {
     this.loading.set(true);
     try {
@@ -305,13 +377,17 @@ export class ExpenseListComponent implements OnInit {
   goToPage(_page: number) { this.resetCursors(); this.loadExpenses(); }
 
   openAddModal() {
+    const bookCurrency = this.currentBook.currency();
     this.addForm.reset({
       type: 'expense',
       date: new Date().toISOString().split('T')[0],
-      currency: 'USD',
+      currency: bookCurrency,
       isRecurring: false,
       recurringFrequency: 'monthly',
     });
+    this.addSelectedCurrency.set(bookCurrency);
+    this.addCurrentRate.set(null);
+    this.addRateLoading.set(false);
     this.addError.set('');
     this.addActiveTab.set('manual');
     this.addImportFile.set(null);
@@ -363,6 +439,7 @@ export class ExpenseListComponent implements OnInit {
     this.addError.set('');
     try {
       const v = this.addForm.value;
+      const isForeign = this.addIsForeignCurrency();
       const payload: any = {
         type: v.type,
         description: v.description,
@@ -370,10 +447,13 @@ export class ExpenseListComponent implements OnInit {
         date: new Date(v.date).toISOString(),
         category: v.category || undefined,
         paymentMethod: v.paymentMethod || undefined,
-        currency: v.currency || 'USD',
         notes: v.notes || undefined,
         isRecurring: v.isRecurring,
       };
+      if (isForeign) {
+        payload.originalAmount = parseFloat(v.amount);
+        payload.originalCurrency = this.addSelectedCurrency();
+      }
       if (v.isRecurring && v.recurringFrequency) {
         payload.recurringConfig = { frequency: v.recurringFrequency, startDate: new Date(v.date).toISOString(), endDate: null };
       }
@@ -488,7 +568,86 @@ export class ExpenseListComponent implements OnInit {
     URL.revokeObjectURL(url);
   }
 
-  navigateToEdit(id: string) { this.router.navigate([`/${this.bookId}/expenses/${id}/edit`]); }
+  async openEditModal(id: string) {
+    this.editExpenseId.set(id);
+    this.editError.set('');
+    this.editOriginalAmount.set(null);
+    this.editOriginalCurrency.set(null);
+    this.editFxRate.set(null);
+    this.editForm.reset({ type: 'expense', recurringFrequency: 'monthly' });
+    this.showEditModal.set(true);
+    this.editPageLoading.set(true);
+    try {
+      const res = await this.expenseService.getExpense(this.bookId, id);
+      if (res.success && res.data) {
+        const e = res.data;
+        const catVal = typeof e.category === 'object' ? (e.category as any).id : (e.category || '');
+        const pmVal  = typeof e.paymentMethod === 'object' ? (e.paymentMethod as any).id : (e.paymentMethod || '');
+        const resolvedCat = this.categories().find(c => c.id === catVal || c.name === catVal);
+        const resolvedPm  = this.paymentMethods().find(p => p.id === pmVal || p.name === pmVal);
+        this.editOriginalAmount.set(e.originalAmount ?? null);
+        this.editOriginalCurrency.set(e.originalCurrency ?? null);
+        this.editFxRate.set(e.fxRate ?? null);
+        this.editForm.patchValue({
+          type: e.type,
+          description: e.description,
+          amount: e.amount,
+          date: e.date?.split('T')[0] || '',
+          category: resolvedCat?.id || catVal,
+          paymentMethod: resolvedPm?.id || pmVal,
+          currency: e.currency || '',
+          notes: e.notes || '',
+          isRecurring: !!(e as any).recurringConfig,
+          recurringFrequency: (e as any).recurringConfig?.frequency || 'monthly',
+          recurringEndDate: (e as any).recurringConfig?.endDate?.split('T')[0] || '',
+        });
+      } else {
+        this.editError.set('Failed to load expense');
+      }
+    } catch (err: any) {
+      this.editError.set(err.message || 'Failed to load');
+    } finally {
+      this.editPageLoading.set(false);
+    }
+  }
+
+  closeEditModal() { this.showEditModal.set(false); }
+
+  async handleEditExpense() {
+    if (this.editForm.invalid) { this.editForm.markAllAsTouched(); return; }
+    this.editLoading.set(true);
+    this.editError.set('');
+    const v = this.editForm.value;
+    const payload: any = {
+      type: v.type,
+      description: v.description,
+      amount: Number(v.amount),
+      date: v.date,
+      category: v.category || undefined,
+      paymentMethod: v.paymentMethod || undefined,
+      currency: v.currency || undefined,
+      notes: v.notes || undefined,
+    };
+    if (v.isRecurring && v.recurringFrequency) {
+      payload.recurringConfig = { frequency: v.recurringFrequency, endDate: v.recurringEndDate || undefined };
+    } else {
+      payload.recurringConfig = null;
+    }
+    try {
+      const res = await this.expenseService.updateExpense(this.bookId, this.editExpenseId(), payload);
+      if (res.success) {
+        this.toast.success(v.type === 'income' ? 'Income updated' : 'Expense updated');
+        this.closeEditModal();
+        this.loadExpenses();
+      } else {
+        this.editError.set((res as any).error || 'Failed to update');
+      }
+    } catch (err: any) {
+      this.editError.set(err.message || 'Error updating');
+    } finally {
+      this.editLoading.set(false);
+    }
+  }
 
   openDeleteConfirm(e: Expense) { this.expenseToDelete.set(e); this.showDeleteConfirm.set(true); }
 

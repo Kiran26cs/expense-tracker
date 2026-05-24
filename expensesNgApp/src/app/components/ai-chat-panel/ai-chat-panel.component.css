@@ -406,3 +406,256 @@
   cursor: not-allowed;
   color: #9ca3af;
 }
+
+/* ── Receipt thumbnail in user bubble ─────────────────────────────── */
+.receipt-thumb {
+  display: block;
+  max-width: 180px;
+  max-height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+/* ── Receipt extraction loading ───────────────────────────────────── */
+.receipt-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent);
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--color-primary);
+}
+
+.receipt-loading-icon { font-size: 16px; flex-shrink: 0; }
+
+/* ── Receipt confirmation card ────────────────────────────────────── */
+.receipt-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.receipt-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.receipt-card-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+}
+
+.receipt-card-pdf-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.receipt-card-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.receipt-card-title {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.receipt-confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-success);
+}
+
+.receipt-confidence.confidence-low { color: var(--color-warning); }
+
+.receipt-missing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(245,158,11,0.07);
+  border-bottom: 1px solid rgba(245,158,11,0.15);
+  font-size: 11px;
+  color: #b45309;
+}
+
+.receipt-fields {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.receipt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.receipt-field-row {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.receipt-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.receipt-field-input {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.receipt-field-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
+}
+
+.receipt-amount-row { display: flex; gap: 5px; }
+.receipt-amount-input { flex: 1; }
+.receipt-currency-input { width: 56px; flex-shrink: 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+.receipt-fx-preview { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: color-mix(in srgb, var(--color-primary) 8%, transparent); border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent); border-radius: 8px; font-size: 12px; color: var(--color-primary); }
+.receipt-fx-rate { opacity: 0.75; font-size: 11px; }
+.receipt-fx-warn { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; font-size: 11px; color: var(--color-text-secondary); }
+.receipt-fx-warn i { color: #f59e0b; flex-shrink: 0; }
+.receipt-card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.receipt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s;
+}
+
+.receipt-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.receipt-btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.receipt-btn-primary:not(:disabled):hover { opacity: 0.85; }
+
+.receipt-btn-ghost {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.receipt-btn-ghost:hover { background: var(--color-surface-hover); }
+
+/* ── Context chips ─────────────────────────────────────────────────── */
+.context-chips {
+  display: flex;
+  gap: 6px;
+  padding: 6px 12px 0;
+  flex-wrap: wrap;
+}
+
+.context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  background: var(--color-background);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.context-chip:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.context-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Mic button ────────────────────────────────────────────────────── */
+.mic-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.mic-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.mic-btn.mic-active {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
+  animation: mic-pulse 1.2s infinite;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50%       { box-shadow: 0 0 0 5px rgba(239,68,68,0); }
+}
+
+.mic-btn:disabled { opacity: 0.4; cursor: not-allowed; }

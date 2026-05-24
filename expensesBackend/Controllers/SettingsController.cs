@@ -20,7 +20,11 @@ public class SettingsController : ControllerBase
     private readonly ICacheService _cache;
     private static readonly TimeSpan SettingsCacheTtl = TimeSpan.FromMinutes(30);
 
-    public SettingsController(ICategoryService categoryService, IExpenseBookService expenseBookService, MongoDbContext context, ICacheService cache)
+    public SettingsController(
+        ICategoryService categoryService,
+        IExpenseBookService expenseBookService,
+        MongoDbContext context,
+        ICacheService cache)
     {
         _categoryService = categoryService;
         _expenseBookService = expenseBookService;

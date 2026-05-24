@@ -1,6 +1,12 @@
 @if (isOpen) {
   <div class="chat-overlay" (click)="close()"></div>
 
+  <!-- Hidden file inputs -->
+  <input #imageInput type="file" accept="image/*" capture="environment"
+    style="display:none" (change)="onImageSelected($event)">
+  <input #pdfInput type="file" accept="application/pdf,image/*"
+    style="display:none" (change)="onPdfSelected($event)">
+
   <div class="chat-panel">
     <!-- Header -->
     <div class="chat-header">
@@ -26,7 +32,7 @@
 
     <!-- Messages -->
     <div class="message-list" #messageList>
-      @if (messages.length === 0) {
+      @if (messages.length === 0 && !receiptLoading() && !receiptConfirmation()) {
         <div class="empty-chat">
           <div class="empty-icon">
             <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -44,6 +50,9 @@
             </div>
           }
           <div class="message-bubble">
+            @if (msg.imagePreview) {
+              <img class="receipt-thumb" [src]="msg.imagePreview" alt="Receipt">
+            }
             <span class="message-text">{{ msg.content }}</span>
             <span class="message-time">{{ formatTime(msg.timestamp) }}</span>
           </div>
@@ -59,6 +68,112 @@
             <span class="typing-dots">
               <span></span><span></span><span></span>
             </span>
+          </div>
+        </div>
+      }
+
+      <!-- Receipt extraction loading -->
+      @if (receiptLoading()) {
+        <div class="receipt-loading">
+          <i class="fa-solid fa-receipt receipt-loading-icon"></i>
+          <span>Reading receipt…</span>
+          <span class="typing-dots"><span></span><span></span><span></span></span>
+        </div>
+      }
+
+      <!-- Receipt confirmation card -->
+      @if (receiptConfirmation(); as r) {
+        <div class="receipt-card">
+          <div class="receipt-card-header">
+            @if (r.previewUrl) {
+              <img class="receipt-card-thumb" [src]="r.previewUrl" alt="Receipt">
+            } @else {
+              <div class="receipt-card-pdf-icon">
+                <i class="fa-solid fa-file-pdf"></i>
+              </div>
+            }
+            <div class="receipt-card-title-block">
+              <span class="receipt-card-title">Receipt extracted</span>
+              <span class="receipt-confidence" [class.confidence-low]="r.confidence < 60">
+                <i class="fa-solid fa-circle-check"></i>
+                {{ r.confidence }}% confidence
+              </span>
+            </div>
+          </div>
+
+          @if (r.missingFields.length > 0) {
+            <div class="receipt-missing">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              Couldn't read: {{ r.missingFields.join(', ') }}
+            </div>
+          }
+
+          <div class="receipt-fields">
+            <div class="receipt-field">
+              <label class="receipt-field-label">Description</label>
+              <input class="receipt-field-input" type="text" [value]="r.description"
+                (input)="updateReceiptField('description', $any($event.target).value)">
+            </div>
+            <div class="receipt-field receipt-field-row">
+              <div class="receipt-field">
+                <label class="receipt-field-label">Amount</label>
+                <div class="receipt-amount-row">
+                  <input class="receipt-field-input receipt-amount-input" type="number" min="0" step="0.01"
+                    [value]="r.amount ?? ''"
+                    (input)="updateReceiptField('amount', +$any($event.target).value || null)">
+                  <input class="receipt-field-input receipt-currency-input" type="text" maxlength="5"
+                    [value]="r.currency"
+                    (input)="updateReceiptField('currency', $any($event.target).value.toUpperCase())">
+                </div>
+              </div>
+              <div class="receipt-field">
+                <label class="receipt-field-label">Date</label>
+                <input class="receipt-field-input" type="date" [value]="r.date"
+                  (input)="updateReceiptField('date', $any($event.target).value)">
+              </div>
+            </div>
+
+            @if (receiptIsForeign()) {
+              @if (receiptConversionPreview(); as preview) {
+                <div class="receipt-fx-preview">
+                  <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                  ≈ {{ preview.bookCurrency }} {{ preview.converted | number:'1.2-2' }}
+                  <span class="receipt-fx-rate">(rate: {{ preview.rate }})</span>
+                </div>
+              } @else if (receiptNoRate()) {
+                <div class="receipt-fx-warn">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  No rate for {{ r.currency }} — AI will note this. Add rate in Settings.
+                </div>
+              }
+            }
+            <div class="receipt-field receipt-field-row">
+              <div class="receipt-field">
+                <label class="receipt-field-label">Category</label>
+                <input class="receipt-field-input" type="text" [value]="r.category"
+                  (input)="updateReceiptField('category', $any($event.target).value)">
+              </div>
+              <div class="receipt-field">
+                <label class="receipt-field-label">Payment</label>
+                <input class="receipt-field-input" type="text" [value]="r.paymentMethod"
+                  (input)="updateReceiptField('paymentMethod', $any($event.target).value)">
+              </div>
+            </div>
+            <div class="receipt-field">
+              <label class="receipt-field-label">Notes</label>
+              <input class="receipt-field-input" type="text" [value]="r.notes"
+                (input)="updateReceiptField('notes', $any($event.target).value)">
+            </div>
+          </div>
+
+          <div class="receipt-card-actions">
+            <button class="receipt-btn receipt-btn-primary" (click)="addReceiptExpense()"
+              [disabled]="loading">
+              <i class="fa-solid fa-plus"></i> Add Expense
+            </button>
+            <button class="receipt-btn receipt-btn-ghost" (click)="dismissReceipt()">
+              Dismiss
+            </button>
           </div>
         </div>
       }
@@ -86,6 +201,18 @@
       </div>
     }
 
+    <!-- Context chips -->
+    @if (!noCredits && !receiptLoading() && !receiptConfirmation()) {
+      <div class="context-chips">
+        <button class="context-chip" (click)="openImageCapture()" [disabled]="loading" title="Capture a receipt photo">
+          <i class="fa-solid fa-camera"></i> Capture Receipt
+        </button>
+        <button class="context-chip" (click)="openPdfUpload()" [disabled]="loading" title="Upload PDF or image receipt">
+          <i class="fa-solid fa-file-arrow-up"></i> Upload Receipt
+        </button>
+      </div>
+    }
+
     <!-- Input -->
     <div class="chat-input-area" [class.input-disabled]="noCredits">
       <textarea
@@ -96,6 +223,13 @@
         rows="1"
         [disabled]="loading || noCredits"
       ></textarea>
+      @if (hasSpeechSupport) {
+        <button class="mic-btn" [class.mic-active]="isListening()"
+          (click)="toggleVoice()" [disabled]="loading || noCredits"
+          [title]="isListening() ? 'Stop listening' : 'Speak'">
+          <i class="fa-solid" [class.fa-microphone]="!isListening()" [class.fa-stop]="isListening()"></i>
+        </button>
+      }
       <button
         class="send-btn"
         (click)="send()"

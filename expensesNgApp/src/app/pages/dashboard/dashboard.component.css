@@ -48,7 +48,7 @@
 .mark-paid-amount { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-primary); }
 .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem; }
 @media (max-width: 767px) {
-  .dashboard { overflow-x: hidden; }
+  .dashboard { overflow-x: hidden; width: 100%; box-sizing: border-box; }
 
   /* 2-column summary cards on mobile */
   .summary-cards { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
@@ -57,12 +57,14 @@
   .card-label { font-size: 0.625rem; }
   .card-value { font-size: var(--font-size-lg); }
 
-  /* Header actions wrap so date picker + refresh don't overflow */
-  .header-actions { flex-wrap: wrap; }
+  /* Header: wrap + constrain so date picker doesn't overflow narrow screens */
+  .dashboard-header { gap: 0.5rem; }
+  .header-actions { flex-wrap: wrap; min-width: 0; overflow: hidden; }
 
-  .charts-row { grid-template-columns: 1fr; }
-  .chart-wrapper { flex-direction: column; align-items: stretch; }
+  .charts-row { grid-template-columns: 1fr; min-width: 0; }
+  /* min-width: 0 is the key flexbox/grid fix — without it flex items won't shrink below content size */
+  .chart-wrapper { flex-direction: column; align-items: stretch; min-width: 0; }
   .pie-canvas-wrap { width: 100%; min-width: 0; height: 220px; flex-shrink: unset; }
-  .bar-chart-wrapper { height: 220px; }
+  .bar-chart-wrapper { height: 220px; width: 100%; min-width: 0; }
   .payment-item { flex-wrap: wrap; }
 }

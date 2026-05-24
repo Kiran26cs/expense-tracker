@@ -25,7 +25,17 @@
           </app-select>
           <app-select label="Payment Method" formControlName="paymentMethod" [options]="paymentMethodOptions()">
           </app-select>
-          <app-input label="Currency" formControlName="currency" placeholder="USD"></app-input>
+          <div class="form-field">
+            <label class="input-label">Currency</label>
+            <div class="currency-display">{{ form.get('currency')?.value || 'USD' }}</div>
+          </div>
+        </div>
+
+        <div *ngIf="originalCurrency()" class="fx-info-banner">
+          <i class="fa-solid fa-circle-info"></i>
+          Originally {{ originalAmount() | number:'1.2-2' }} {{ originalCurrency() }}
+          <span *ngIf="fxRate()"> at rate {{ fxRate() }}</span>
+          — amount shown is the book-currency equivalent.
         </div>
 
         <app-textarea label="Notes (optional)" formControlName="notes" placeholder="Any additional notes..."></app-textarea>

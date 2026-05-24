@@ -141,6 +141,79 @@ public class ClaudeOrchestrator
         return ("I was unable to complete your request. Please try again.", toolsUsed);
     }
 
+    // ── Receipt extraction ────────────────────────────────────────────────────
+
+    public async Task<ReceiptExtractResponse> ExtractReceiptAsync(
+        string fileBase64,
+        string mimeType,
+        string bookCurrency,
+        string todayDate)
+    {
+        var jsonTemplate = "{\n"
+            + $"  \"description\": \"merchant or item name\",\n"
+            + $"  \"amount\": 0.00,\n"
+            + $"  \"currency\": \"{bookCurrency}\",\n"
+            + "  \"date\": \"YYYY-MM-DD\",\n"
+            + "  \"category\": \"Food & Dining|Transport|Shopping|Utilities|Healthcare|Entertainment|Other\",\n"
+            + "  \"paymentMethod\": \"Cash|Credit Card|Debit Card|UPI|Net Banking|Other\",\n"
+            + "  \"type\": \"expense\",\n"
+            + "  \"notes\": null,\n"
+            + "  \"confidence\": 85,\n"
+            + "  \"missingFields\": []\n"
+            + "}";
+
+        var systemPrompt =
+            $"You are a receipt data extractor for an expense tracker app.\n"
+            + $"Extract expense details from the provided receipt image or PDF.\n"
+            + $"The expense book uses {bookCurrency} as its currency. Today's date is {todayDate}.\n\n"
+            + "Respond with ONLY a valid JSON object — no markdown, no extra text.\n"
+            + jsonTemplate + "\n\n"
+            + "Rules:\n"
+            + "- Use null for fields you cannot determine; list them in missingFields.\n"
+            + "- confidence is 0-100 indicating extraction reliability.\n"
+            + "- Use the grand total as amount when multiple totals appear.\n"
+            + "- date must be YYYY-MM-DD; default to today if not visible.";
+
+        object fileContent = mimeType == "application/pdf"
+            ? new { type = "document", source = new { type = "base64", media_type = "application/pdf", data = fileBase64 } }
+            : (object)new { type = "image", source = new { type = "base64", media_type = mimeType, data = fileBase64 } };
+
+        var body = new
+        {
+            model = "claude-haiku-4-5-20251001",
+            max_tokens = 1024,
+            system = systemPrompt,
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = new object[] { fileContent, new { type = "text", text = "Extract the expense details." } }
+                }
+            }
+        };
+
+        var responseJson = await PostAsync(JsonSerializer.Serialize(body, SerializeOpts));
+        var response = JsonNode.Parse(responseJson)!.AsObject();
+        var text = response["content"]?[0]?["text"]?.GetValue<string>() ?? "{}";
+
+        var jsonStart = text.IndexOf('{');
+        var jsonEnd   = text.LastIndexOf('}');
+        if (jsonStart >= 0 && jsonEnd > jsonStart)
+            text = text[jsonStart..(jsonEnd + 1)];
+
+        try
+        {
+            return JsonSerializer.Deserialize<ReceiptExtractResponse>(text,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? new ReceiptExtractResponse { MissingFields = ["all fields"], Confidence = 0 };
+        }
+        catch
+        {
+            return new ReceiptExtractResponse { MissingFields = ["all fields"], Confidence = 0 };
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private string BuildRequestJson(

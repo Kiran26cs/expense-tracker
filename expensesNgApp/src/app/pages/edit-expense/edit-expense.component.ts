@@ -34,6 +34,9 @@ export class EditExpenseComponent implements OnInit {
   error = signal('');
   bookId = '';
   expenseId = '';
+  originalAmount = signal<number | null>(null);
+  originalCurrency = signal<string | null>(null);
+  fxRate = signal<number | null>(null);
 
   private fb = inject(FormBuilder);
   private expenseService = inject(ExpenseService);
@@ -88,6 +91,9 @@ export class EditExpenseComponent implements OnInit {
         // Resolve name-based values to IDs for backward compatibility
         const resolvedCat = this.categories().find(c => c.id === catVal || c.name === catVal);
         const resolvedPm = this.paymentMethods().find(p => p.id === pmVal || p.name === pmVal);
+        this.originalAmount.set(e.originalAmount ?? null);
+        this.originalCurrency.set(e.originalCurrency ?? null);
+        this.fxRate.set(e.fxRate ?? null);
         this.form.patchValue({
           type: e.type, description: e.description, amount: e.amount,
           date: e.date?.split('T')[0] || '',

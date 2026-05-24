@@ -78,9 +78,12 @@
               <td><span class="badge" [class.income-badge]="e.type === 'income'" [class.expense-badge]="e.type === 'expense'">{{ e.type }}</span></td>
               <td class="text-right" [class.income-text]="e.type === 'income'" [class.expense-text]="e.type === 'expense'">
                 {{ e.type === 'income' ? '+' : '-' }}{{ formatCurrency(e.amount, e.currency) }}
+                <span *ngIf="e.originalCurrency" class="fx-orig-badge" [title]="'Original: ' + e.originalAmount + ' ' + e.originalCurrency + ' @ ' + e.fxRate">
+                  {{ e.originalAmount | number:'1.2-2' }} {{ e.originalCurrency }}
+                </span>
               </td>
               <td class="actions-cell">
-                <app-button *ngIf="bookAccess.canWriteExpenses()" size="sm" variant="ghost" (clicked)="navigateToEdit(e.id)">Edit</app-button>
+                <app-button *ngIf="bookAccess.canWriteExpenses()" size="sm" variant="ghost" (clicked)="openEditModal(e.id)">Edit</app-button>
                 <app-button *ngIf="bookAccess.canDeleteExpenses()" size="sm" variant="danger" (clicked)="openDeleteConfirm(e)">Delete</app-button>
               </td>
             </tr>
@@ -138,13 +141,41 @@
           <div class="ae-field">
             <label class="ae-label">Amount *</label>
             <div class="ae-input-icon-wrap">
-              <span class="ae-input-icon">$</span>
+              <span class="ae-input-icon">{{ currentBook.currency() }}</span>
               <input class="ae-input ae-input-icon-pad" type="number" formControlName="amount" placeholder="0.00" step="0.01" min="0.01">
             </div>
           </div>
           <div class="ae-field">
             <label class="ae-label">Date *</label>
             <input class="ae-input" type="date" formControlName="date">
+          </div>
+        </div>
+
+        <!-- Currency selector -->
+        <div class="ae-field">
+          <label class="ae-label">Currency</label>
+          <select class="ae-select"
+            [value]="addSelectedCurrency()"
+            (change)="onAddCurrencyChange($any($event.target).value)">
+            <option *ngFor="let c of addCurrencyOptions()" [value]="c">
+              {{ c }}{{ c === currentBook.currency() ? ' (book)' : '' }}
+            </option>
+          </select>
+        </div>
+
+        <!-- FX preview / warning -->
+        <div *ngIf="addIsForeignCurrency()">
+          <div *ngIf="addRateLoading()" class="ae-fx-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i> Looking up rate…
+          </div>
+          <div *ngIf="!addRateLoading() && addConversionPreview() as preview" class="ae-fx-preview">
+            <i class="fa-solid fa-arrow-right-arrow-left"></i>
+            ≈ {{ preview.bookCurrency }} {{ preview.converted | number:'1.2-2' }}
+            <span class="ae-fx-rate">(rate: {{ preview.rate }})</span>
+          </div>
+          <div *ngIf="addNoRateWarning()" class="ae-fx-warn">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Conversion not available for {{ addSelectedCurrency() }} — enter amount in {{ currentBook.currency() }} instead
           </div>
         </div>
 
@@ -275,6 +306,109 @@
           {{ addImportLoading() ? 'Importing...' : 'Import ' + addImportData().length + ' Expense(s)' }}
         </app-button>
       </ng-container>
+    </div>
+  </app-modal>
+
+  <!-- Edit Expense Modal -->
+  <app-modal [isOpen]="showEditModal()" title="Edit Transaction" maxWidth="680px" (closed)="closeEditModal()">
+    <app-loading *ngIf="editPageLoading()" text="Loading..."></app-loading>
+
+    <ng-container *ngIf="!editPageLoading()">
+      <div *ngIf="editError()" class="ae-error">{{ editError() }}</div>
+
+      <form [formGroup]="editForm" (ngSubmit)="handleEditExpense()">
+        <!-- Type Toggle -->
+        <div class="ae-type-tabs">
+          <button type="button" class="ae-type-tab" [class.ae-type-tab-expense]="editForm.get('type')?.value === 'expense'" (click)="editForm.get('type')?.setValue('expense')">Expense</button>
+          <button type="button" class="ae-type-tab" [class.ae-type-tab-income]="editForm.get('type')?.value === 'income'" (click)="editForm.get('type')?.setValue('income')">Income</button>
+        </div>
+
+        <!-- Amount + Date -->
+        <div class="ae-row">
+          <div class="ae-field">
+            <label class="ae-label">Amount *</label>
+            <div class="ae-input-icon-wrap">
+              <span class="ae-input-icon">{{ currentBook.currency() }}</span>
+              <input class="ae-input ae-input-icon-pad" type="number" formControlName="amount" placeholder="0.00" step="0.01" min="0.01">
+            </div>
+            <span *ngIf="editForm.get('amount')?.invalid && editForm.get('amount')?.touched" class="ae-field-error">Amount is required</span>
+          </div>
+          <div class="ae-field">
+            <label class="ae-label">Date *</label>
+            <input class="ae-input" type="date" formControlName="date">
+          </div>
+        </div>
+
+        <!-- FX info banner (read-only, shown when expense had foreign currency) -->
+        <div *ngIf="editOriginalCurrency()" class="ae-fx-preview" style="margin-bottom:1rem;">
+          <i class="fa-solid fa-circle-info"></i>
+          Originally {{ editOriginalAmount() | number:'1.2-2' }} {{ editOriginalCurrency() }}
+          <span *ngIf="editFxRate()"> at rate {{ editFxRate() }}</span>
+          — amount shown is the book-currency equivalent
+        </div>
+
+        <!-- Category + Payment Method -->
+        <div class="ae-row">
+          <div class="ae-field">
+            <label class="ae-label">Category</label>
+            <select class="ae-select" formControlName="category">
+              <option value="">Select an option</option>
+              <option *ngFor="let c of categories()" [value]="c.id">{{ c.name }}</option>
+            </select>
+          </div>
+          <div class="ae-field">
+            <label class="ae-label">Payment Method</label>
+            <select class="ae-select" formControlName="paymentMethod">
+              <option value="">Select an option</option>
+              <option *ngFor="let p of paymentMethods()" [value]="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="ae-field">
+          <label class="ae-label">Description *</label>
+          <input class="ae-input" type="text" formControlName="description" placeholder="Brief description">
+          <span *ngIf="editForm.get('description')?.invalid && editForm.get('description')?.touched" class="ae-field-error">Description is required</span>
+        </div>
+
+        <!-- Notes -->
+        <div class="ae-field">
+          <label class="ae-label">Notes (optional)</label>
+          <textarea class="ae-textarea" formControlName="notes" placeholder="Additional notes" rows="3"></textarea>
+        </div>
+
+        <!-- Recurring -->
+        <div class="ae-checkbox-row">
+          <label class="ae-checkbox">
+            <input type="checkbox" formControlName="isRecurring">
+            <span>This is a recurring transaction</span>
+          </label>
+        </div>
+
+        <div *ngIf="editForm.get('isRecurring')?.value" class="ae-row">
+          <div class="ae-field">
+            <label class="ae-label">Frequency</label>
+            <select class="ae-select" formControlName="recurringFrequency">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+          <div class="ae-field">
+            <label class="ae-label">End Date (optional)</label>
+            <input class="ae-input" type="date" formControlName="recurringEndDate">
+          </div>
+        </div>
+      </form>
+    </ng-container>
+
+    <div modal-footer>
+      <app-button type="button" variant="ghost" (clicked)="closeEditModal()" [disabled]="editLoading()">Cancel</app-button>
+      <app-button type="button" (clicked)="handleEditExpense()" [disabled]="editLoading() || editPageLoading()">
+        {{ editLoading() ? 'Saving...' : editForm.get('type')?.value === 'income' ? 'Update Income' : 'Update Expense' }}
+      </app-button>
     </div>
   </app-modal>
 
