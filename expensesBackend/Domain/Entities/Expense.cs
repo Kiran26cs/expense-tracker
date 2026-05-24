@@ -42,6 +42,19 @@ public class Expense
     [BsonElement("receiptUrl")]
     public string? ReceiptUrl { get; set; }
 
+    [BsonElement("originalAmount")]
+    [BsonIgnoreIfNull]
+    public decimal? OriginalAmount { get; set; }
+
+    [BsonElement("originalCurrency")]
+    [BsonIgnoreIfNull]
+    public string? OriginalCurrency { get; set; }
+
+    /// <summary>Units of book currency per 1 unit of OriginalCurrency at the time of entry.</summary>
+    [BsonElement("fxRate")]
+    [BsonIgnoreIfNull]
+    public decimal? FxRate { get; set; }
+
     [BsonElement("isRecurring")]
     public bool IsRecurring { get; set; }
 

@@ -15,11 +15,13 @@ public class ExpenseService : IExpenseService
 {
     private readonly MongoDbContext _context;
     private readonly ICacheService _cache;
+    private readonly ICurrencyConversionService _fx;
 
-    public ExpenseService(MongoDbContext context, ICacheService cache)
+    public ExpenseService(MongoDbContext context, ICacheService cache, ICurrencyConversionService fx)
     {
         _context = context;
-        _cache = cache;
+        _cache   = cache;
+        _fx      = fx;
     }
 
     public async Task<List<ExpenseDto>> GetExpensesAsync(string userId, string? expenseBookId, DateTime? startDate, DateTime? endDate, string? category)
@@ -204,19 +206,21 @@ public class ExpenseService : IExpenseService
 
     private static ExpenseDto MapBsonToDto(BsonDocument d) => new()
     {
-        Id            = d["_id"].AsString,
-        ExpenseBookId = d.TryGetValue("expenseBookId", out var bid) ? bid.AsString : null,
-        Type          = d.TryGetValue("type", out var t) ? t.AsString : "expense",
-        Amount        = d.TryGetValue("amount", out var amt)
-                            ? (decimal)amt.ToDouble() : 0m,
-        Date          = d.TryGetValue("date", out var dt) ? dt.ToUniversalTime() : DateTime.UtcNow,
-        Category      = d.TryGetValue("category", out var cat) ? cat.AsString : "",
-        PaymentMethod = d.TryGetValue("paymentMethod", out var pm) ? pm.AsString : "",
-        Description   = d.TryGetValue("description", out var desc) && !desc.IsBsonNull ? desc.AsString : null,
-        Notes         = d.TryGetValue("notes", out var notes) && !notes.IsBsonNull ? notes.AsString : null,
-        ReceiptUrl    = d.TryGetValue("receiptUrl", out var ru) && !ru.IsBsonNull ? ru.AsString : null,
-        IsRecurring   = d.TryGetValue("isRecurring", out var ir) && ir.AsBoolean,
-        CreatedAt     = d.TryGetValue("createdAt", out var ca) ? ca.ToUniversalTime() : DateTime.UtcNow,
+        Id               = d["_id"].AsString,
+        ExpenseBookId    = d.TryGetValue("expenseBookId", out var bid) ? bid.AsString : null,
+        Type             = d.TryGetValue("type", out var t) ? t.AsString : "expense",
+        Amount           = d.TryGetValue("amount", out var amt) ? (decimal)amt.ToDouble() : 0m,
+        Date             = d.TryGetValue("date", out var dt) ? dt.ToUniversalTime() : DateTime.UtcNow,
+        Category         = d.TryGetValue("category", out var cat) ? cat.AsString : "",
+        PaymentMethod    = d.TryGetValue("paymentMethod", out var pm) ? pm.AsString : "",
+        Description      = d.TryGetValue("description", out var desc) && !desc.IsBsonNull ? desc.AsString : null,
+        Notes            = d.TryGetValue("notes", out var notes) && !notes.IsBsonNull ? notes.AsString : null,
+        ReceiptUrl       = d.TryGetValue("receiptUrl", out var ru) && !ru.IsBsonNull ? ru.AsString : null,
+        IsRecurring      = d.TryGetValue("isRecurring", out var ir) && ir.AsBoolean,
+        CreatedAt        = d.TryGetValue("createdAt", out var ca) ? ca.ToUniversalTime() : DateTime.UtcNow,
+        OriginalAmount   = d.TryGetValue("originalAmount", out var oa) && !oa.IsBsonNull ? (decimal?)oa.ToDouble() : null,
+        OriginalCurrency = d.TryGetValue("originalCurrency", out var oc) && !oc.IsBsonNull ? oc.AsString : null,
+        FxRate           = d.TryGetValue("fxRate", out var fx) && !fx.IsBsonNull ? (decimal?)fx.ToDouble() : null,
     };
 
     public async Task<ExpenseDto> GetExpenseByIdAsync(string userId, string expenseId)
@@ -289,18 +293,46 @@ public class ExpenseService : IExpenseService
         }
 
         // Non-recurring: create the expense entry as usual
+        var finalAmount = request.Amount;
+        decimal? originalAmount = null;
+        string? originalCurrency = null;
+        decimal? fxRate = null;
+
+        if (!string.IsNullOrEmpty(request.OriginalCurrency) && request.OriginalAmount.HasValue)
+        {
+            var expBook = await _context.ExpenseBooks
+                .Find(b => b.Id == request.ExpenseBookId).FirstOrDefaultAsync();
+            var bookCurrency = expBook?.Currency ?? string.Empty;
+
+            if (!string.Equals(request.OriginalCurrency, bookCurrency, StringComparison.OrdinalIgnoreCase))
+            {
+                var rate = await _fx.GetRateAsync(request.OriginalCurrency, bookCurrency, request.Date);
+                if (rate.HasValue)
+                {
+                    originalAmount   = request.OriginalAmount;
+                    originalCurrency = request.OriginalCurrency.ToUpperInvariant();
+                    fxRate           = rate.Value;
+                    finalAmount      = Math.Round(request.OriginalAmount.Value * rate.Value, 2);
+                }
+                // If no rate configured, fall through and use Amount as supplied by the client
+            }
+        }
+
         var expense = new Expense
         {
-            UserId = userId,
-            ExpenseBookId = request.ExpenseBookId,
-            Type = string.IsNullOrEmpty(request.Type) ? "expense" : request.Type,
-            Amount = request.Amount,
-            Date = request.Date,
-            Category = request.Category,
-            PaymentMethod = request.PaymentMethod,
-            Description = request.Description,
-            Notes = request.Notes,
-            IsRecurring = false
+            UserId           = userId,
+            ExpenseBookId    = request.ExpenseBookId,
+            Type             = string.IsNullOrEmpty(request.Type) ? "expense" : request.Type,
+            Amount           = finalAmount,
+            OriginalAmount   = originalAmount,
+            OriginalCurrency = originalCurrency,
+            FxRate           = fxRate,
+            Date             = request.Date,
+            Category         = request.Category,
+            PaymentMethod    = request.PaymentMethod,
+            Description      = request.Description,
+            Notes            = request.Notes,
+            IsRecurring      = false
         };
 
         await _context.Expenses.InsertOneAsync(expense);
@@ -524,18 +556,21 @@ public class ExpenseService : IExpenseService
     {
         return new ExpenseDto
         {
-            Id = expense.Id,
-            ExpenseBookId = expense.ExpenseBookId,
-            Type = string.IsNullOrEmpty(expense.Type) ? "expense" : expense.Type,
-            Amount = expense.Amount,
-            Date = expense.Date,
-            Category = expense.Category,
-            PaymentMethod = expense.PaymentMethod,
-            Description = expense.Description,
-            Notes = expense.Notes,
-            ReceiptUrl = expense.ReceiptUrl,
-            IsRecurring = expense.IsRecurring,
-            CreatedAt = expense.CreatedAt
+            Id               = expense.Id,
+            ExpenseBookId    = expense.ExpenseBookId,
+            Type             = string.IsNullOrEmpty(expense.Type) ? "expense" : expense.Type,
+            Amount           = expense.Amount,
+            Date             = expense.Date,
+            Category         = expense.Category,
+            PaymentMethod    = expense.PaymentMethod,
+            Description      = expense.Description,
+            Notes            = expense.Notes,
+            ReceiptUrl       = expense.ReceiptUrl,
+            IsRecurring      = expense.IsRecurring,
+            CreatedAt        = expense.CreatedAt,
+            OriginalAmount   = expense.OriginalAmount,
+            OriginalCurrency = expense.OriginalCurrency,
+            FxRate           = expense.FxRate,
         };
     }
 

@@ -67,8 +67,8 @@ public class ToolRegistry
         if (perms.Expenses == "write")
         {
             tools.Add(new("create_expense",
-                "Create a new expense in the active book.",
-                """{"type":"object","properties":{"amount":{"type":"number"},"description":{"type":"string"},"category":{"type":"string","description":"Category name or ID"},"date":{"type":"string","description":"ISO date YYYY-MM-DD (defaults to today)"},"paymentMethod":{"type":"string","description":"e.g. cash, card, UPI"},"notes":{"type":"string"}},"required":["amount","category","paymentMethod"]}"""));
+                "Create a new expense in the active book. If the user mentions a foreign currency amount, supply originalAmount and originalCurrency; the system will convert to the book currency automatically.",
+                """{"type":"object","properties":{"amount":{"type":"number","description":"Amount in book currency. If originalCurrency is supplied this can be omitted — it will be calculated automatically."},"description":{"type":"string"},"category":{"type":"string","description":"Category name or ID"},"date":{"type":"string","description":"ISO date YYYY-MM-DD (defaults to today)"},"paymentMethod":{"type":"string","description":"e.g. cash, card, UPI"},"notes":{"type":"string"},"originalAmount":{"type":"number","description":"Amount in the original foreign currency (omit if same as book currency)"},"originalCurrency":{"type":"string","description":"ISO 4217 code of the foreign currency, e.g. USD, EUR (omit if same as book currency)"}},"required":["category","paymentMethod"]}"""));
 
             tools.Add(new("update_expense",
                 "Update an existing expense. Only provide fields that should change.",
@@ -254,19 +254,33 @@ public class ToolRegistry
         var dateStr = args["date"]?.GetValue<string>();
         var date    = string.IsNullOrEmpty(dateStr) ? DateTime.UtcNow : DateTime.Parse(dateStr);
 
+        var originalCurrency = args["originalCurrency"]?.GetValue<string>();
+        var originalAmount   = args["originalAmount"]?.GetValue<decimal?>();
+        // When a foreign currency is provided, amount may be omitted — service will compute it
+        var amountNode = args["amount"];
+        var amount = amountNode != null ? amountNode.GetValue<decimal>()
+                   : (originalAmount ?? 0m);
+
         var req = new CreateExpenseRequest
         {
-            ExpenseBookId = ctx.BookId,
-            Amount        = args["amount"]!.GetValue<decimal>(),
-            Description   = args["description"]?.GetValue<string>(),
-            Category      = categoryName,
-            Date          = date,
-            PaymentMethod = args["paymentMethod"]!.GetValue<string>(),
-            Notes         = args["notes"]?.GetValue<string>(),
+            ExpenseBookId    = ctx.BookId,
+            Amount           = amount,
+            Description      = args["description"]?.GetValue<string>(),
+            Category         = categoryName,
+            Date             = date,
+            PaymentMethod    = args["paymentMethod"]!.GetValue<string>(),
+            Notes            = args["notes"]?.GetValue<string>(),
+            OriginalAmount   = originalAmount,
+            OriginalCurrency = originalCurrency,
         };
 
         var expense = await _expenses.CreateExpenseAsync(ctx.UserId, req);
-        return Serialize(new { expense.Id, expense.Amount, expense.Description, expense.Category, expense.Date });
+        var result  = new
+        {
+            expense.Id, expense.Amount, expense.Description, expense.Category, expense.Date,
+            expense.OriginalAmount, expense.OriginalCurrency, expense.FxRate
+        };
+        return Serialize(result);
     }
 
     private async Task<string> UpdateExpenseAsync(JsonObject args, ToolExecutionContext ctx)

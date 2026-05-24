@@ -23,6 +23,9 @@ export interface Expense {
   amount: number;
   date: string;
   currency?: string;
+  originalAmount?: number;
+  originalCurrency?: string;
+  fxRate?: number;
   category: Category | string;
   paymentMethod?: PaymentMethod | string;
   description: string;

@@ -72,6 +72,7 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<ILendingService, LendingService>();
 builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddHttpClient<ICurrencyConversionService, FrankfurterCurrencyService>();
 builder.Services.AddScoped<ITemplateBookService, TemplateBookService>();
 builder.Services.AddSingleton<ITemplateBlobService, TemplateBlobService>();
 builder.Services.AddMemoryCache();

@@ -143,7 +143,12 @@ export class SettingsComponent implements OnInit {
 
   async loadAll() {
     this.aiChatEnabled.set(this.currentBook.book()?.aiChatEnabled ?? false);
-    await Promise.all([this.loadCategories(), this.loadPaymentMethods(), this.loadGeneralSettings(), this.loadUsage()]);
+    await Promise.all([
+      this.loadCategories(),
+      this.loadPaymentMethods(),
+      this.loadGeneralSettings(),
+      this.loadUsage(),
+    ]);
   }
 
   async loadUsage() {

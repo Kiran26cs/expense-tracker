@@ -28,7 +28,26 @@
           </app-select>
           <div class="form-field">
             <label class="input-label">Currency</label>
-            <div class="currency-display">{{ currentBook.currency() }}</div>
+            <select class="currency-select"
+              [value]="selectedCurrency()"
+              (change)="onCurrencyChange($any($event.target).value)">
+              <option *ngFor="let c of currencyOptions()" [value]="c">
+                {{ c }}{{ c === currentBook.currency() ? ' (book)' : '' }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div *ngIf="isForeignCurrency()">
+          <div *ngIf="rateLoading()" class="fx-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i> Looking up rate…
+          </div>
+          <div *ngIf="!rateLoading() && conversionPreview() as preview" class="fx-preview">
+            ≈ {{ preview.bookCurrency }} {{ preview.converted | number:'1.2-2' }}
+            <span class="fx-rate">(rate: {{ preview.rate }})</span>
+          </div>
+          <div *ngIf="noRateWarning()" class="fx-no-rate">
+            ⚠ Conversion not available for {{ selectedCurrency() }} — enter amount in {{ currentBook.currency() }} instead
           </div>
         </div>
 

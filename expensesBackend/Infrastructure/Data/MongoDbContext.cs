@@ -282,5 +282,6 @@ public class MongoDbContext
                 .Ascending(ct => ct.ExpenseBookId)
                 .Descending(ct => ct.Timestamp),
             new CreateIndexOptions { Name = "idx_credittx_book_time" }));
+
     }
 }

@@ -12,5 +12,10 @@
     margin-left: 0 !important;
     padding: var(--spacing-md);
     padding-bottom: calc(var(--mobile-nav-height) + var(--spacing-md));
+    /* Prevent any child element from expanding the content area beyond the viewport */
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    box-sizing: border-box;
   }
 }

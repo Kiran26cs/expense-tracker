@@ -13,4 +13,9 @@
 .toggle-label input { accent-color: var(--color-primary); width: 16px; height: 16px; }
 .recurring-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .form-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+.form-field { display: flex; flex-direction: column; gap: 0.375rem; }
+.input-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--color-text-secondary); }
+.currency-display { padding: 0.625rem 0.75rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); letter-spacing: 0.05em; }
+.fx-info-banner { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: color-mix(in srgb, var(--color-primary) 8%, transparent); border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent); border-radius: var(--radius-md); font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.fx-info-banner i { color: var(--color-primary); flex-shrink: 0; }
 @media (max-width: 600px) { .form-grid, .recurring-fields { grid-template-columns: 1fr; } }
