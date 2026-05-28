@@ -207,7 +207,8 @@ public class ToolRegistry
         await _permissions.AssertCanAsync(ctx.BookId, ctx.UserId, "expenses");
 
         var category = args["category"]?.GetValue<string>();
-        if (ctx.Permissions.AllowedCategoryIds.Count > 0
+        if (!ctx.Permissions.IsOwner
+            && ctx.Permissions.AllowedCategoryIds.Count > 0
             && !string.IsNullOrEmpty(category)
             && !ctx.Permissions.AllowedCategoryIds.Contains(category))
             throw new UnauthorizedAccessException("You do not have access to this category.");
@@ -247,7 +248,8 @@ public class ToolRegistry
         var categoryArg = args["category"]!.GetValue<string>();
         var (categoryName, categoryId) = await ResolveCategoryAsync(categoryArg, ctx.BookId);
 
-        if (ctx.Permissions.AllowedCategoryIds.Count > 0
+        if (!ctx.Permissions.IsOwner
+            && ctx.Permissions.AllowedCategoryIds.Count > 0
             && !ctx.Permissions.AllowedCategoryIds.Contains(categoryId))
             throw new UnauthorizedAccessException($"You are not allowed to use the category '{categoryName}'.");
 
@@ -291,7 +293,8 @@ public class ToolRegistry
         if (args["category"] is not null)
         {
             var (name, id) = await ResolveCategoryAsync(args["category"]!.GetValue<string>(), ctx.BookId);
-            if (ctx.Permissions.AllowedCategoryIds.Count > 0
+            if (!ctx.Permissions.IsOwner
+                && ctx.Permissions.AllowedCategoryIds.Count > 0
                 && !ctx.Permissions.AllowedCategoryIds.Contains(id))
                 throw new UnauthorizedAccessException($"You are not allowed to use the category '{name}'.");
             categoryName = name;
@@ -326,7 +329,8 @@ public class ToolRegistry
         var categoryArg = args["category"]!.GetValue<string>();
         var (categoryName, categoryId) = await ResolveCategoryAsync(categoryArg, ctx.BookId);
 
-        if (ctx.Permissions.AllowedCategoryIds.Count > 0
+        if (!ctx.Permissions.IsOwner
+            && ctx.Permissions.AllowedCategoryIds.Count > 0
             && !ctx.Permissions.AllowedCategoryIds.Contains(categoryId))
             throw new UnauthorizedAccessException($"You are not allowed to use the category '{categoryName}'.");
 

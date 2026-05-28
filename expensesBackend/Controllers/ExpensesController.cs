@@ -131,8 +131,9 @@ public class ExpensesController : ControllerBase
                 if (perms.Expenses != "write")
                     return StatusCode(403, ApiResponse<ExpenseDto>.ErrorResponse("You do not have write access to expenses in this book."));
 
-                // Validate category is within allowed list
-                if (perms.AllowedCategoryIds.Count > 0
+                // Validate category is within allowed list (owners bypass this check)
+                if (!perms.IsOwner
+                    && perms.AllowedCategoryIds.Count > 0
                     && !string.IsNullOrEmpty(request.Category)
                     && !perms.AllowedCategoryIds.Contains(request.Category))
                 {
@@ -168,8 +169,9 @@ public class ExpensesController : ControllerBase
                 if (perms.Expenses != "write")
                     return StatusCode(403, ApiResponse<ExpenseDto>.ErrorResponse("You do not have write access to expenses in this book."));
 
-                // Validate updated category is within allowed list
-                if (perms.AllowedCategoryIds.Count > 0
+                // Validate updated category is within allowed list (owners bypass this check)
+                if (!perms.IsOwner
+                    && perms.AllowedCategoryIds.Count > 0
                     && !string.IsNullOrEmpty(request.Category)
                     && !perms.AllowedCategoryIds.Contains(request.Category))
                 {
