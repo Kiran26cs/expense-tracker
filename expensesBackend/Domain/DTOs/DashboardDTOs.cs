@@ -19,6 +19,8 @@ public class CategoryBreakdown
     public string Category { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public double Percentage { get; set; }
+    /// <summary>"need" | "want" | "debt" | null (unclassified)</summary>
+    public string? FinancialClass { get; set; }
 }
 
 public class MonthlyTrend

@@ -18,18 +18,21 @@ public class SettingsController : ControllerBase
     private readonly IExpenseBookService _expenseBookService;
     private readonly MongoDbContext _context;
     private readonly ICacheService _cache;
+    private readonly ICreditService _credits;
     private static readonly TimeSpan SettingsCacheTtl = TimeSpan.FromMinutes(30);
 
     public SettingsController(
         ICategoryService categoryService,
         IExpenseBookService expenseBookService,
         MongoDbContext context,
-        ICacheService cache)
+        ICacheService cache,
+        ICreditService credits)
     {
         _categoryService = categoryService;
         _expenseBookService = expenseBookService;
         _context = context;
         _cache = cache;
+        _credits = credits;
     }
 
     private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
@@ -316,6 +319,43 @@ public class SettingsController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest(ApiResponse<bool>.ErrorResponse(ex.Message));
+        }
+    }
+
+    // POST api/settings/categories/classify-all
+    [HttpPost("categories/classify-all")]
+    public async Task<ActionResult<ApiResponse<AutoClassifyResult>>> ClassifyAllCategories([FromQuery] string? expenseBookId)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(expenseBookId))
+                return BadRequest(ApiResponse<AutoClassifyResult>.ErrorResponse("expenseBookId is required"));
+
+            var userId = GetUserId();
+            await VerifyBookOwnershipAsync(userId, expenseBookId);
+
+            var consume = await _credits.ConsumeAutoClassifyAsync(expenseBookId, userId);
+            if (!consume.Allowed)
+                return StatusCode(402, ApiResponse<AutoClassifyResult>.ErrorResponse(
+                    $"You've used all {consume.FreeQuota} free Auto-classify uses and have no credits left. " +
+                    "Purchase credits to continue."));
+
+            var classified = await _categoryService.BulkClassifyAsync(expenseBookId);
+            return Ok(ApiResponse<AutoClassifyResult>.SuccessResponse(new AutoClassifyResult
+            {
+                Classified  = classified,
+                UsedCredit  = consume.UsedCredit,
+                FreeUsed    = consume.FreeUsed,
+                FreeQuota   = consume.FreeQuota,
+            }));
+        }
+        catch (KeyNotFoundException)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<AutoClassifyResult>.ErrorResponse(ex.Message));
         }
     }
 

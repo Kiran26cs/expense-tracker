@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, AfterViewInit } from '@angular/core';
+import { Component, inject, signal, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -15,7 +15,7 @@ import { environment } from '../../../environments/environment';
   templateUrl: './login.component.html',
   styleUrl: './login.component.css'
 })
-export class LoginComponent implements OnInit, AfterViewInit {
+export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   emailOrPhone = signal('');
   otp = '';
   step = signal<'input' | 'otp'>('input');
@@ -26,8 +26,11 @@ export class LoginComponent implements OnInit, AfterViewInit {
 
   private auth = inject(AuthStateService);
   private router = inject(Router);
+  private savedTheme: string | null = null;
 
   ngOnInit(): void {
+    this.savedTheme = document.documentElement.getAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', 'light');
     // Handle redirect back from Google OAuth (PWA standalone flow)
     const hash = window.location.hash.slice(1);
     if (hash) {
@@ -191,6 +194,14 @@ export class LoginComponent implements OnInit, AfterViewInit {
       this.startResendTimer();
     } catch { this.error.set('Failed to resend OTP'); }
     finally { this.loading.set(false); }
+  }
+
+  ngOnDestroy(): void {
+    if (this.savedTheme) {
+      document.documentElement.setAttribute('data-theme', this.savedTheme);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
   }
 
   startResendTimer() {

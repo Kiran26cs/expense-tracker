@@ -17,17 +17,30 @@ export interface AiChatMessage {
   imagePreview?: string;
 }
 
-export interface ReceiptExtractResponse {
-  description: string | null;
+export interface ReceiptLineItem {
+  name: string | null;
   amount: number | null;
+  suggestedCategory: string | null;
+}
+
+export interface ReceiptExtractResponse {
+  receiptNumber: string | null;
+  merchant: string | null;
   currency: string | null;
   date: string | null;
-  category: string | null;
   paymentMethod: string | null;
-  type: string | null;
+  items: ReceiptLineItem[];
+  taxAmount: number | null;
+  taxLabel: string | null;
+  subtotal: number | null;
+  total: number | null;
   notes: string | null;
   confidence: number;
   missingFields: string[];
+  // flat fallback fields for single-entry
+  description: string | null;
+  amount: number | null;
+  category: string | null;
 }
 
 export interface ChatHistoryMessage {

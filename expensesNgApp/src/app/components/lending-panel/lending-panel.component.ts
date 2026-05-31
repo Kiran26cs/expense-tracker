@@ -5,7 +5,7 @@ import { LendingService } from '../../services/lending.service';
 import { ToastService } from '../../services/toast.service';
 import { Lending, Repayment, CreateRepaymentRequest, LendingRepaymentsResponse } from '../../models/lending.model';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
-import { formatCurrency, formatDate } from '../../utils/helpers';
+import { formatCurrency, formatCalendarDate, localDateString } from '../../utils/helpers';
 
 @Component({
   selector: 'app-lending-panel',
@@ -17,7 +17,7 @@ import { formatCurrency, formatDate } from '../../utils/helpers';
 export class LendingPanelComponent implements OnChanges {
   @Input() bookId = '';
   @Input() lending: Lending | null = null;
-  @Input() currency = 'INR';
+  @Input() currency = 'USD';
   @Output() closed = new EventEmitter<void>();
   @Output() updated = new EventEmitter<void>();
 
@@ -32,7 +32,7 @@ export class LendingPanelComponent implements OnChanges {
   // Add repayment form
   showAddRepayment = signal(false);
   addLoading = signal(false);
-  repaymentDate = new Date().toISOString().split('T')[0];
+  repaymentDate = localDateString();
   repaymentAmount: number | null = null;
   repaymentNotes = '';
 
@@ -49,11 +49,11 @@ export class LendingPanelComponent implements OnChanges {
   showSettleForm = signal(false);
   settleLoading = signal(false);
   settleInterestAmount: number | null = null;
-  settleDate = new Date().toISOString().split('T')[0];
+  settleDate = localDateString();
   settleNotes = '';
 
   protected readonly formatCurrency = formatCurrency;
-  protected readonly formatDate = formatDate;
+  protected readonly formatDate = formatCalendarDate;
 
   constructor(
     private lendingService: LendingService,
@@ -95,7 +95,7 @@ export class LendingPanelComponent implements OnChanges {
   }
 
   openAddRepayment() {
-    this.repaymentDate = new Date().toISOString().split('T')[0];
+    this.repaymentDate = localDateString();
     this.repaymentAmount = null;
     this.repaymentNotes = '';
     this.showAddRepayment.set(true);
@@ -151,7 +151,7 @@ export class LendingPanelComponent implements OnChanges {
     this.settleInterestAmount = ld?.projectedTotalInterest && ld.projectedTotalInterest > 0
       ? ld.projectedTotalInterest
       : null;
-    this.settleDate = new Date().toISOString().split('T')[0];
+    this.settleDate = localDateString();
     this.settleNotes = 'Interest settlement';
     this.showSettleForm.set(true);
   }

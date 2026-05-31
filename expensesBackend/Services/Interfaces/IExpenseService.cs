@@ -9,6 +9,7 @@ public interface IExpenseService
     Task<ExpensePagedResponse> GetExpensesPagedAsync(string userId, ExpensePagedRequest request);
     Task<ExpenseDto> GetExpenseByIdAsync(string userId, string expenseId);
     Task<ExpenseDto> CreateExpenseAsync(string userId, CreateExpenseRequest request);
+    Task<List<ExpenseDto>> CreateExpenseBatchAsync(string userId, CreateExpenseBatchRequest request);
     Task<ExpenseDto> UpdateExpenseAsync(string userId, string expenseId, UpdateExpenseRequest request);
     Task<bool> DeleteExpenseAsync(string userId, string expenseId);
     Task<string> UploadReceiptAsync(string userId, string expenseId, Stream fileStream, string fileName);

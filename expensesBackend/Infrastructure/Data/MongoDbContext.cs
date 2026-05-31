@@ -103,6 +103,10 @@ public class MongoDbContext
             Builders<Expense>.IndexKeys.Descending(e => e.Amount),
             new CreateIndexOptions { Name = "idx_expense_amount" }));
 
+        Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+            Builders<Expense>.IndexKeys.Ascending(e => e.ReceiptGroupId),
+            new CreateIndexOptions { Name = "idx_expense_receipt_group", Sparse = true }));
+
         // Cosmos DB requires ALL ORDER BY fields in a single composite index.
         // The paged query sorts by (date, _id) or (amount, _id) — _id is the keyset tiebreaker.
         Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(

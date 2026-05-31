@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ExpenseService } from '../../services/expense.service';
 import { AiChatService } from '../../services/ai-chat.service';
@@ -20,7 +20,7 @@ import { LoadingComponent, EmptyStateComponent } from '../../components/loading/
 import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-dialog.component';
 import { DateRangePickerComponent } from '../../components/date-range-picker/date-range-picker.component';
 import { ModalComponent } from '../../components/modal/modal.component';
-import { formatCurrency, formatDate } from '../../utils/helpers';
+import { formatCurrency, formatCalendarDate, localDateString } from '../../utils/helpers';
 
 const SESSION_KEY = (bookId: string) => `expense-filters-${bookId}`;
 
@@ -142,22 +142,58 @@ export class ExpenseListComponent implements OnInit {
   private aiChat = inject(AiChatService);
   private destroyRef = inject(DestroyRef);
 
+  addEntryMode = signal<'simple' | 'itemized'>('simple');
+
   addForm: FormGroup = this.fb.group({
     type: ['expense'],
-    description: ['', Validators.required],
+    description: [''],
     amount: [null, [Validators.required, Validators.min(0.01)]],
-    date: [new Date().toISOString().split('T')[0], Validators.required],
+    date: [localDateString(), Validators.required],
     category: [''],
     paymentMethod: [''],
     currency: ['USD'],
     notes: [''],
     isRecurring: [false],
     recurringFrequency: ['monthly'],
+    // itemized fields
+    receiptNumber: [''],
+    taxAmount: [null],
+    taxLabel: [''],
+    items: this.fb.array([]),
   });
+
+  get addItemsArray(): FormArray {
+    return this.addForm.get('items') as FormArray;
+  }
+
+  addItemFn(): void {
+    this.addItemsArray.push(this.fb.group({
+      name: [''],
+      amount: [null, [Validators.required, Validators.min(0.01)]],
+      category: [''],
+    }));
+  }
+
+  removeAddItem(index: number): void {
+    this.addItemsArray.removeAt(index);
+  }
+
+  setAddMode(mode: 'simple' | 'itemized'): void {
+    this.addEntryMode.set(mode);
+    if (mode === 'itemized' && this.addItemsArray.length === 0) this.addItemFn();
+    const amountCtrl = this.addForm.get('amount')!;
+    const descCtrl   = this.addForm.get('description')!;
+    if (mode === 'itemized') {
+      amountCtrl.clearValidators();
+    } else {
+      amountCtrl.setValidators([Validators.required, Validators.min(0.01)]);
+    }
+    amountCtrl.updateValueAndValidity();
+  }
 
   editForm: FormGroup = this.fb.group({
     type: ['expense'],
-    description: ['', Validators.required],
+    description: [''],
     amount: [null, [Validators.required, Validators.min(0.01)]],
     date: ['', Validators.required],
     category: [''],
@@ -169,7 +205,16 @@ export class ExpenseListComponent implements OnInit {
     recurringEndDate: [''],
   });
 
-  private addFormValues = toSignal(this.addForm.valueChanges, { initialValue: this.addForm.value });
+  protected addFormValues = toSignal(this.addForm.valueChanges, { initialValue: this.addForm.value });
+
+  addItemsTotal = computed(() => {
+    const items: any[] = this.addFormValues()?.items ?? [];
+    return items.reduce((sum: number, i: any) => sum + (Number(i.amount) || 0), 0);
+  });
+
+  addItemsGrandTotal = computed(() => {
+    return this.addItemsTotal() + (Number(this.addFormValues()?.taxAmount) || 0);
+  });
 
   addCurrencyOptions = computed(() => {
     const book = this.currentBook.currency();
@@ -195,7 +240,7 @@ export class ExpenseListComponent implements OnInit {
   );
 
   protected readonly formatCurrency = formatCurrency;
-  protected readonly formatDate = formatDate;
+  protected readonly formatDate = formatCalendarDate;
 
   // ── Sort helpers ────────────────────────────────────────────────────────────
 
@@ -309,7 +354,7 @@ export class ExpenseListComponent implements OnInit {
     const sel = this.addSelectedCurrency();
     const book = this.currentBook.currency();
     if (sel === '' || sel === book) { this.addCurrentRate.set(null); return; }
-    const date: string = this.addForm.get('date')?.value ?? new Date().toISOString().split('T')[0];
+    const date: string = this.addForm.get('date')?.value ?? localDateString();
     this.addRateLoading.set(true);
     const rate = await this.currencyService.getRate(sel, book, date);
     this.addCurrentRate.set(rate);
@@ -376,15 +421,25 @@ export class ExpenseListComponent implements OnInit {
   // kept for template compatibility (delete/add reload resets to page 1)
   goToPage(_page: number) { this.resetCursors(); this.loadExpenses(); }
 
+  private defaultPaymentMethodId(): string {
+    const cash = this.paymentMethods().find(p => p.name?.toLowerCase() === 'cash');
+    return cash?.id ?? '';
+  }
+
   openAddModal() {
     const bookCurrency = this.currentBook.currency();
+    while (this.addItemsArray.length) this.addItemsArray.removeAt(0);
+    this.addEntryMode.set('simple');
     this.addForm.reset({
       type: 'expense',
-      date: new Date().toISOString().split('T')[0],
+      date: localDateString(),
       currency: bookCurrency,
       isRecurring: false,
       recurringFrequency: 'monthly',
+      paymentMethod: this.defaultPaymentMethodId(),
     });
+    this.addForm.get('amount')!.setValidators([Validators.required, Validators.min(0.01)]);
+    this.addForm.get('amount')!.updateValueAndValidity();
     this.addSelectedCurrency.set(bookCurrency);
     this.addCurrentRate.set(null);
     this.addRateLoading.set(false);
@@ -434,11 +489,34 @@ export class ExpenseListComponent implements OnInit {
   }
 
   async handleAddExpense() {
-    if (this.addForm.invalid) { this.addForm.markAllAsTouched(); return; }
     this.addLoading.set(true);
     this.addError.set('');
     try {
       const v = this.addForm.value;
+
+      if (this.addEntryMode() === 'itemized') {
+        const items = (v.items as any[]).filter(i => Number(i.amount) > 0);
+        if (items.length === 0) { this.addError.set('Add at least one item with an amount.'); return; }
+        const batchPayload: any = {
+          paymentMethod: v.paymentMethod || undefined,
+          date: v.date,
+          receiptNumber: v.receiptNumber || undefined,
+          items: items.map((i: any) => ({ name: i.name || undefined, amount: Number(i.amount), category: i.category })),
+          taxAmount: Number(v.taxAmount) > 0 ? Number(v.taxAmount) : undefined,
+          taxLabel:  v.taxLabel || undefined,
+        };
+        const res = await this.expenseService.createExpenseBatch(this.bookId, batchPayload);
+        if (res.success) {
+          this.toast.success(`${(res.data as any)?.length ?? items.length} item(s) saved`);
+          this.closeAddModal();
+          this.loadExpenses();
+        } else {
+          this.addError.set((res as any).error || 'Failed to save items');
+        }
+        return;
+      }
+
+      if (this.addForm.invalid) { this.addForm.markAllAsTouched(); return; }
       const isForeign = this.addIsForeignCurrency();
       const payload: any = {
         type: v.type,
@@ -588,9 +666,10 @@ export class ExpenseListComponent implements OnInit {
         this.editOriginalAmount.set(e.originalAmount ?? null);
         this.editOriginalCurrency.set(e.originalCurrency ?? null);
         this.editFxRate.set(e.fxRate ?? null);
+        const isMongoId = (s: string | null | undefined) => !!s && /^[a-f0-9]{24}$/i.test(s);
         this.editForm.patchValue({
           type: e.type,
-          description: e.description,
+          description: isMongoId(e.description) ? '' : (e.description ?? ''),
           amount: e.amount,
           date: e.date?.split('T')[0] || '',
           category: resolvedCat?.id || catVal,

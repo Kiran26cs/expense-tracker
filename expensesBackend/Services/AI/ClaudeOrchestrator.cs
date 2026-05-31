@@ -150,29 +150,38 @@ public class ClaudeOrchestrator
         string todayDate)
     {
         var jsonTemplate = "{\n"
-            + $"  \"description\": \"merchant or item name\",\n"
-            + $"  \"amount\": 0.00,\n"
+            + "  \"receiptNumber\": \"invoice/receipt number or null\",\n"
+            + "  \"merchant\": \"store or merchant name or null\",\n"
             + $"  \"currency\": \"{bookCurrency}\",\n"
             + "  \"date\": \"YYYY-MM-DD\",\n"
-            + "  \"category\": \"Food & Dining|Transport|Shopping|Utilities|Healthcare|Entertainment|Other\",\n"
             + "  \"paymentMethod\": \"Cash|Credit Card|Debit Card|UPI|Net Banking|Other\",\n"
-            + "  \"type\": \"expense\",\n"
-            + "  \"notes\": null,\n"
+            + "  \"items\": [\n"
+            + "    { \"name\": \"item name\", \"amount\": 0.00, \"suggestedCategory\": \"Food & Dining|Transport|Shopping|Utilities|Healthcare|Entertainment|Other\" }\n"
+            + "  ],\n"
+            + "  \"taxAmount\": null,\n"
+            + "  \"taxLabel\": null,\n"
+            + "  \"subtotal\": 0.00,\n"
+            + "  \"total\": 0.00,\n"
             + "  \"confidence\": 85,\n"
             + "  \"missingFields\": []\n"
             + "}";
 
         var systemPrompt =
             $"You are a receipt data extractor for an expense tracker app.\n"
-            + $"Extract expense details from the provided receipt image or PDF.\n"
+            + $"Extract itemized expense details from the provided receipt image or PDF.\n"
             + $"The expense book uses {bookCurrency} as its currency. Today's date is {todayDate}.\n\n"
             + "Respond with ONLY a valid JSON object — no markdown, no extra text.\n"
             + jsonTemplate + "\n\n"
             + "Rules:\n"
-            + "- Use null for fields you cannot determine; list them in missingFields.\n"
+            + "- Extract EVERY line item visible on the receipt into the items array.\n"
+            + "- If no individual items are readable, put a single item with the merchant name and total amount.\n"
+            + "- taxAmount: extract ONLY if tax is shown as a separate line (e.g. GST, VAT, Service Tax). Set to null if tax is already baked into item prices.\n"
+            + "- taxLabel: the label printed next to the tax line (e.g. 'GST 18%', 'VAT').\n"
+            + "- subtotal: sum of item amounts before tax. total: grand total including tax.\n"
+            + "- Use null for fields you cannot determine; list field names in missingFields.\n"
             + "- confidence is 0-100 indicating extraction reliability.\n"
-            + "- Use the grand total as amount when multiple totals appear.\n"
-            + "- date must be YYYY-MM-DD; default to today if not visible.";
+            + "- date must be YYYY-MM-DD; default to today if not visible.\n"
+            + "- suggestedCategory: pick the closest from Food & Dining, Transport, Shopping, Utilities, Healthcare, Entertainment, Personal Care, Education, Other.";
 
         object fileContent = mimeType == "application/pdf"
             ? new { type = "document", source = new { type = "base64", media_type = "application/pdf", data = fileBase64 } }

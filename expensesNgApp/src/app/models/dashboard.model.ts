@@ -12,6 +12,7 @@ export interface DashboardSummary {
   monthlyTrend?: MonthlyTrend[];
   recentExpenses?: any[];
   recentTransactions?: any[];
+  isRestricted?: boolean;
 }
 
 export interface CategorySpending {
@@ -19,6 +20,7 @@ export interface CategorySpending {
   amount: number;
   count?: number;
   percentage?: number;
+  financialClass?: 'need' | 'want' | 'debt' | null;
 }
 
 export interface MonthlyTrend {

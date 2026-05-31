@@ -593,6 +593,26 @@
 
 .receipt-btn-ghost:hover { background: var(--color-surface-hover); }
 
+/* ── Receipt mode tabs ─────────────────────────────────────────────── */
+.receipt-mode-tabs { display: flex; gap: 0; margin: 0 14px 4px; border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; }
+.receipt-mode-tab { flex: 1; padding: 6px 8px; font-size: 11px; font-weight: 600; border: none; background: none; cursor: pointer; color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; gap: 5px; transition: background var(--transition-fast); }
+.receipt-mode-tab.active { background: var(--color-primary); color: #fff; }
+.receipt-mode-tab:not(.active):hover { background: var(--color-surface-hover); }
+
+/* ── Receipt items list ────────────────────────────────────────────── */
+.receipt-items-list { padding: 8px 14px 4px; display: flex; flex-direction: column; gap: 4px; }
+.receipt-item-row { display: flex; align-items: center; gap: 4px; }
+.receipt-item-name { flex: 2; min-width: 0; }
+.receipt-item-amount { flex: 1; min-width: 0; }
+.receipt-item-category { flex: 1.5; min-width: 0; }
+.receipt-item-remove { flex-shrink: 0; padding: 4px 6px; border: none; background: none; cursor: pointer; color: var(--color-text-tertiary); border-radius: 4px; }
+.receipt-item-remove:hover { color: var(--color-danger); background: var(--color-danger-light); }
+.receipt-add-item-btn { align-self: flex-start; margin-top: 2px; padding: 4px 10px; font-size: 11px; border: 1px dashed var(--color-border); background: none; color: var(--color-primary); border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.receipt-add-item-btn:hover { background: var(--color-surface-hover); }
+.receipt-tax-row { display: flex; align-items: center; gap: 4px; padding-top: 6px; border-top: 1px dashed var(--color-border); margin-top: 4px; }
+.receipt-tax-label { font-size: 10px; font-weight: 600; color: var(--color-text-secondary); white-space: nowrap; min-width: 64px; }
+.receipt-total-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0 2px; border-top: 1px solid var(--color-border); margin-top: 4px; font-size: 12px; }
+
 /* ── Context chips ─────────────────────────────────────────────────── */
 .context-chips {
   display: flex;

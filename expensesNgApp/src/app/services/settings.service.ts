@@ -3,6 +3,13 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
 import { ApiResponse } from '../models/user.model';
 
+export interface AutoClassifyResult {
+  classified: number;
+  usedCredit: boolean;
+  freeUsed: number;
+  freeQuota: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
   constructor(private api: ApiService) {}
@@ -52,6 +59,10 @@ export class SettingsService {
 
   updateSettings(bookId: string, settings: any) {
     return firstValueFrom(this.api.put<ApiResponse<any>>('/settings', { ...settings, expenseBookId: bookId }));
+  }
+
+  bulkClassifyCategories(bookId: string) {
+    return firstValueFrom(this.api.post<ApiResponse<AutoClassifyResult>>(`/settings/categories/classify-all?expenseBookId=${bookId}`, {}));
   }
 
   importCSV(bookId: string, formData: FormData) {

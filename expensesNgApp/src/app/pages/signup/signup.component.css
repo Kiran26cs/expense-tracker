@@ -45,9 +45,10 @@
 .google-btn {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid var(--color-border);
+  border: 1.5px solid #dadce0;
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: #ffffff;
+  color: #3c4043;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -55,10 +56,11 @@
   gap: 0.75rem;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
 }
-.google-btn:hover:not(:disabled) { background: var(--color-surface-hover); }
-.google-icon { width: 20px; height: 20px; }
+.google-btn:hover:not(:disabled) { background: #f8f9fa; box-shadow: var(--shadow-sm); }
+.google-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.google-icon { width: 20px; height: 20px; color: #ea4335; }
 .auth-link { text-align: center; font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-top: 1rem; }
 .auth-link a { color: var(--color-primary); text-decoration: none; font-weight: var(--font-weight-medium); }
 .auth-graphic { flex: 1; background: var(--gradient-primary); padding: 3rem 2rem; display: flex; align-items: center; color: white; }

@@ -48,8 +48,8 @@ export class DateRangePickerComponent {
   }
 
   apply() {
-    const start = this.localStart ? `${this.localStart}T00:00:00` : '';
-    const end = this.localEnd ? `${this.localEnd}T23:59:59` : '';
+    const start = this.localStart ? `${this.localStart}T00:00:00Z` : '';
+    const end = this.localEnd ? `${this.localEnd}T23:59:59Z` : '';
     this.rangeChange.emit({ start, end });
     this.open = false;
   }

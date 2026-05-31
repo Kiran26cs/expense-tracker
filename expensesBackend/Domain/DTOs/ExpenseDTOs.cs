@@ -12,7 +12,6 @@ public class CreateExpenseRequest
     public DateTime Date { get; set; }
     [Required]
     public string Category { get; set; } = string.Empty;
-    [Required]
     public string PaymentMethod { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? Notes { get; set; }
@@ -22,6 +21,31 @@ public class CreateExpenseRequest
     public decimal? OriginalAmount { get; set; }
     /// <summary>ISO 4217 code of the original currency. Omit when same as book currency.</summary>
     public string? OriginalCurrency { get; set; }
+    public string? ReceiptGroupId { get; set; }
+    public string? ReceiptNumber { get; set; }
+    public bool IsReceiptItem { get; set; }
+    public decimal? TaxAmount { get; set; }
+}
+
+public class ReceiptItemRequest
+{
+    [Required] public string Name { get; set; } = string.Empty;
+    [Required] public decimal Amount { get; set; }
+    [Required] public string Category { get; set; } = string.Empty;
+}
+
+public class CreateExpenseBatchRequest
+{
+    public string? ExpenseBookId { get; set; }
+    public string? ReceiptNumber { get; set; }
+    public string? Merchant { get; set; }
+    [Required] public string PaymentMethod { get; set; } = string.Empty;
+    [Required] public DateTime Date { get; set; }
+    /// <summary>Regular line items. Each becomes its own expense document.</summary>
+    [Required] public List<ReceiptItemRequest> Items { get; set; } = [];
+    /// <summary>Optional tax — becomes a separate expense entry with category "Tax &amp; Fees".</summary>
+    public decimal? TaxAmount { get; set; }
+    public string? TaxLabel { get; set; }
 }
 
 public class UpdateExpenseRequest
@@ -52,6 +76,10 @@ public class ExpenseDto
     public decimal? OriginalAmount { get; set; }
     public string? OriginalCurrency { get; set; }
     public decimal? FxRate { get; set; }
+    public string? ReceiptGroupId { get; set; }
+    public string? ReceiptNumber { get; set; }
+    public bool IsReceiptItem { get; set; }
+    public decimal? TaxAmount { get; set; }
 }
 
 public class RecurringConfig

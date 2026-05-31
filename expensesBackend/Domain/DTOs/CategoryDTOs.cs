@@ -8,6 +8,8 @@ public class CategoryDto
     public string Icon { get; set; } = "fa-solid fa-tag";
     public string Color { get; set; } = "#6366f1";
     public bool IsDefault { get; set; }
+    /// <summary>"need" | "want" | "debt" | null</summary>
+    public string? FinancialClass { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -18,6 +20,8 @@ public class CreateCategoryRequest
     public string Type { get; set; } = "expense";
     public string Icon { get; set; } = "fa-solid fa-tag";
     public string Color { get; set; } = "#6366f1";
+    /// <summary>"need" | "want" | "debt" | null (auto-detected from name if omitted)</summary>
+    public string? FinancialClass { get; set; }
 }
 
 public class UpdateCategoryRequest
@@ -26,6 +30,9 @@ public class UpdateCategoryRequest
     public string? Type { get; set; }
     public string? Icon { get; set; }
     public string? Color { get; set; }
+    /// <summary>"need" | "want" | "debt" | null (clears classification)</summary>
+    public string? FinancialClass { get; set; }
+    public bool ClearFinancialClass { get; set; }
 }
 
 public class ImportCategoriesRequest

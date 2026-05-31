@@ -12,12 +12,16 @@ public class CategoryService : ICategoryService
 {
     private readonly MongoDbContext _context;
     private readonly ICacheService _cache;
+    private readonly ICategoryClassifier _classifier;
+    private readonly ICreditService _credits;
     private static readonly TimeSpan CategoryCacheTtl = TimeSpan.FromMinutes(30);
 
-    public CategoryService(MongoDbContext context, ICacheService cache)
+    public CategoryService(MongoDbContext context, ICacheService cache, ICategoryClassifier classifier, ICreditService credits)
     {
-        _context = context;
-        _cache = cache;
+        _context    = context;
+        _cache      = cache;
+        _classifier = classifier;
+        _credits    = credits;
     }
 
     public async Task<List<CategoryDto>> GetCategoriesAsync(string expenseBookId)
@@ -90,15 +94,28 @@ public class CategoryService : ICategoryService
         }
         // Pro: no check
 
+        // User explicitly set a class, or rule table resolved it — no AI needed.
+        var resolvedClass = request.FinancialClass ?? GetDefaultFinancialClass(request.Name.Trim());
+
+        if (resolvedClass == null)
+        {
+            // AI classification needed — consume one Auto-classify usage from the quota.
+            var consume = await _credits.ConsumeAutoClassifyAsync(expenseBookId, requestingUserId);
+            if (consume.Allowed)
+                resolvedClass = await _classifier.ClassifyAsync(request.Name.Trim());
+            // else: quota exhausted and no credits — create as unclassified silently.
+        }
+
         var category = new Category
         {
-            ExpenseBookId = expenseBookId,
-            Name          = request.Name.Trim(),
-            Type          = request.Type  ?? "expense",
-            Icon          = request.Icon  ?? "fa-solid fa-tag",
-            Color         = request.Color ?? "#6366f1",
-            IsDefault     = false,
-            CreatedAt     = DateTime.UtcNow
+            ExpenseBookId  = expenseBookId,
+            Name           = request.Name.Trim(),
+            Type           = request.Type  ?? "expense",
+            Icon           = request.Icon  ?? "fa-solid fa-tag",
+            Color          = request.Color ?? "#6366f1",
+            IsDefault      = false,
+            FinancialClass = resolvedClass,
+            CreatedAt      = DateTime.UtcNow
         };
 
         await _context.Categories.InsertOneAsync(category);
@@ -142,6 +159,10 @@ public class CategoryService : ICategoryService
             updates.Add(Builders<Category>.Update.Set(c => c.Icon, request.Icon));
         if (request.Color != null)
             updates.Add(Builders<Category>.Update.Set(c => c.Color, request.Color));
+        if (request.ClearFinancialClass)
+            updates.Add(Builders<Category>.Update.Unset(c => c.FinancialClass));
+        else if (request.FinancialClass != null)
+            updates.Add(Builders<Category>.Update.Set(c => c.FinancialClass, request.FinancialClass));
 
         if (updates.Count > 0)
             await _context.Categories.UpdateOneAsync(filter, Builders<Category>.Update.Combine(updates));
@@ -207,6 +228,31 @@ public class CategoryService : ICategoryService
         return Task.CompletedTask;
     }
 
+    public async Task<int> BulkClassifyAsync(string expenseBookId)
+    {
+        // Only target book-specific categories that have no financial class yet
+        var filter = Builders<Category>.Filter.And(
+            Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId),
+            Builders<Category>.Filter.Eq(c => c.FinancialClass, null));
+
+        var unclassified = await _context.Categories.Find(filter).ToListAsync();
+        var count = 0;
+
+        foreach (var cat in unclassified)
+        {
+            var cls = GetDefaultFinancialClass(cat.Name) ?? await _classifier.ClassifyAsync(cat.Name);
+            if (cls == null) continue;
+
+            await _context.Categories.UpdateOneAsync(
+                Builders<Category>.Filter.Eq(c => c.Id, cat.Id),
+                Builders<Category>.Update.Set(c => c.FinancialClass, cls));
+            count++;
+        }
+
+        await _cache.RemoveAsync(CacheKeys.Categories(expenseBookId));
+        return count;
+    }
+
     private async Task IncrementMemberCategoryCountAsync(string expenseBookId, string userId, int delta)
     {
         var filter = Builders<ExpenseBookMember>.Filter.And(
@@ -244,6 +290,62 @@ public class CategoryService : ICategoryService
         Icon = category.Icon,
         Color = category.Color,
         IsDefault = category.IsDefault,
+        FinancialClass = category.FinancialClass ?? DefaultFinancialClass(category.Name),
         CreatedAt = category.CreatedAt
     };
+
+    /// <summary>
+    /// Rule-based fallback classification by category name.
+    /// Covers the common default categories without requiring any DB update.
+    /// Returns null for anything not in the table (user can tag manually in Settings).
+    /// </summary>
+    private static string? DefaultFinancialClass(string name) =>
+        DefaultClassification.TryGetValue(name.Trim(), out var cls) ? cls : null;
+
+    /// <summary>Exposed for DashboardService to apply the same rule-based defaults.</summary>
+    public static string? GetDefaultFinancialClass(string name) =>
+        DefaultClassification.TryGetValue(name.Trim(), out var cls) ? cls : null;
+
+    private static readonly Dictionary<string, string> DefaultClassification =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            // Needs — essential, non-negotiable
+            ["Groceries"]       = "need",
+            ["Utilities"]       = "need",
+            ["Healthcare"]      = "need",
+            ["Medical"]         = "need",
+            ["Transport"]       = "need",
+            ["Transportation"]  = "need",
+            ["Rent"]            = "need",
+            ["Housing"]         = "need",
+            ["Education"]       = "need",
+            ["Insurance"]       = "need",
+            ["Electricity"]     = "need",
+            ["Water Bill"]      = "need",
+            ["Internet"]        = "need",
+            ["Phone"]           = "need",
+            ["Mobile"]          = "need",
+            ["Childcare"]       = "need",
+            // Wants — discretionary
+            ["Food & Dining"]   = "want",
+            ["Dining"]          = "want",
+            ["Entertainment"]   = "want",
+            ["Shopping"]        = "want",
+            ["Travel"]          = "want",
+            ["Personal Care"]   = "want",
+            ["Beauty"]          = "want",
+            ["Sports"]          = "want",
+            ["Hobbies"]         = "want",
+            ["Subscriptions"]   = "want",
+            ["Streaming"]       = "want",
+            ["Clothing"]        = "want",
+            ["Electronics"]     = "want",
+            ["Gifts"]           = "want",
+            // Debt — loan repayments / obligations
+            ["Loan"]            = "debt",
+            ["EMI"]             = "debt",
+            ["Mortgage"]        = "debt",
+            ["Credit Card"]     = "debt",
+            ["Debt"]            = "debt",
+        };
 }

@@ -105,7 +105,7 @@ export class AuthStateService {
     const phone = emailOrPhone.includes('@') ? undefined : emailOrPhone;
     const response = await firstValueFrom(
       this.api.post<ApiResponse<{ token: string; user: User }>>(`/Auth/signup?otp=${otp}`, {
-        name, email, phone, currency: 'INR', monthlyIncome: 0,
+        name, email, phone, currency: 'USD', monthlyIncome: 0,
       })
     );
     if (response.success && response.data) {

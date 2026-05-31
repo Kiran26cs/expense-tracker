@@ -77,7 +77,7 @@
               <td><span class="badge badge-secondary">{{ getPaymentMethodName(getStr(e.paymentMethod)) }}</span></td>
               <td><span class="badge" [class.income-badge]="e.type === 'income'" [class.expense-badge]="e.type === 'expense'">{{ e.type }}</span></td>
               <td class="text-right" [class.income-text]="e.type === 'income'" [class.expense-text]="e.type === 'expense'">
-                {{ e.type === 'income' ? '+' : '-' }}{{ formatCurrency(e.amount, e.currency) }}
+                {{ e.type === 'income' ? '+' : '-' }}{{ formatCurrency(e.amount, currentBook.currency()) }}
                 <span *ngIf="e.originalCurrency" class="fx-orig-badge" [title]="'Original: ' + e.originalAmount + ' ' + e.originalCurrency + ' @ ' + e.fxRate">
                   {{ e.originalAmount | number:'1.2-2' }} {{ e.originalCurrency }}
                 </span>
@@ -130,107 +130,178 @@
     <!-- Manual tab -->
     <div *ngIf="addActiveTab() === 'manual'">
       <form [formGroup]="addForm" (ngSubmit)="handleAddExpense()">
-        <!-- Type Toggle -->
-        <div class="ae-type-tabs">
-          <button type="button" class="ae-type-tab" [class.ae-type-tab-expense]="addForm.get('type')?.value === 'expense'" (click)="addForm.get('type')?.setValue('expense')">Expense</button>
-          <button type="button" class="ae-type-tab" [class.ae-type-tab-income]="addForm.get('type')?.value === 'income'" (click)="addForm.get('type')?.setValue('income')">Income</button>
+
+        <!-- Entry mode toggle -->
+        <div class="ae-mode-tabs">
+          <button type="button" class="ae-mode-tab" [class.active]="addEntryMode() === 'simple'" (click)="setAddMode('simple')">
+            <i class="fa-solid fa-circle-dot"></i> Simple
+          </button>
+          <button type="button" class="ae-mode-tab" [class.active]="addEntryMode() === 'itemized'" (click)="setAddMode('itemized')">
+            <i class="fa-solid fa-list"></i> Itemized
+          </button>
         </div>
 
-        <!-- Amount + Date -->
-        <div class="ae-row">
+        <!-- ── SIMPLE MODE ── -->
+        <ng-container *ngIf="addEntryMode() === 'simple'">
+          <!-- Type Toggle -->
+          <div class="ae-type-tabs">
+            <button type="button" class="ae-type-tab" [class.ae-type-tab-expense]="addForm.get('type')?.value === 'expense'" (click)="addForm.get('type')?.setValue('expense')">Expense</button>
+            <button type="button" class="ae-type-tab" [class.ae-type-tab-income]="addForm.get('type')?.value === 'income'" (click)="addForm.get('type')?.setValue('income')">Income</button>
+          </div>
+
+          <!-- Amount + Date -->
+          <div class="ae-row">
+            <div class="ae-field">
+              <label class="ae-label">Amount *</label>
+              <div class="ae-input-icon-wrap">
+                <span class="ae-input-icon">{{ currentBook.currency() }}</span>
+                <input class="ae-input ae-input-icon-pad" type="number" formControlName="amount" placeholder="0.00" step="0.01" min="0.01">
+              </div>
+            </div>
+            <div class="ae-field">
+              <label class="ae-label">Date *</label>
+              <input class="ae-input" type="date" formControlName="date">
+            </div>
+          </div>
+
+          <!-- Currency selector -->
           <div class="ae-field">
-            <label class="ae-label">Amount *</label>
-            <div class="ae-input-icon-wrap">
-              <span class="ae-input-icon">{{ currentBook.currency() }}</span>
-              <input class="ae-input ae-input-icon-pad" type="number" formControlName="amount" placeholder="0.00" step="0.01" min="0.01">
+            <label class="ae-label">Currency</label>
+            <select class="ae-select" [value]="addSelectedCurrency()" (change)="onAddCurrencyChange($any($event.target).value)">
+              <option *ngFor="let c of addCurrencyOptions()" [value]="c">{{ c }}{{ c === currentBook.currency() ? ' (book)' : '' }}</option>
+            </select>
+          </div>
+
+          <!-- FX preview / warning -->
+          <div *ngIf="addIsForeignCurrency()">
+            <div *ngIf="addRateLoading()" class="ae-fx-loading"><i class="fa-solid fa-spinner fa-spin"></i> Looking up rate…</div>
+            <div *ngIf="!addRateLoading() && addConversionPreview() as preview" class="ae-fx-preview">
+              <i class="fa-solid fa-arrow-right-arrow-left"></i>
+              ≈ {{ preview.bookCurrency }} {{ preview.converted | number:'1.2-2' }}
+              <span class="ae-fx-rate">(rate: {{ preview.rate }})</span>
+            </div>
+            <div *ngIf="addNoRateWarning()" class="ae-fx-warn">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              Conversion not available for {{ addSelectedCurrency() }} — enter amount in {{ currentBook.currency() }} instead
+            </div>
+          </div>
+
+          <!-- Category + Payment Method -->
+          <div class="ae-row">
+            <div class="ae-field">
+              <label class="ae-label">Category <span class="ae-required">*</span>
+                <button type="button" class="ae-add-cat-btn" (click)="openAddCategoryModal()" title="Add new category">+</button>
+              </label>
+              <select class="ae-select" formControlName="category">
+                <option value="">Select an option</option>
+                <option *ngFor="let c of categories()" [value]="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <div class="ae-field" *ngIf="addFormValues()?.type !== 'income'">
+              <label class="ae-label">Payment Method</label>
+              <select class="ae-select" formControlName="paymentMethod">
+                <option value="">Select an option</option>
+                <option *ngFor="let p of paymentMethods()" [value]="p.id">{{ p.name }}</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="ae-field">
+            <label class="ae-label">Description (optional)</label>
+            <input class="ae-input" type="text" formControlName="description" placeholder="Brief description of the expense">
+          </div>
+
+          <!-- Notes -->
+          <div class="ae-field">
+            <label class="ae-label">Notes (optional)</label>
+            <textarea class="ae-textarea" formControlName="notes" placeholder="Additional notes" rows="3"></textarea>
+          </div>
+
+          <!-- Recurring -->
+          <div class="ae-checkbox-row">
+            <label class="ae-checkbox">
+              <input type="checkbox" formControlName="isRecurring">
+              <span>This is a recurring transaction</span>
+            </label>
+          </div>
+          <div *ngIf="addForm.get('isRecurring')?.value" class="ae-field">
+            <label class="ae-label">Frequency</label>
+            <select class="ae-select" formControlName="recurringFrequency">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+        </ng-container>
+
+        <!-- ── ITEMIZED MODE ── -->
+        <ng-container *ngIf="addEntryMode() === 'itemized'">
+          <!-- Date + Payment + Receipt# -->
+          <div class="ae-row">
+            <div class="ae-field">
+              <label class="ae-label">Date *</label>
+              <input class="ae-input" type="date" formControlName="date">
+            </div>
+            <div class="ae-field">
+              <label class="ae-label">Payment Method</label>
+              <select class="ae-select" formControlName="paymentMethod">
+                <option value="">Select an option</option>
+                <option *ngFor="let p of paymentMethods()" [value]="p.id">{{ p.name }}</option>
+              </select>
             </div>
           </div>
           <div class="ae-field">
-            <label class="ae-label">Date *</label>
-            <input class="ae-input" type="date" formControlName="date">
+            <label class="ae-label">Receipt / Reference # (optional)</label>
+            <input class="ae-input" type="text" formControlName="receiptNumber" placeholder="INV-001">
           </div>
-        </div>
 
-        <!-- Currency selector -->
-        <div class="ae-field">
-          <label class="ae-label">Currency</label>
-          <select class="ae-select"
-            [value]="addSelectedCurrency()"
-            (change)="onAddCurrencyChange($any($event.target).value)">
-            <option *ngFor="let c of addCurrencyOptions()" [value]="c">
-              {{ c }}{{ c === currentBook.currency() ? ' (book)' : '' }}
-            </option>
-          </select>
-        </div>
+          <!-- Items list -->
+          <div class="ae-items-section" formArrayName="items">
+            <div class="ae-items-header">
+              <span class="ae-items-title">Items</span>
+              <span class="ae-items-subtitle">Name · Amount · Category</span>
+            </div>
 
-        <!-- FX preview / warning -->
-        <div *ngIf="addIsForeignCurrency()">
-          <div *ngIf="addRateLoading()" class="ae-fx-loading">
-            <i class="fa-solid fa-spinner fa-spin"></i> Looking up rate…
+            <div *ngFor="let item of addItemsArray.controls; let i = index" [formGroupName]="i" class="ae-item-row">
+              <input class="ae-item-input ae-item-name" type="text" formControlName="name" placeholder="Item name (optional)">
+              <input class="ae-item-input ae-item-amount" type="number" formControlName="amount" placeholder="0.00" min="0" step="0.01">
+              <select class="ae-item-input ae-item-cat" formControlName="category">
+                <option value="">Category</option>
+                <option *ngFor="let c of categories()" [value]="c.id">{{ c.name }}</option>
+              </select>
+              <button type="button" class="ae-item-remove" (click)="removeAddItem(i)" title="Remove"
+                *ngIf="addItemsArray.length > 1">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <button type="button" class="ae-add-item-btn" (click)="addItemFn()">
+              <i class="fa-solid fa-plus"></i> Add Item
+            </button>
+
+            <!-- Tax row -->
+            <div class="ae-tax-row">
+              <span class="ae-tax-label">Tax (optional)</span>
+              <input class="ae-item-input ae-item-name" type="text" formControlName="taxLabel" placeholder="GST / VAT / Tax">
+              <input class="ae-item-input ae-item-amount" type="number" formControlName="taxAmount" placeholder="0.00" min="0" step="0.01">
+            </div>
+
+            <!-- Totals -->
+            <div class="ae-totals">
+              <div class="ae-total-row">
+                <span>Subtotal</span>
+                <span>{{ currentBook.currency() }} {{ addItemsTotal() | number:'1.2-2' }}</span>
+              </div>
+              <div class="ae-total-row ae-grand-total">
+                <strong>Total</strong>
+                <strong>{{ currentBook.currency() }} {{ addItemsGrandTotal() | number:'1.2-2' }}</strong>
+              </div>
+            </div>
           </div>
-          <div *ngIf="!addRateLoading() && addConversionPreview() as preview" class="ae-fx-preview">
-            <i class="fa-solid fa-arrow-right-arrow-left"></i>
-            ≈ {{ preview.bookCurrency }} {{ preview.converted | number:'1.2-2' }}
-            <span class="ae-fx-rate">(rate: {{ preview.rate }})</span>
-          </div>
-          <div *ngIf="addNoRateWarning()" class="ae-fx-warn">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            Conversion not available for {{ addSelectedCurrency() }} — enter amount in {{ currentBook.currency() }} instead
-          </div>
-        </div>
+        </ng-container>
 
-        <!-- Category + Payment Method -->
-        <div class="ae-row">
-          <div class="ae-field">
-            <label class="ae-label">
-              Category <span class="ae-required">*</span>
-              <button type="button" class="ae-add-cat-btn" (click)="openAddCategoryModal()" title="Add new category">+</button>
-            </label>
-            <select class="ae-select" formControlName="category">
-              <option value="">Select an option</option>
-              <option *ngFor="let c of categories()" [value]="c.id">{{ c.name }}</option>
-            </select>
-          </div>
-          <div class="ae-field">
-            <label class="ae-label">Payment Method <span class="ae-required">*</span></label>
-            <select class="ae-select" formControlName="paymentMethod">
-              <option value="">Select an option</option>
-              <option *ngFor="let p of paymentMethods()" [value]="p.id">{{ p.name }}</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Description -->
-        <div class="ae-field">
-          <label class="ae-label">Description *</label>
-          <input class="ae-input" type="text" formControlName="description" placeholder="Brief description of the expense">
-          <span *ngIf="addForm.get('description')?.invalid && addForm.get('description')?.touched" class="ae-field-error">Description is required</span>
-        </div>
-
-        <!-- Notes -->
-        <div class="ae-field">
-          <label class="ae-label">Notes (optional)</label>
-          <textarea class="ae-textarea" formControlName="notes" placeholder="Additional notes" rows="3"></textarea>
-        </div>
-
-        <!-- Recurring checkbox -->
-        <div class="ae-checkbox-row">
-          <label class="ae-checkbox">
-            <input type="checkbox" formControlName="isRecurring">
-            <span>This is a recurring transaction</span>
-          </label>
-        </div>
-
-        <!-- Recurring frequency (conditional) -->
-        <div *ngIf="addForm.get('isRecurring')?.value" class="ae-field">
-          <label class="ae-label">Frequency</label>
-          <select class="ae-select" formControlName="recurringFrequency">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-        </div>
       </form>
     </div>
 
@@ -298,7 +369,9 @@
     <div modal-footer>
       <ng-container *ngIf="addActiveTab() === 'manual'">
         <app-button type="button" variant="ghost" (clicked)="closeAddModal()" [disabled]="addLoading()">Cancel</app-button>
-        <app-button type="button" (clicked)="handleAddExpense()" [disabled]="addLoading()">{{ addLoading() ? 'Saving...' : addForm.get('type')?.value === 'income' ? 'Save Income' : 'Save Expense' }}</app-button>
+        <app-button type="button" (clicked)="handleAddExpense()" [disabled]="addLoading()">
+          {{ addLoading() ? 'Saving...' : addEntryMode() === 'itemized' ? 'Save Items' : (addForm.get('type')?.value === 'income' ? 'Save Income' : 'Save Expense') }}
+        </app-button>
       </ng-container>
       <ng-container *ngIf="addActiveTab() === 'upload' && addImportData().length > 0">
         <app-button type="button" variant="ghost" (clicked)="closeAddModal()">Cancel</app-button>
@@ -348,7 +421,7 @@
         </div>
 
         <!-- Category + Payment Method -->
-        <div class="ae-row">
+        <div class="ae-row" [class.ae-row-full]="editForm.get('type')?.value === 'income'">
           <div class="ae-field">
             <label class="ae-label">Category</label>
             <select class="ae-select" formControlName="category">
@@ -356,7 +429,7 @@
               <option *ngFor="let c of categories()" [value]="c.id">{{ c.name }}</option>
             </select>
           </div>
-          <div class="ae-field">
+          <div class="ae-field" *ngIf="editForm.get('type')?.value !== 'income'">
             <label class="ae-label">Payment Method</label>
             <select class="ae-select" formControlName="paymentMethod">
               <option value="">Select an option</option>
@@ -367,9 +440,8 @@
 
         <!-- Description -->
         <div class="ae-field">
-          <label class="ae-label">Description *</label>
-          <input class="ae-input" type="text" formControlName="description" placeholder="Brief description">
-          <span *ngIf="editForm.get('description')?.invalid && editForm.get('description')?.touched" class="ae-field-error">Description is required</span>
+          <label class="ae-label">Description (optional)</label>
+          <input class="ae-input" type="text" formControlName="description" placeholder="Leave blank to use category name">
         </div>
 
         <!-- Notes -->

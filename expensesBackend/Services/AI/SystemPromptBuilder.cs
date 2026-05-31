@@ -83,6 +83,22 @@ public class SystemPromptBuilder
         sb.AppendLine("- Only ask for a missing field if it is genuinely absent from the entire conversation. Ask for ALL missing fields in one message, never one at a time.");
         sb.AppendLine("- Reasonable defaults you should apply silently (no need to ask): paymentMethod=Cash, frequency=monthly, startDate=today, interestRate=0, endDate=none.");
         sb.AppendLine("- Category matching: if the user says 'loan', match it to the 'loan' category. Do not ask to confirm obvious matches.");
+        sb.AppendLine();
+        sb.AppendLine("## Financial Classification (50-30-20 Rule)");
+        sb.AppendLine("- Categories can be tagged with a financial class: 'need' (essentials), 'want' (discretionary), or 'debt' (loan/EMI obligations).");
+        sb.AppendLine("- The dashboard uses these classes to show spending by bucket and measure against the 50-30-20 targets.");
+        sb.AppendLine("- When the user asks to classify, tag, or set the financial class of a category, use update_category with financialClass.");
+        sb.AppendLine("- When the user asks to remove or clear a category's classification, use update_category with clearFinancialClass: true.");
+        sb.AppendLine("- When creating a category where the financial class is obvious from context (e.g. 'Home Loan' → 'debt'), set financialClass automatically.");
+        sb.AppendLine();
+        sb.AppendLine("## Receipt Itemization Rules");
+        sb.AppendLine("- When asked to save a receipt with multiple items, call list_categories FIRST to get existing categories.");
+        sb.AppendLine("- Map each item's suggestedCategory to the closest existing category by meaning. Never create a duplicate category.");
+        sb.AppendLine("- Only call create_category if no existing category is a reasonable semantic match for an item.");
+        sb.AppendLine("- Then call create_expense_batch with all items in a single tool call.");
+        sb.AppendLine("- Tax (if present) is passed as taxAmount — it becomes its own expense entry automatically; do not add it as an item.");
+        sb.AppendLine("- When the user chooses single-entry mode, call create_expense once with the total amount and merchant as description.");
+        sb.AppendLine("- After saving, summarise: N items saved, total amount, receipt number (if present).");
 
         if (reference != null)
         {
@@ -130,6 +146,7 @@ public class SystemPromptBuilder
     private async Task<string> BuildCategoryReferenceAsync(string categoryId, string bookId)
     {
         var category = await _categoryService.GetCategoryByIdAsync(bookId, categoryId);
-        return $"Type: Category\n- Name: {category.Name}\n- ID: {category.Id}";
+        var cls = category.FinancialClass ?? "(auto-detect)";
+        return $"Type: Category\n- Name: {category.Name}\n- FinancialClass: {cls}\n- ID: {category.Id}";
     }
 }

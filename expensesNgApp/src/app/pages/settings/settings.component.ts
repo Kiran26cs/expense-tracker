@@ -97,6 +97,7 @@ export class SettingsComponent implements OnInit {
   catError = signal('');
   catSuccess = signal('');
   catModalLoading = signal(false);
+  classifyLoading = signal(false);
   // Add form
   newCatName = signal('');
   newCatIcon = signal('fa-solid fa-tag');
@@ -188,7 +189,7 @@ export class SettingsComponent implements OnInit {
     try {
       const res = await this.settingsService.getSettings(this.bookId);
       if (res.success && res.data) {
-        this.generalForm.patchValue({ defaultCurrency: res.data.defaultCurrency || 'USD', monthlySavingsGoal: res.data.monthlySavingsGoal || null });
+        this.generalForm.patchValue({ defaultCurrency: res.data.defaultCurrency ?? 'USD', monthlySavingsGoal: res.data.monthlySavingsGoal ?? null });
       }
     } catch {}
   }
@@ -259,6 +260,47 @@ export class SettingsComponent implements OnInit {
 
   startEditCat(cat: any) { this.editingCatId.set(cat.id); this.editCatName.set(cat.name); this.editCatIcon.set(cat.icon || 'fa-solid fa-tag'); }
   cancelEditCat() { this.editingCatId.set(null); }
+
+  async updateFinancialClass(catId: string, value: string) {
+    const payload = value
+      ? { financialClass: value }
+      : { financialClass: '', clearFinancialClass: true };
+    try {
+      const res = await this.settingsService.updateCategory(this.bookId, catId, payload);
+      if (res.success) {
+        this.categories.update(cats => cats.map(c => c.id === catId ? { ...c, financialClass: value || null } : c));
+      }
+    } catch { /* silent */ }
+  }
+
+  async handleBulkClassify() {
+    this.classifyLoading.set(true);
+    try {
+      const res = await this.settingsService.bulkClassifyCategories(this.bookId);
+      if (res.success && res.data) {
+        const { classified, usedCredit, freeUsed, freeQuota } = res.data;
+        const creditNote = usedCredit
+          ? '(1 credit used)'
+          : `(${freeUsed}/${freeQuota} free uses)`;
+        const msg = classified > 0
+          ? `${classified} categor${classified === 1 ? 'y' : 'ies'} classified ${creditNote}`
+          : `All categories already classified ${creditNote}`;
+        this.toast.success(msg);
+        if (classified > 0) await this.loadCategories();
+      } else {
+        this.toast.error(res.error || 'Classification failed');
+      }
+    } catch (e: any) {
+      const status = e?.status;
+      if (status === 402) {
+        this.toast.error(e?.error?.error ?? 'No credits remaining. Purchase credits to continue using Auto-classify.');
+      } else {
+        this.toast.error(e?.error?.error ?? e?.message ?? 'Classification failed');
+      }
+    } finally {
+      this.classifyLoading.set(false);
+    }
+  }
 
   async confirmUpdateCategory() {
     const id = this.editingCatId();

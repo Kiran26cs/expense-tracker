@@ -78,6 +78,10 @@ public class ToolRegistry
                 "Set up a recurring expense (e.g. monthly loan EMI, rent, subscription). Creates a scheduled entry tracked in Finance Tools. The expense is recorded each time the user marks it as paid.",
                 """{"type":"object","properties":{"amount":{"type":"number"},"category":{"type":"string","description":"Category name or ID"},"description":{"type":"string","description":"Label for the recurring expense, e.g. 'Home Loan EMI'"},"paymentMethod":{"type":"string","description":"e.g. cash, card, UPI, bank transfer"},"frequency":{"type":"string","enum":["daily","weekly","monthly","yearly"],"description":"How often it recurs (default: monthly)"},"startDate":{"type":"string","description":"ISO date YYYY-MM-DD — date of first occurrence"},"endDate":{"type":"string","description":"ISO date YYYY-MM-DD — optional end date"},"notes":{"type":"string"}},"required":["amount","category","paymentMethod","startDate"]}"""));
 
+            tools.Add(new("create_expense_batch",
+                "Save multiple line items from a receipt as individual expense entries. Each item gets its own expense document. If taxAmount is provided, tax is stored as a separate entry with category 'Tax & Fees'. All items share the same receiptGroupId. Use this after reading a receipt — first call list_categories to map categories correctly.",
+                """{"type":"object","properties":{"receiptNumber":{"type":"string","description":"Invoice or receipt number (optional)"},"merchant":{"type":"string","description":"Merchant or store name (optional)"},"paymentMethod":{"type":"string","description":"e.g. cash, card, UPI"},"date":{"type":"string","description":"ISO date YYYY-MM-DD"},"items":{"type":"array","description":"Line items from the receipt","items":{"type":"object","properties":{"name":{"type":"string","description":"Item name or description"},"amount":{"type":"number","description":"Item amount"},"category":{"type":"string","description":"Existing category name or ID"}},"required":["amount","category"]}},"taxAmount":{"type":"number","description":"Tax amount (optional) — stored as a separate expense entry with category Tax & Fees"},"taxLabel":{"type":"string","description":"Tax label from receipt, e.g. GST, VAT (optional)"}},"required":["paymentMethod","date","items"]}"""));
+
             tools.Add(new("create_lending",
                 "Record money lent to someone. Tracks the principal, optional interest rate, repayments, and due date. Use this when the user says they lent money to a person.",
                 """{"type":"object","properties":{"borrowerName":{"type":"string","description":"Name of the person who borrowed the money"},"borrowerContact":{"type":"string","description":"Optional phone or email of the borrower"},"principalAmount":{"type":"number","description":"Amount lent"},"annualInterestRate":{"type":"number","description":"Annual interest rate in percent, e.g. 12 for 12%. Default 0 for interest-free."},"startDate":{"type":"string","description":"ISO date YYYY-MM-DD — date money was lent (defaults to today)"},"dueDate":{"type":"string","description":"ISO date YYYY-MM-DD — optional repayment deadline"},"notes":{"type":"string"}},"required":["borrowerName","principalAmount"]}"""));
@@ -128,11 +132,11 @@ public class ToolRegistry
         {
             tools.Add(new("create_category",
                 "Create a new custom expense category in this book.",
-                """{"type":"object","properties":{"name":{"type":"string","description":"Category name, e.g. 'Groceries', 'Loan'"},"type":{"type":"string","enum":["expense","income"],"description":"Whether this category is for expenses or income (default: expense)"},"icon":{"type":"string","description":"Font Awesome icon class, e.g. 'fa-solid fa-tag' (default if omitted)"},"color":{"type":"string","description":"Hex color code, e.g. '#6366f1' (default if omitted)"}},"required":["name"]}"""));
+                """{"type":"object","properties":{"name":{"type":"string","description":"Category name, e.g. 'Groceries', 'Loan'"},"type":{"type":"string","enum":["expense","income"],"description":"Whether this category is for expenses or income (default: expense)"},"icon":{"type":"string","description":"Font Awesome icon class, e.g. 'fa-solid fa-tag' (default if omitted)"},"color":{"type":"string","description":"Hex color code, e.g. '#6366f1' (default if omitted)"},"financialClass":{"type":"string","enum":["need","want","debt"],"description":"Financial classification for the 50-30-20 rule: 'need' (essential expenses like rent/groceries), 'want' (discretionary like dining/entertainment), 'debt' (loan repayments/EMIs). Omit to use rule-based auto-detection."}},"required":["name"]}"""));
 
             tools.Add(new("update_category",
-                "Rename or change the icon/color of an existing custom category. Cannot modify default categories.",
-                """{"type":"object","properties":{"category":{"type":"string","description":"Category name or ID to update"},"name":{"type":"string","description":"New name for the category"},"type":{"type":"string","enum":["expense","income"]},"icon":{"type":"string","description":"New Font Awesome icon class"},"color":{"type":"string","description":"New hex color code"}},"required":["category"]}"""));
+                "Rename, change the icon/color, or set the financial classification of an existing custom category. Cannot modify default categories.",
+                """{"type":"object","properties":{"category":{"type":"string","description":"Category name or ID to update"},"name":{"type":"string","description":"New name for the category"},"type":{"type":"string","enum":["expense","income"]},"icon":{"type":"string","description":"New Font Awesome icon class"},"color":{"type":"string","description":"New hex color code"},"financialClass":{"type":"string","enum":["need","want","debt"],"description":"Set financial classification: 'need', 'want', or 'debt'"},"clearFinancialClass":{"type":"boolean","description":"Set to true to remove the manual classification and revert to auto-detection"}},"required":["category"]}"""));
 
             tools.Add(new("delete_category",
                 "Delete a custom category from this book. Default categories cannot be deleted.",
@@ -154,6 +158,7 @@ public class ToolRegistry
             "list_expenses"            => await ListExpensesAsync(args, ctx),
             "get_expense"              => await GetExpenseAsync(args, ctx),
             "create_expense"           => await CreateExpenseAsync(args, ctx),
+            "create_expense_batch"     => await CreateExpenseBatchAsync(args, ctx),
             "update_expense"           => await UpdateExpenseAsync(args, ctx),
             "delete_expense"           => await DeleteExpenseAsync(args, ctx),
             "create_recurring_expense" => await CreateRecurringExpenseAsync(args, ctx),
@@ -176,7 +181,7 @@ public class ToolRegistry
     private async Task<string> ListCategoriesAsync(ToolExecutionContext ctx)
     {
         var cats = await _categories.GetCategoriesAsync(ctx.BookId);
-        return Serialize(cats.Select(c => new { c.Id, c.Name, c.Icon, c.Color }));
+        return Serialize(cats.Select(c => new { c.Id, c.Name, c.Icon, c.Color, c.FinancialClass }));
     }
 
     // ── Dashboard tools ───────────────────────────────────────────────────────
@@ -283,6 +288,56 @@ public class ToolRegistry
             expense.OriginalAmount, expense.OriginalCurrency, expense.FxRate
         };
         return Serialize(result);
+    }
+
+    private async Task<string> CreateExpenseBatchAsync(JsonObject args, ToolExecutionContext ctx)
+    {
+        await _permissions.AssertCanAsync(ctx.BookId, ctx.UserId, "expenses", "write");
+
+        var dateStr = args["date"]?.GetValue<string>();
+        var date    = string.IsNullOrEmpty(dateStr) ? DateTime.UtcNow : DateTime.Parse(dateStr);
+
+        var itemsNode = args["items"]?.AsArray() ?? [];
+        var items = new List<ReceiptItemRequest>();
+        foreach (var itemNode in itemsNode)
+        {
+            if (itemNode is not JsonObject itemObj) continue;
+            var categoryArg = itemObj["category"]?.GetValue<string>() ?? string.Empty;
+            var (categoryName, categoryId) = await ResolveCategoryAsync(categoryArg, ctx.BookId);
+
+            if (!ctx.Permissions.IsOwner
+                && ctx.Permissions.AllowedCategoryIds.Count > 0
+                && !ctx.Permissions.AllowedCategoryIds.Contains(categoryId))
+                throw new UnauthorizedAccessException($"You are not allowed to use the category '{categoryName}'.");
+
+            items.Add(new ReceiptItemRequest
+            {
+                Name     = itemObj["name"]?.GetValue<string>() ?? string.Empty,
+                Amount   = itemObj["amount"]?.GetValue<decimal>() ?? 0m,
+                Category = categoryName,
+            });
+        }
+
+        var req = new CreateExpenseBatchRequest
+        {
+            ExpenseBookId = ctx.BookId,
+            ReceiptNumber = args["receiptNumber"]?.GetValue<string>(),
+            Merchant      = args["merchant"]?.GetValue<string>(),
+            PaymentMethod = args["paymentMethod"]!.GetValue<string>(),
+            Date          = date,
+            Items         = items,
+            TaxAmount     = args["taxAmount"]?.GetValue<decimal?>(),
+            TaxLabel      = args["taxLabel"]?.GetValue<string>(),
+        };
+
+        var results = await _expenses.CreateExpenseBatchAsync(ctx.UserId, req);
+        return Serialize(new
+        {
+            Count   = results.Count,
+            Total   = results.Sum(e => e.Amount),
+            Items   = results.Select(e => new { e.Id, e.Description, e.Amount, e.Category }),
+            Message = $"{results.Count} expense{(results.Count == 1 ? "" : "s")} saved from receipt.",
+        });
     }
 
     private async Task<string> UpdateExpenseAsync(JsonObject args, ToolExecutionContext ctx)
@@ -500,11 +555,12 @@ public class ToolRegistry
 
         var req = new CreateCategoryRequest
         {
-            ExpenseBookId = ctx.BookId,
-            Name          = args["name"]!.GetValue<string>(),
-            Type          = args["type"]?.GetValue<string>()  ?? "expense",
-            Icon          = args["icon"]?.GetValue<string>()  ?? "fa-solid fa-tag",
-            Color         = args["color"]?.GetValue<string>() ?? "#6366f1",
+            ExpenseBookId  = ctx.BookId,
+            Name           = args["name"]!.GetValue<string>(),
+            Type           = args["type"]?.GetValue<string>()  ?? "expense",
+            Icon           = args["icon"]?.GetValue<string>()  ?? "fa-solid fa-tag",
+            Color          = args["color"]?.GetValue<string>() ?? "#6366f1",
+            FinancialClass = args["financialClass"]?.GetValue<string>(),
         };
 
         var category = await _categories.CreateCategoryAsync(ctx.BookId, ctx.UserId, req);
@@ -515,6 +571,7 @@ public class ToolRegistry
             category.Type,
             category.Icon,
             category.Color,
+            category.FinancialClass,
             Message = $"Category '{category.Name}' created successfully.",
         });
     }
@@ -527,10 +584,12 @@ public class ToolRegistry
 
         var req = new UpdateCategoryRequest
         {
-            Name  = args["name"]?.GetValue<string>(),
-            Type  = args["type"]?.GetValue<string>(),
-            Icon  = args["icon"]?.GetValue<string>(),
-            Color = args["color"]?.GetValue<string>(),
+            Name                = args["name"]?.GetValue<string>(),
+            Type                = args["type"]?.GetValue<string>(),
+            Icon                = args["icon"]?.GetValue<string>(),
+            Color               = args["color"]?.GetValue<string>(),
+            FinancialClass      = args["financialClass"]?.GetValue<string>(),
+            ClearFinancialClass = args["clearFinancialClass"]?.GetValue<bool>() ?? false,
         };
 
         var category = await _categories.UpdateCategoryAsync(ctx.BookId, categoryId, req);
@@ -541,6 +600,7 @@ public class ToolRegistry
             category.Type,
             category.Icon,
             category.Color,
+            category.FinancialClass,
             Message = $"Category '{category.Name}' updated successfully.",
         });
     }

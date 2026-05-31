@@ -16,9 +16,33 @@ import { ButtonComponent } from '../../components/button/button.component';
 import { LoadingComponent, EmptyStateComponent } from '../../components/loading/loading.component';
 import { DateRangePickerComponent } from '../../components/date-range-picker/date-range-picker.component';
 import { ModalComponent } from '../../components/modal/modal.component';
-import { formatCurrency, formatDate } from '../../utils/helpers';
+import { formatCurrency, formatCalendarDate, localDateString } from '../../utils/helpers';
+
+const SESSION_KEY = (bookId: string) => `dashboard-filters-${bookId}`;
+
+interface DashboardFilterState {
+  dateStart: string;
+  dateEnd:   string;
+}
+
+function defaultLast30Start(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 29);
+  return localDateString(d) + 'T00:00:00Z';
+}
 
 const GRADIENT_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#10b981', '#3b82f6', '#f97316', '#ef4444', '#84cc16'];
+
+const BUCKET_COLORS: Record<string, string> = {
+  need:          '#10b981',
+  want:          '#f59e0b',
+  debt:          '#ef4444',
+  unclassified:  '#94a3b8',
+};
+const BUCKET_LABELS: Record<string, string> = {
+  need: 'Needs', want: 'Wants', debt: 'Debt', unclassified: 'Unclassified',
+};
+const BUCKET_ORDER = ['need', 'want', 'debt', 'unclassified'] as const;
 
 @Component({
   selector: 'app-dashboard',
@@ -39,8 +63,8 @@ export class DashboardComponent implements OnInit {
   selectedPayment = signal<UpcomingPayment | null>(null);
   markPaidLoading = false;
 
-  dateStart = signal(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0] + 'T00:00:00');
-  dateEnd = signal(new Date().toISOString().split('T')[0] + 'T23:59:59');
+  dateStart = signal(defaultLast30Start());
+  dateEnd = signal(localDateString() + 'T23:59:59Z');
 
   bookId = '';
 
@@ -55,8 +79,10 @@ export class DashboardComponent implements OnInit {
   categories = signal<any[]>([]);
 
   protected readonly GRADIENT_COLORS = GRADIENT_COLORS;
+  protected readonly BUCKET_COLORS = BUCKET_COLORS;
   protected readonly formatCurrency = formatCurrency;
-  protected readonly formatDate = formatDate;
+  protected readonly formatDate = formatCalendarDate;
+  protected readonly Math = Math;
 
   getCategoryColor(idOrName: string): string {
     const cat = this.categories().find(c => c.id === idOrName || c.name === idOrName);
@@ -71,39 +97,94 @@ export class DashboardComponent implements OnInit {
     return cat?.name || idOrName || '—';
   }
 
-  pieData = computed<ChartData<'doughnut'>>(() => {
+  // ── Two-ring doughnut: outer = categories, inner = Needs/Wants/Debt buckets ──
+
+  financialBuckets = computed(() => {
     const cats = this.summary()?.categoryBreakdown || [];
-    return {
-      labels: cats.map((c: any) => c.category || 'Uncategorized'),
-      datasets: [{ data: cats.map((c: any) => Number(c.amount)), backgroundColor: GRADIENT_COLORS.slice(0, cats.length), borderWidth: 2, borderColor: 'transparent' }]
-    };
+    const totals: Record<string, number> = { need: 0, want: 0, debt: 0, unclassified: 0 };
+    for (const c of cats) {
+      const key = (c as any).financialClass ?? 'unclassified';
+      totals[key in totals ? key : 'unclassified'] += Number((c as any).amount ?? 0);
+    }
+    return BUCKET_ORDER.map(k => ({ key: k, label: BUCKET_LABELS[k], amount: totals[k], color: BUCKET_COLORS[k] }));
   });
 
-  barData = computed<ChartData<'bar'>>(() => {
-    const groups = this.transactions();
+  pieData = computed<ChartData<'doughnut'>>(() => {
+    const cats  = this.summary()?.categoryBreakdown || [];
+    const buckets = this.financialBuckets();
     return {
-      labels: groups.map(g => formatDate(g.date, 'short')),
+      labels: cats.map((c: any) => c.category || 'Uncategorized'),
       datasets: [
-        { label: 'Expenses', data: groups.map(g => (g.transactions || []).filter((t: any) => t.type !== 'income').reduce((sum: number, t: any) => sum + t.amount, 0)), backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 4 },
-        { label: 'Income', data: groups.map(g => (g.transactions || []).filter((t: any) => t.type === 'income').reduce((sum: number, t: any) => sum + t.amount, 0)), backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 4 }
-      ]
+        // Outer ring — individual categories
+        {
+          data: cats.map((c: any) => Number(c.amount)),
+          backgroundColor: GRADIENT_COLORS.slice(0, cats.length),
+          borderWidth: 2, borderColor: 'transparent',
+        },
+        // Inner ring — financial buckets
+        {
+          data: buckets.map(b => b.amount),
+          backgroundColor: buckets.map(b => b.color),
+          borderWidth: 2, borderColor: 'transparent',
+        },
+      ],
     };
   });
 
   pieOptions: ChartOptions<'doughnut'> = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${formatCurrency(ctx.parsed, this.summary()?.currency)}` } } },
-    cutout: '65%'
+    cutout: '40%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          // Inner ring (dataset 1) uses bucket labels; outer ring uses category labels.
+          title: (items) => {
+            const item = items[0];
+            if (!item) return '';
+            if (item.datasetIndex === 1) {
+              const b = this.financialBuckets()[item.dataIndex];
+              return b ? b.label : '';
+            }
+            return item.label || '';
+          },
+          label: (ctx) => {
+            const currency = this.summary()?.currency;
+            if (ctx.datasetIndex === 1) {
+              // Title already shows the bucket name — just show the amount here.
+              const b = this.financialBuckets()[ctx.dataIndex];
+              return b ? ` ${formatCurrency(b.amount, currency)}` : '';
+            }
+            return ` ${ctx.label}: ${formatCurrency(ctx.parsed, currency)}`;
+          },
+        },
+      },
+    },
   };
 
-  barOptions: ChartOptions<'bar'> = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'top' } },
-    scales: { x: { grid: { display: false } }, y: { beginAtZero: true } }
-  };
+  // ── Session filter persistence ──────────────────────────────────────────────
+
+  private saveFilters() {
+    const state: DashboardFilterState = { dateStart: this.dateStart(), dateEnd: this.dateEnd() };
+    sessionStorage.setItem(SESSION_KEY(this.bookId), JSON.stringify(state));
+  }
+
+  private restoreFilters() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY(this.bookId));
+      if (!raw) return;
+      const state: DashboardFilterState = JSON.parse(raw);
+      if (state.dateStart) this.dateStart.set(state.dateStart);
+      if (state.dateEnd)   this.dateEnd.set(state.dateEnd);
+    } catch { /* ignore malformed */ }
+  }
 
   ngOnInit() {
-    this.route.parent?.params.subscribe(p => { this.bookId = p['bookId'] || ''; this.loadAll(); });
+    this.route.parent?.params.subscribe(p => {
+      this.bookId = p['bookId'] || '';
+      this.restoreFilters();
+      this.loadAll();
+    });
     this.aiChat.dataChanged$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadAll());
   }
 
@@ -123,7 +204,6 @@ export class DashboardComponent implements OnInit {
   async loadSummary() {
     try {
       const res = await this.dashboardService.getSummary(this.bookId, this.dateStart(), this.dateEnd());
-      console.log('load summary details --->', res)
       if (res.success) this.summary.set(res.data || null);
     } catch {}
   }
@@ -159,6 +239,7 @@ export class DashboardComponent implements OnInit {
   onDateRangeChange(range: { start: string; end: string }) {
     this.dateStart.set(range.start);
     this.dateEnd.set(range.end);
+    this.saveFilters();
     this.loadAll();
   }
 

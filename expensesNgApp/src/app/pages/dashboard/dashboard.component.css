@@ -20,11 +20,33 @@
 .pie-canvas-wrap canvas { display: block; }
 .bar-chart-wrapper { display: block; height: 300px; position: relative; overflow: hidden; }
 .bar-chart-wrapper canvas { display: block; }
-.pie-legend { flex: 1; display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; }
+.pie-legend { flex: 1; display: flex; flex-direction: column; gap: 0.35rem; max-height: 320px; overflow-y: auto; }
+.legend-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--color-text-tertiary); letter-spacing: 0.05em; margin-top: 0.25rem; }
 .legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: var(--font-size-xs); }
+.legend-item-bucket { font-weight: var(--font-weight-medium); }
+.legend-dim { opacity: 0.35; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .legend-label { flex: 1; color: var(--color-text-secondary); }
 .legend-value { font-weight: var(--font-weight-medium); }
+
+/* ── Financial Health card ───────────────────────────────────────── */
+.fh-rule-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); border-radius: 99px; margin-left: 0.5rem; vertical-align: middle; }
+.fh-income-line { font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-bottom: 1rem; }
+.fh-buckets { display: flex; flex-direction: column; gap: 0.9rem; }
+.fh-row {}
+.fh-row-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; }
+.fh-bucket-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); min-width: 80px; }
+.fh-savings-label { color: #6366f1; }
+.fh-bucket-amount { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); flex: 1; text-align: right; }
+.fh-bucket-pct { font-size: var(--font-size-xs); color: var(--color-text-secondary); min-width: 32px; text-align: right; }
+.fh-target-badge { font-size: 10px; padding: 1px 5px; border-radius: 99px; font-weight: 600; white-space: nowrap; }
+.fh-ok { background: rgba(16,185,129,0.12); color: #10b981; }
+.fh-over { background: rgba(239,68,68,0.12); color: #ef4444; }
+.fh-bar-track { height: 6px; border-radius: 99px; background: var(--color-border); overflow: hidden; }
+.fh-bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+.fh-savings-fill { background: #6366f1; }
+.fh-savings-row { padding-top: 0.75rem; border-top: 1px solid var(--color-border); }
+.fh-note { font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 0.75rem; }
 .header-right { margin-left: auto; }
 .payments-list { display: flex; flex-direction: column; gap: 0.75rem; }
 .payment-item { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; border-radius: var(--radius-lg); background: var(--color-background); }

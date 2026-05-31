@@ -58,7 +58,7 @@
 
     <!-- Charts Row -->
     <div class="charts-row">
-      <!-- Pie Chart: Category Spending -->
+      <!-- Two-ring Doughnut: outer=categories, inner=Needs/Wants/Debt -->
       <app-card class="chart-card">
         <app-card-header><app-card-title>Spending by Category</app-card-title></app-card-header>
         <app-card-content>
@@ -67,6 +67,15 @@
               <canvas baseChart [data]="pieData()" [type]="'doughnut'" [options]="pieOptions"></canvas>
             </div>
             <div class="pie-legend">
+              <!-- Bucket summary at top -->
+              <div class="legend-section-title">By classification</div>
+              <div *ngFor="let b of financialBuckets()" class="legend-item legend-item-bucket" [class.legend-dim]="b.amount === 0">
+                <span class="legend-dot" [style.background]="b.color"></span>
+                <span class="legend-label">{{ b.label }}</span>
+                <span class="legend-value">{{ formatCurrency(b.amount, summary()!.currency) }}</span>
+              </div>
+              <!-- Category detail below -->
+              <div class="legend-section-title" style="margin-top:0.5rem">By category</div>
               <div *ngFor="let item of summary()?.categoryBreakdown; let i = index" class="legend-item">
                 <span class="legend-dot" [style.background]="GRADIENT_COLORS[i % 10]"></span>
                 <span class="legend-label">{{ item.category || 'Uncategorized' }}</span>
@@ -78,14 +87,51 @@
         </app-card-content>
       </app-card>
 
-      <!-- Bar Chart: Daily -->
+      <!-- Financial Health Card (replaces Daily bar chart) -->
       <app-card class="chart-card">
-        <app-card-header><app-card-title>Daily Transactions</app-card-title></app-card-header>
+        <app-card-header><app-card-title>Financial Health <span class="fh-rule-badge">50-30-20</span></app-card-title></app-card-header>
         <app-card-content>
-          <div *ngIf="barData().datasets[0].data.length; else noBarData" class="chart-wrapper bar-chart-wrapper">
-            <canvas baseChart [data]="barData()" [type]="'bar'" [options]="barOptions"></canvas>
-          </div>
-          <ng-template #noBarData><app-empty-state title="No data" description="No transactions in selected period" icon="📊"></app-empty-state></ng-template>
+          <ng-container *ngIf="summary()?.totalIncome; else noIncomeData">
+            <p class="fh-income-line">Based on {{ formatCurrency(summary()!.totalIncome, summary()!.currency) }} income this period</p>
+            <div class="fh-buckets">
+              <ng-container *ngFor="let b of financialBuckets()">
+                <ng-container *ngIf="b.key !== 'unclassified' || b.amount > 0">
+                  <div class="fh-row">
+                    <div class="fh-row-header">
+                      <span class="fh-bucket-label" [style.color]="b.color">{{ b.label }}</span>
+                      <span class="fh-bucket-amount">{{ formatCurrency(b.amount, summary()!.currency) }}</span>
+                      <span class="fh-bucket-pct">{{ summary()!.totalIncome > 0 ? ((b.amount / summary()!.totalIncome) * 100 | number:'1.0-0') : 0 }}%</span>
+                      <ng-container *ngIf="b.key === 'need'">
+                        <span class="fh-target-badge" [class.fh-ok]="(b.amount / summary()!.totalIncome) <= 0.50" [class.fh-over]="(b.amount / summary()!.totalIncome) > 0.50">target 50%</span>
+                      </ng-container>
+                      <ng-container *ngIf="b.key === 'want'">
+                        <span class="fh-target-badge" [class.fh-ok]="(b.amount / summary()!.totalIncome) <= 0.30" [class.fh-over]="(b.amount / summary()!.totalIncome) > 0.30">target 30%</span>
+                      </ng-container>
+                    </div>
+                    <div class="fh-bar-track">
+                      <div class="fh-bar-fill" [style.width.%]="summary()!.totalIncome > 0 ? Math.min(100, (b.amount / summary()!.totalIncome) * 100) : 0" [style.background]="b.color"></div>
+                    </div>
+                  </div>
+                </ng-container>
+              </ng-container>
+              <!-- Savings row -->
+              <div class="fh-row fh-savings-row">
+                <div class="fh-row-header">
+                  <span class="fh-bucket-label fh-savings-label">Savings</span>
+                  <span class="fh-bucket-amount">{{ formatCurrency(summary()!.totalIncome - summary()!.totalExpenses, summary()!.currency) }}</span>
+                  <span class="fh-bucket-pct">{{ summary()!.totalIncome > 0 ? (((summary()!.totalIncome - summary()!.totalExpenses) / summary()!.totalIncome) * 100 | number:'1.0-0') : 0 }}%</span>
+                  <span class="fh-target-badge" [class.fh-ok]="(summary()!.totalIncome - summary()!.totalExpenses) / summary()!.totalIncome >= 0.20" [class.fh-over]="(summary()!.totalIncome - summary()!.totalExpenses) / summary()!.totalIncome < 0.20">target 20%</span>
+                </div>
+                <div class="fh-bar-track">
+                  <div class="fh-bar-fill fh-savings-fill" [style.width.%]="summary()!.totalIncome > 0 ? Math.min(100, ((summary()!.totalIncome - summary()!.totalExpenses) / summary()!.totalIncome) * 100) : 0"></div>
+                </div>
+              </div>
+            </div>
+            <p *ngIf="summary()?.isRestricted" class="fh-note">⚠ Restricted view — some categories hidden</p>
+          </ng-container>
+          <ng-template #noIncomeData>
+            <app-empty-state title="No income recorded" description="Add income transactions to see your financial health" icon="💰"></app-empty-state>
+          </ng-template>
         </app-card-content>
       </app-card>
     </div>

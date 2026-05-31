@@ -43,16 +43,32 @@ public class ReceiptExtractRequest
     public string MimeType { get; set; } = "image/jpeg";
 }
 
+public class ReceiptLineItem
+{
+    public string? Name { get; set; }
+    public decimal? Amount { get; set; }
+    public string? SuggestedCategory { get; set; }
+}
+
 public class ReceiptExtractResponse
 {
-    public string? Description { get; set; }
-    public decimal? Amount { get; set; }
+    public string? ReceiptNumber { get; set; }
+    public string? Merchant { get; set; }
+    public decimal? Subtotal { get; set; }
+    public decimal? TaxAmount { get; set; }
+    public string? TaxLabel { get; set; }
+    public decimal? Total { get; set; }
     public string? Currency { get; set; }
     public string? Date { get; set; }
-    public string? Category { get; set; }
     public string? PaymentMethod { get; set; }
-    public string? Type { get; set; }
     public string? Notes { get; set; }
+    public List<ReceiptLineItem> Items { get; set; } = [];
     public int Confidence { get; set; }
     public List<string> MissingFields { get; set; } = [];
+
+    // Flat fields kept for single-entry fallback (when no items extracted)
+    public string? Description { get; set; }
+    public decimal? Amount { get; set; }
+    public string? Category { get; set; }
+    public string? Type { get; set; }
 }

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, publicGuard } from './guards/auth.guard';
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 
 export const routes: Routes = [
   {
@@ -36,9 +37,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-      { path: 'dashboard', loadComponent: () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent) },
+      {
+        path: 'dashboard',
+        loadComponent: () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
+        providers: [provideCharts(withDefaultRegisterables())],
+      },
       { path: 'expenses', loadComponent: () => import('./pages/expense-list/expense-list.component').then(m => m.ExpenseListComponent) },
-      { path: 'expenses/add', loadComponent: () => import('./pages/add-expense/add-expense.component').then(m => m.AddExpenseComponent) },
       { path: 'expenses/:id/edit', loadComponent: () => import('./pages/edit-expense/edit-expense.component').then(m => m.EditExpenseComponent) },
       { path: 'budget', loadComponent: () => import('./pages/budget/budget.component').then(m => m.BudgetComponent) },
       { path: 'finance-tools', loadComponent: () => import('./pages/insights/insights.component').then(m => m.InsightsComponent) },

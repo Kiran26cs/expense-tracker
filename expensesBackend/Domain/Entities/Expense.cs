@@ -62,6 +62,23 @@ public class Expense
     [BsonSerializer(typeof(FlexibleStringSerializer))]
     public string? RecurringId { get; set; }
 
+    [BsonElement("receiptGroupId")]
+    [BsonIgnoreIfNull]
+    public string? ReceiptGroupId { get; set; }
+
+    [BsonElement("receiptNumber")]
+    [BsonIgnoreIfNull]
+    public string? ReceiptNumber { get; set; }
+
+    [BsonElement("isReceiptItem")]
+    [BsonIgnoreIfDefault]
+    public bool IsReceiptItem { get; set; }
+
+    /// <summary>Tax amount captured from the receipt for reference only. Stored as its own expense entry (Option C).</summary>
+    [BsonElement("taxAmount")]
+    [BsonIgnoreIfNull]
+    public decimal? TaxAmount { get; set; }
+
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

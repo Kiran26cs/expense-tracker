@@ -155,6 +155,33 @@ public class ExpensesController : ControllerBase
         }
     }
 
+    [HttpPost("batch")]
+    public async Task<ActionResult<ApiResponse<List<ExpenseDto>>>> CreateExpenseBatch([FromBody] CreateExpenseBatchRequest request)
+    {
+        try
+        {
+            var userId = GetUserId();
+
+            if (!string.IsNullOrEmpty(request.ExpenseBookId))
+            {
+                var perms = await _memberService.GetResolvedPermissionsAsync(request.ExpenseBookId, userId);
+                if (perms.Expenses != "write")
+                    return StatusCode(403, ApiResponse<List<ExpenseDto>>.ErrorResponse("You do not have write access to expenses in this book."));
+            }
+
+            var expenses = await _expenseService.CreateExpenseBatchAsync(userId, request);
+            return Ok(ApiResponse<List<ExpenseDto>>.SuccessResponse(expenses));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<List<ExpenseDto>>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<List<ExpenseDto>>.ErrorResponse(ex.Message));
+        }
+    }
+
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<ExpenseDto>>> UpdateExpense(
         string id, [FromBody] UpdateExpenseRequest request, [FromQuery] string? expenseBookId)

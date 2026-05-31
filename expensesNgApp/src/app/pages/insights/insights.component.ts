@@ -17,7 +17,7 @@ import { ModalComponent } from '../../components/modal/modal.component';
 import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-dialog.component';
 import { LendingPanelComponent } from '../../components/lending-panel/lending-panel.component';
 import { AddLendingModalComponent } from '../../components/add-lending-modal/add-lending-modal.component';
-import { formatCurrency, formatDate } from '../../utils/helpers';
+import { formatCurrency, formatCalendarDate, localDateString } from '../../utils/helpers';
 
 @Component({
   selector: 'app-insights',
@@ -32,8 +32,8 @@ export class InsightsComponent implements OnInit {
   recurring = signal<any[]>([]);
   categories = signal<any[]>([]);
   currency = signal('USD');
-  dateStart = signal(new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1).toISOString().split('T')[0] + 'T00:00:00');
-  dateEnd = signal(new Date().toISOString().split('T')[0] + 'T23:59:59');
+  dateStart = signal(localDateString(new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1)) + 'T00:00:00Z');
+  dateEnd = signal(localDateString() + 'T23:59:59Z');
   bookId = '';
 
   // Add Recurring Modal
@@ -105,7 +105,7 @@ export class InsightsComponent implements OnInit {
   });
 
   protected readonly formatCurrency = formatCurrency;
-  protected readonly formatDate = formatDate;
+  protected readonly formatDate = formatCalendarDate;
 
   private expenseService = inject(ExpenseService);
   private settingsService = inject(SettingsService);
@@ -119,7 +119,7 @@ export class InsightsComponent implements OnInit {
     description: ['', Validators.required],
     amount: [null, [Validators.required, Validators.min(0.01)]],
     frequency: ['monthly', Validators.required],
-    startDate: [new Date().toISOString().split('T')[0], Validators.required],
+    startDate: [localDateString(), Validators.required],
     category: [''],
     paymentMethod: [''],
     endDate: [''],
@@ -249,7 +249,7 @@ export class InsightsComponent implements OnInit {
   async openAddRecurringModal() {
     this.addRecurringForm.reset({
       frequency: 'monthly',
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: localDateString(),
     });
     this.recurringError.set('');
     const [catsRes, methodsRes] = await Promise.allSettled([
@@ -333,7 +333,7 @@ export class InsightsComponent implements OnInit {
 
   getNextOccurrence(r: any): string {
     if (!r?.nextOccurrence) return '';
-    return formatDate(r.nextOccurrence);
+    return formatCalendarDate(r.nextOccurrence);
   }
 
   getDueBadge(r: any): { label: string; cls: string } {

@@ -5,6 +5,7 @@ import { LendingService } from '../../services/lending.service';
 import { ToastService } from '../../services/toast.service';
 import { Lending, CreateLendingRequest } from '../../models/lending.model';
 import { ModalComponent } from '../modal/modal.component';
+import { localDateString } from '../../utils/helpers';
 
 @Component({
   selector: 'app-add-lending-modal',
@@ -26,7 +27,7 @@ export class AddLendingModalComponent {
   borrowerContact = '';
   principalAmount: number | null = null;
   annualInterestRate: number = 0;
-  startDate = new Date().toISOString().split('T')[0];
+  startDate = localDateString();
   dueDate = '';
   notes = '';
 
@@ -40,7 +41,7 @@ export class AddLendingModalComponent {
     this.borrowerContact = '';
     this.principalAmount = null;
     this.annualInterestRate = 0;
-    this.startDate = new Date().toISOString().split('T')[0];
+    this.startDate = localDateString();
     this.dueDate = '';
     this.notes = '';
     this.error.set('');

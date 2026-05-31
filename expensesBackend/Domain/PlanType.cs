@@ -26,4 +26,10 @@ public static class PlanLimits
         PlanType.Starter => 50,
         _                => 150
     };
+
+    /// <summary>
+    /// Number of free Auto-classify uses (button press or AI-on-create) before credits are charged.
+    /// Free plan: 5 lifetime; Starter/Pro: 15 per month (resets with monthly credits).
+    /// </summary>
+    public static int AutoClassifyFreeQuota(PlanType plan) => plan == PlanType.Free ? 5 : 15;
 }

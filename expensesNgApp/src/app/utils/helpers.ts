@@ -68,14 +68,53 @@ export const formatCurrency = (amount: number, currency = 'USD'): string => {
   }).format(amount);
 };
 
-export const formatDate = (date: string | Date, format: 'short' | 'long' | 'relative' = 'short'): string => {
+const userLocale = (): string => navigator.language || 'en';
+
+/**
+ * Returns today's date (or the given date) as a YYYY-MM-DD string in the
+ * user's LOCAL timezone — safe replacement for new Date().toISOString().split('T')[0]
+ * which returns the UTC date and can be off by a day for UTC± users.
+ */
+export const localDateString = (d: Date = new Date()): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+/**
+ * Formats a calendar-date field (expense date, due date, budget period, etc.).
+ * These are stored as UTC-midnight of the user's chosen local date, so we must
+ * format them in the UTC timezone to prevent date shifting for UTC± users.
+ */
+export const formatCalendarDate = (date: string | Date, format: 'short' | 'long' | 'relative' = 'short'): string => {
   const d = typeof date === 'string' ? new Date(date) : date;
   if (format === 'relative') return getRelativeTime(d);
-  if (format === 'long') {
-    return new Intl.DateTimeFormat('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }).format(d);
-  }
-  return new Intl.DateTimeFormat('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).format(d);
+  const opts: Intl.DateTimeFormatOptions = format === 'long'
+    ? { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }
+    : { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
+  return new Intl.DateTimeFormat(userLocale(), opts).format(d);
 };
+
+/**
+ * Formats a precise timestamp (createdAt, updatedAt, recordedAt).
+ * Converts from UTC to the user's local timezone so the local time is shown.
+ */
+export const formatTimestamp = (date: string | Date, format: 'short' | 'long' | 'relative' | 'datetime' = 'short'): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (format === 'relative') return getRelativeTime(d);
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (format === 'datetime') {
+    return new Intl.DateTimeFormat(userLocale(), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: tz }).format(d);
+  }
+  const opts: Intl.DateTimeFormatOptions = format === 'long'
+    ? { year: 'numeric', month: 'long', day: 'numeric', timeZone: tz }
+    : { year: 'numeric', month: 'short', day: 'numeric', timeZone: tz };
+  return new Intl.DateTimeFormat(userLocale(), opts).format(d);
+};
+
+/** @deprecated Use formatCalendarDate for expense/due dates, formatTimestamp for createdAt/updatedAt */
+export const formatDate = formatCalendarDate;
 
 export const getRelativeTime = (date: Date): string => {
   const now = new Date();

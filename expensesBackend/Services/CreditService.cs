@@ -81,6 +81,55 @@ public class CreditService : ICreditService
         });
     }
 
+    public async Task<AutoClassifyConsumeResult> ConsumeAutoClassifyAsync(string bookId, string triggeredByUserId)
+    {
+        if (await IsDemoBookAsync(bookId))
+        {
+            // Demo books: treat as free, don't touch counters
+            return new AutoClassifyConsumeResult(Allowed: true, UsedCredit: false, FreeUsed: 0, FreeQuota: 0);
+        }
+
+        var credits = await GetOrCreateAsync(bookId);
+        await ApplyMonthlyResetIfDueAsync(credits);
+
+        var quota = PlanLimits.AutoClassifyFreeQuota(credits.PlanType);
+
+        if (credits.AutoClassifyFreeUsed < quota)
+        {
+            // Within free quota — consume one free use
+            var newUsed = credits.AutoClassifyFreeUsed + 1;
+            await _context.BookCredits.UpdateOneAsync(
+                bc => bc.ExpenseBookId == bookId,
+                Builders<BookCredits>.Update
+                    .Set(bc => bc.AutoClassifyFreeUsed, newUsed)
+                    .Set(bc => bc.UpdatedAt, DateTime.UtcNow));
+
+            return new AutoClassifyConsumeResult(Allowed: true, UsedCredit: false, FreeUsed: newUsed, FreeQuota: quota);
+        }
+
+        // Free quota exhausted — try to charge a credit
+        if (credits.FreeCreditsLeft + credits.PaidCreditsLeft <= 0)
+            return new AutoClassifyConsumeResult(Allowed: false, UsedCredit: false, FreeUsed: credits.AutoClassifyFreeUsed, FreeQuota: quota);
+
+        UpdateDefinition<BookCredits> update = credits.PaidCreditsLeft > 0
+            ? Builders<BookCredits>.Update.Inc(bc => bc.PaidCreditsLeft, -1).Set(bc => bc.UpdatedAt, DateTime.UtcNow)
+            : Builders<BookCredits>.Update.Inc(bc => bc.FreeCreditsLeft, -1).Set(bc => bc.UpdatedAt, DateTime.UtcNow);
+
+        await _context.BookCredits.UpdateOneAsync(bc => bc.ExpenseBookId == bookId, update);
+
+        await _context.CreditTransactions.InsertOneAsync(new CreditTransaction
+        {
+            ExpenseBookId     = bookId,
+            TriggeredByUserId = triggeredByUserId,
+            Amount            = -1,
+            Reason            = "auto_classify",
+            ToolsUsed         = ["auto_classify"],
+            Timestamp         = DateTime.UtcNow,
+        });
+
+        return new AutoClassifyConsumeResult(Allowed: true, UsedCredit: true, FreeUsed: credits.AutoClassifyFreeUsed, FreeQuota: quota);
+    }
+
     public async Task AdminGrantAsync(string bookId, int amount, string grantedByUserId)
     {
         if (amount <= 0)
@@ -118,9 +167,10 @@ public class CreditService : ICreditService
         foreach (var book in staleBooks)
         {
             var update = Builders<BookCredits>.Update
-                .Set(bc => bc.FreeCreditsLeft, book.FreeCreditsLimit)
-                .Set(bc => bc.LastResetDate,   now)
-                .Set(bc => bc.UpdatedAt,       now);
+                .Set(bc => bc.FreeCreditsLeft,      book.FreeCreditsLimit)
+                .Set(bc => bc.AutoClassifyFreeUsed, 0)
+                .Set(bc => bc.LastResetDate,        now)
+                .Set(bc => bc.UpdatedAt,            now);
 
             await _context.BookCredits.UpdateOneAsync(bc => bc.Id == book.Id, update);
 
@@ -173,14 +223,16 @@ public class CreditService : ICreditService
         if (credits.LastResetDate >= thisMonth) return;
 
         var update = Builders<BookCredits>.Update
-            .Set(bc => bc.FreeCreditsLeft, credits.FreeCreditsLimit)
-            .Set(bc => bc.LastResetDate,   now)
-            .Set(bc => bc.UpdatedAt,       now);
+            .Set(bc => bc.FreeCreditsLeft,       credits.FreeCreditsLimit)
+            .Set(bc => bc.AutoClassifyFreeUsed,  0)
+            .Set(bc => bc.LastResetDate,          now)
+            .Set(bc => bc.UpdatedAt,              now);
 
         await _context.BookCredits.UpdateOneAsync(bc => bc.Id == credits.Id, update);
 
-        credits.FreeCreditsLeft = credits.FreeCreditsLimit;
-        credits.LastResetDate   = now;
+        credits.FreeCreditsLeft       = credits.FreeCreditsLimit;
+        credits.AutoClassifyFreeUsed  = 0;
+        credits.LastResetDate         = now;
 
         await _context.CreditTransactions.InsertOneAsync(new CreditTransaction
         {

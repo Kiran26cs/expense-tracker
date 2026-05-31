@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.Channels;
+using ExpensesBackend.API.Infrastructure.Json;
 
 // Check if running migration command
 if (args.Length > 0 && args[0] == "migrate")
@@ -54,6 +55,8 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.DictionaryKeyPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new UtcNullableDateTimeConverter());
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -87,6 +90,7 @@ builder.Services.AddScoped<ICreditService, CreditService>();
 builder.Services.AddScoped<SystemPromptBuilder>();
 builder.Services.AddScoped<ToolRegistry>();
 builder.Services.AddScoped<ClaudeOrchestrator>();
+builder.Services.AddScoped<ICategoryClassifier, AiCategoryClassifier>();
 builder.Services.AddHttpClient("Claude");
 
 // Bounded channel: at most 50 queued import jobs; back-pressures callers if full

@@ -28,6 +28,11 @@ public class Category
     [BsonElement("isDefault")]
     public bool IsDefault { get; set; }
 
+    /// <summary>Financial classification: "need" | "want" | "debt" | null (unclassified).</summary>
+    [BsonElement("financialClass")]
+    [BsonIgnoreIfNull]
+    public string? FinancialClass { get; set; }
+
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

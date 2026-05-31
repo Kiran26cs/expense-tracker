@@ -47,10 +47,10 @@ export class UserSettingsComponent implements OnInit {
   usageLoading = signal(false);
   usage       = signal<UsageDto | null>(null);
 
-  readonly planLimits: Record<string, { books: string; expenses: string; categories: string; credits: string }> = {
-    Free:    { books: '3',         expenses: '150 / month',   categories: '20',        credits: '15 (one-time trial)' },
-    Starter: { books: 'Unlimited', expenses: '1,000 / month', categories: '50',        credits: '50 / month' },
-    Pro:     { books: 'Unlimited', expenses: 'Unlimited',     categories: 'Unlimited', credits: '150 / month' },
+  readonly planLimits: Record<string, { books: string; expenses: string; categories: string; credits: string; autoClassify: string }> = {
+    Free:    { books: '3',         expenses: '150 / month',   categories: '20',        credits: '15 (one-time trial)', autoClassify: '5 (lifetime)'    },
+    Starter: { books: 'Unlimited', expenses: '1,000 / month', categories: '50',        credits: '50 / month',          autoClassify: '15 / month'       },
+    Pro:     { books: 'Unlimited', expenses: 'Unlimited',     categories: 'Unlimited', credits: '150 / month',         autoClassify: '15 / month'       },
   };
 
   get userPlan(): string { return this.authState.user()?.plan ?? 'Free'; }

@@ -32,6 +32,14 @@ public class BookCredits
     [BsonRepresentation(BsonType.String)]
     public PlanType PlanType { get; set; } = PlanType.Free;
 
+    /// <summary>
+    /// Number of times AI Auto-classify has been used against the free quota.
+    /// Resets to 0 on monthly credit reset for Starter/Pro; never resets for Free.
+    /// </summary>
+    [BsonElement("autoClassifyFreeUsed")]
+    [BsonIgnoreIfNull]
+    public int AutoClassifyFreeUsed { get; set; } = 0;
+
     [BsonElement("updatedAt")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

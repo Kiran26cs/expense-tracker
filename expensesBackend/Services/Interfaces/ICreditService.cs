@@ -21,4 +21,12 @@ public interface ICreditService
 
     /// <summary>Resets free credits back to the limit for books whose lastResetDate is in a prior month.</summary>
     Task ResetMonthlyFreeCreditsAsync();
+
+    /// <summary>
+    /// Checks and consumes one Auto-classify usage.
+    /// Within free quota  → free, increments counter.
+    /// Quota exhausted but has credits → deducts 1 credit.
+    /// Quota exhausted AND no credits → returns Allowed = false.
+    /// </summary>
+    Task<AutoClassifyConsumeResult> ConsumeAutoClassifyAsync(string bookId, string triggeredByUserId);
 }

@@ -255,7 +255,7 @@ public class AuthService : IAuthService
             {
                 Email = payload.Email,
                 Name = payload.Name ?? payload.Email ?? "Google User",
-                Currency = "INR",
+                Currency = "USD",
                 MonthlyIncome = 0
             };
             await _context.Users.InsertOneAsync(user);

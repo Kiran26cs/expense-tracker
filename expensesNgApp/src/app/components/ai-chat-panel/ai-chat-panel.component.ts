@@ -7,18 +7,35 @@ import { FormsModule } from '@angular/forms';
 import { AiChatService, AiChatMessage, ReceiptExtractResponse } from '../../services/ai-chat.service';
 import { CurrentBookService } from '../../services/current-book.service';
 import { CurrencyService } from '../../services/currency.service';
+import { localDateString } from '../../utils/helpers';
+
+export interface ReceiptItemConfirmation {
+  name: string;
+  amount: number | null;
+  category: string;
+}
 
 export interface ReceiptConfirmation {
-  description: string;
-  amount: number | null;
+  // shared header
+  merchant: string;
+  receiptNumber: string;
   currency: string;
   date: string;
-  category: string;
   paymentMethod: string;
   notes: string;
   confidence: number;
   missingFields: string[];
   previewUrl: string;
+  // itemized mode
+  items: ReceiptItemConfirmation[];
+  taxAmount: number | null;
+  taxLabel: string;
+  // single-entry mode
+  singleDescription: string;
+  singleAmount: number | null;
+  singleCategory: string;
+  // ui state
+  mode: 'itemized' | 'single';
 }
 
 @Component({
@@ -53,11 +70,19 @@ export class AiChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked
     return r.currency.toUpperCase() !== this.bookService.currency().toUpperCase();
   });
 
+  receiptTotal = computed(() => {
+    const r = this.receiptConfirmation();
+    if (!r) return 0;
+    if (r.mode === 'single') return r.singleAmount ?? 0;
+    const itemsSum = r.items.reduce((s, i) => s + (i.amount ?? 0), 0);
+    return itemsSum + (r.taxAmount ?? 0);
+  });
+
   receiptConversionPreview = computed(() => {
     if (!this.receiptIsForeign() || this.receiptRate() === null) return null;
-    const r = this.receiptConfirmation()!;
-    if (r.amount == null || r.amount <= 0) return null;
-    const converted = Math.round(r.amount * this.receiptRate()! * 100) / 100;
+    const total = this.receiptTotal();
+    if (total <= 0) return null;
+    const converted = Math.round(total * this.receiptRate()! * 100) / 100;
     return { converted, rate: this.receiptRate()!, bookCurrency: this.bookService.currency() };
   });
 
@@ -195,18 +220,7 @@ export class AiChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked
       const base64 = await this.compressImage(file);
       const result = await this.chatService.extractReceipt(this.book!.id, base64, mimeType);
       if (result) {
-        this.receiptConfirmation.set({
-          description:   result.description ?? '',
-          amount:        result.amount,
-          currency:      result.currency ?? this.bookService.currency(),
-          date:          result.date ?? new Date().toISOString().slice(0, 10),
-          category:      result.category ?? '',
-          paymentMethod: result.paymentMethod ?? '',
-          notes:         result.notes ?? '',
-          confidence:    result.confidence,
-          missingFields: result.missingFields ?? [],
-          previewUrl,
-        });
+        this.receiptConfirmation.set(this.buildConfirmation(result, previewUrl));
         this.loadReceiptRate();
         this.shouldScroll = true;
       }
@@ -237,18 +251,7 @@ export class AiChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked
         : await this.readFileAsBase64(file);
       const result = await this.chatService.extractReceipt(this.book!.id, base64, mimeType);
       if (result) {
-        this.receiptConfirmation.set({
-          description:   result.description ?? '',
-          amount:        result.amount,
-          currency:      result.currency ?? this.bookService.currency(),
-          date:          result.date ?? new Date().toISOString().slice(0, 10),
-          category:      result.category ?? '',
-          paymentMethod: result.paymentMethod ?? '',
-          notes:         result.notes ?? '',
-          confidence:    result.confidence,
-          missingFields: result.missingFields ?? [],
-          previewUrl,
-        });
+        this.receiptConfirmation.set(this.buildConfirmation(result, previewUrl));
         this.loadReceiptRate();
         this.shouldScroll = true;
       }
@@ -259,8 +262,80 @@ export class AiChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked
     }
   }
 
+  private buildConfirmation(result: ReceiptExtractResponse, previewUrl: string): ReceiptConfirmation {
+    const hasItems = result.items && result.items.length > 0;
+    const currency = result.currency ?? this.bookService.currency();
+    const date = result.date ?? localDateString();
+    const total = result.total ?? result.amount ?? null;
+
+    return {
+      merchant:          result.merchant ?? result.description ?? '',
+      receiptNumber:     result.receiptNumber ?? '',
+      currency,
+      date,
+      paymentMethod:     result.paymentMethod ?? '',
+      notes:             result.notes ?? '',
+      confidence:        result.confidence,
+      missingFields:     result.missingFields ?? [],
+      previewUrl,
+      items:             hasItems
+        ? result.items.map(i => ({ name: i.name ?? '', amount: i.amount, category: i.suggestedCategory ?? '' }))
+        : [{ name: result.description ?? '', amount: total, category: result.category ?? '' }],
+      taxAmount:         result.taxAmount ?? null,
+      taxLabel:          result.taxLabel ?? 'Tax',
+      singleDescription: result.merchant ?? result.description ?? '',
+      singleAmount:      total,
+      singleCategory:    result.category ?? '',
+      mode:              hasItems ? 'itemized' : 'single',
+    };
+  }
+
   dismissReceipt(): void {
     this.receiptConfirmation.set(null);
+  }
+
+  setReceiptMode(mode: 'itemized' | 'single'): void {
+    const r = this.receiptConfirmation();
+    if (!r) return;
+    this.receiptConfirmation.set({ ...r, mode });
+  }
+
+  updateReceiptHeader(field: 'merchant' | 'receiptNumber' | 'currency' | 'date' | 'paymentMethod' | 'notes', value: string): void {
+    const r = this.receiptConfirmation();
+    if (!r) return;
+    this.receiptConfirmation.set({ ...r, [field]: value });
+    if (field === 'currency' || field === 'date') this.loadReceiptRate();
+  }
+
+  updateReceiptItem(index: number, field: 'name' | 'amount' | 'category', value: string | number | null): void {
+    const r = this.receiptConfirmation();
+    if (!r) return;
+    const items = r.items.map((item, i) => i === index ? { ...item, [field]: value } : item);
+    this.receiptConfirmation.set({ ...r, items });
+  }
+
+  addReceiptItem(): void {
+    const r = this.receiptConfirmation();
+    if (!r) return;
+    this.receiptConfirmation.set({ ...r, items: [...r.items, { name: '', amount: null, category: '' }] });
+  }
+
+  removeReceiptItem(index: number): void {
+    const r = this.receiptConfirmation();
+    if (!r) return;
+    this.receiptConfirmation.set({ ...r, items: r.items.filter((_, i) => i !== index) });
+  }
+
+  updateTax(field: 'taxAmount' | 'taxLabel', value: string | number | null): void {
+    const r = this.receiptConfirmation();
+    if (!r) return;
+    this.receiptConfirmation.set({ ...r, [field]: value });
+  }
+
+  updateSingle(field: 'singleDescription' | 'singleAmount' | 'singleCategory', value: string | number | null): void {
+    const r = this.receiptConfirmation();
+    if (!r) return;
+    this.receiptConfirmation.set({ ...r, [field]: value });
   }
 
   async addReceiptExpense(): Promise<void> {
@@ -268,32 +343,31 @@ export class AiChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked
     if (!r || !this.book?.id) return;
 
     const isForeign = this.receiptIsForeign();
-    const parts: string[] = [];
-    if (r.description) parts.push(`description "${r.description}"`);
-    if (r.amount != null) {
-      if (isForeign) {
-        parts.push(`originalAmount ${r.amount} ${r.currency}`);
-      } else {
-        parts.push(`amount ${r.amount}`);
-      }
-    }
-    if (r.date) parts.push(`date ${r.date}`);
-    if (r.category) parts.push(`category "${r.category}"`);
-    if (r.paymentMethod) parts.push(`payment method "${r.paymentMethod}"`);
-    if (r.notes) parts.push(`notes "${r.notes}"`);
+    const currencyTag = isForeign ? ` ${r.currency}` : '';
 
-    const message = `Add expense from receipt: ${parts.join(', ')}.`;
+    let message: string;
+
+    if (r.mode === 'itemized') {
+      const itemLines = r.items
+        .filter(i => i.amount != null && i.amount > 0)
+        .map(i => `  - name "${i.name || i.category}", amount ${i.amount}${currencyTag}, category "${i.category}"`)
+        .join('\n');
+      const taxLine = r.taxAmount ? `\n  - tax ${r.taxAmount}${currencyTag} (${r.taxLabel || 'Tax'})` : '';
+      message = `Save receipt as itemized expenses:\n`
+        + `  receipt number "${r.receiptNumber || 'N/A'}", merchant "${r.merchant}", date ${r.date}, payment "${r.paymentMethod}"\n`
+        + `Items:\n${itemLines}${taxLine}`;
+    } else {
+      const amount = r.singleAmount ?? 0;
+      message = `Add expense from receipt: description "${r.singleDescription || r.merchant}", `
+        + `amount ${amount}${currencyTag}, date ${r.date}, category "${r.singleCategory}", `
+        + `payment method "${r.paymentMethod}"`
+        + (r.receiptNumber ? `, receipt number "${r.receiptNumber}"` : '')
+        + (r.notes ? `, notes "${r.notes}"` : '') + '.';
+    }
 
     this.receiptConfirmation.set(null);
     this.inputText = '';
     await this.chatService.sendMessage(this.book.id, message);
-  }
-
-  updateReceiptField(field: keyof ReceiptConfirmation, value: string | number | null): void {
-    const r = this.receiptConfirmation();
-    if (!r) return;
-    this.receiptConfirmation.set({ ...r, [field]: value });
-    if (field === 'currency' || field === 'date') this.loadReceiptRate();
   }
 
   private async loadReceiptRate(): Promise<void> {

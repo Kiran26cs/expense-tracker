@@ -79,7 +79,14 @@
             <div class="cat-usage-fill" [class]="categoryUsageBarClass" [style.width.%]="categoryUsagePct"></div>
           </div>
         </div>
-        <app-button (clicked)="openCategoryModal()">Manage Categories</app-button>
+        <div class="cat-manage-row">
+          <app-button (clicked)="openCategoryModal()">Manage Categories</app-button>
+          <div class="ai-classify-wrap">
+            <app-button variant="ghost" [loading]="classifyLoading()" (clicked)="handleBulkClassify()" title="Use AI to auto-classify all untagged categories into Needs / Wants / Debt">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-classify
+            </app-button>
+          </div>
+        </div>
       </app-card-content>
     </app-card>
 
@@ -196,6 +203,20 @@
                 </span>
                 <span class="cat-name">{{ c.name }}</span>
               </div>
+              <!-- Always-visible classification select -->
+              <select class="cat-class-select"
+                [class.cat-class-need]="c.financialClass === 'need'"
+                [class.cat-class-want]="c.financialClass === 'want'"
+                [class.cat-class-debt]="c.financialClass === 'debt'"
+                [value]="c.financialClass || ''"
+                (change)="updateFinancialClass(c.id, $any($event.target).value)"
+                title="Financial classification">
+                <option value="">— tag —</option>
+                <option value="need">Need</option>
+                <option value="want">Want</option>
+                <option value="debt">Debt</option>
+              </select>
+              <!-- Hover-only edit/delete -->
               <div class="cat-card-actions">
                 <button class="cat-icon-btn" (click)="startEditCat(c)" title="Edit">
                   <i class="fa-solid fa-pen"></i>

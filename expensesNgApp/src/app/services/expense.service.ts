@@ -55,6 +55,11 @@ export class ExpenseService {
     return firstValueFrom(this.api.post<ApiResponse<Expense>>('/Expenses', payload));
   }
 
+  createExpenseBatch(bookId: string, batch: any) {
+    const payload = { ...batch, expenseBookId: bookId };
+    return firstValueFrom(this.api.post<ApiResponse<Expense[]>>('/Expenses/batch', payload));
+  }
+
   updateExpense(bookId: string, id: string, expense: any) {
     return firstValueFrom(this.api.put<ApiResponse<Expense>>(`/Expenses/${id}`, { ...expense, expenseBookId: bookId }));
   }

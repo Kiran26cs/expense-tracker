@@ -221,6 +221,10 @@ public class ExpenseService : IExpenseService
         OriginalAmount   = d.TryGetValue("originalAmount", out var oa) && !oa.IsBsonNull ? (decimal?)oa.ToDouble() : null,
         OriginalCurrency = d.TryGetValue("originalCurrency", out var oc) && !oc.IsBsonNull ? oc.AsString : null,
         FxRate           = d.TryGetValue("fxRate", out var fx) && !fx.IsBsonNull ? (decimal?)fx.ToDouble() : null,
+        ReceiptGroupId   = d.TryGetValue("receiptGroupId", out var rg) && !rg.IsBsonNull ? rg.AsString : null,
+        ReceiptNumber    = d.TryGetValue("receiptNumber", out var rn) && !rn.IsBsonNull ? rn.AsString : null,
+        IsReceiptItem    = d.TryGetValue("isReceiptItem", out var iri) && !iri.IsBsonNull && iri.AsBoolean,
+        TaxAmount        = d.TryGetValue("taxAmount", out var ta) && !ta.IsBsonNull ? (decimal?)ta.ToDouble() : null,
     };
 
     public async Task<ExpenseDto> GetExpenseByIdAsync(string userId, string expenseId)
@@ -330,9 +334,15 @@ public class ExpenseService : IExpenseService
             Date             = request.Date,
             Category         = request.Category,
             PaymentMethod    = request.PaymentMethod,
-            Description      = request.Description,
+            Description      = string.IsNullOrWhiteSpace(request.Description)
+                                   ? await ResolveCategoryNameAsync(request.Category, request.ExpenseBookId)
+                                   : request.Description,
             Notes            = request.Notes,
-            IsRecurring      = false
+            IsRecurring      = false,
+            ReceiptGroupId   = request.ReceiptGroupId,
+            ReceiptNumber    = request.ReceiptNumber,
+            IsReceiptItem    = request.IsReceiptItem,
+            TaxAmount        = request.TaxAmount,
         };
 
         await _context.Expenses.InsertOneAsync(expense);
@@ -358,6 +368,77 @@ public class ExpenseService : IExpenseService
         return MapToExpenseDto(expense);
     }
 
+    public async Task<List<ExpenseDto>> CreateExpenseBatchAsync(string userId, CreateExpenseBatchRequest request)
+    {
+        var receiptGroupId = ObjectId.GenerateNewId().ToString();
+        var expenses = new List<Expense>();
+
+        foreach (var item in request.Items)
+        {
+            var resolvedCategoryName = await ResolveCategoryNameAsync(item.Category, request.ExpenseBookId);
+            expenses.Add(new Expense
+            {
+                UserId        = userId,
+                ExpenseBookId = request.ExpenseBookId,
+                Type          = "expense",
+                Amount        = item.Amount,
+                Date          = request.Date,
+                Category      = resolvedCategoryName,
+                PaymentMethod = request.PaymentMethod,
+                Description   = string.IsNullOrWhiteSpace(item.Name) ? resolvedCategoryName : item.Name,
+                IsRecurring   = false,
+                IsReceiptItem = true,
+                ReceiptGroupId = receiptGroupId,
+                ReceiptNumber  = request.ReceiptNumber,
+            });
+        }
+
+        // Tax becomes its own entry (Option C)
+        if (request.TaxAmount is > 0)
+        {
+            var taxCategory = "Tax & Fees";
+            expenses.Add(new Expense
+            {
+                UserId         = userId,
+                ExpenseBookId  = request.ExpenseBookId,
+                Type           = "expense",
+                Amount         = request.TaxAmount.Value,
+                Date           = request.Date,
+                Category       = taxCategory,
+                PaymentMethod  = request.PaymentMethod,
+                Description    = string.IsNullOrWhiteSpace(request.TaxLabel) ? taxCategory : request.TaxLabel,
+                IsRecurring    = false,
+                IsReceiptItem  = true,
+                ReceiptGroupId = receiptGroupId,
+                ReceiptNumber  = request.ReceiptNumber,
+                TaxAmount      = request.TaxAmount,
+            });
+        }
+
+        await _context.Expenses.InsertManyAsync(expenses);
+
+        // Graduate demo book on first real expense
+        if (!string.IsNullOrEmpty(request.ExpenseBookId))
+        {
+            var book = await _context.ExpenseBooks.Find(eb => eb.Id == request.ExpenseBookId).FirstOrDefaultAsync();
+            if (book?.IsTemplate == true)
+                await _context.ExpenseBooks.UpdateOneAsync(
+                    eb => eb.Id == request.ExpenseBookId,
+                    Builders<ExpenseBook>.Update.Set(eb => eb.IsTemplate, false));
+        }
+
+        // Update daily summaries + invalidate budget caches
+        var invalidationKeys = new HashSet<string>();
+        foreach (var e in expenses)
+        {
+            await UpdateDailyExpenseSummaryAsync(userId, request.ExpenseBookId, e.Date, e.Category, e.Amount, isAdd: true);
+            invalidationKeys.Add(CacheKeys.UserBudgets(userId, request.ExpenseBookId, CacheKeys.MonthKey(e.Date)));
+        }
+        await Task.WhenAll(invalidationKeys.Select(k => _cache.RemoveAsync(k)));
+
+        return expenses.Select(MapToExpenseDto).ToList();
+    }
+
     public async Task<ExpenseDto> UpdateExpenseAsync(string userId, string expenseId, UpdateExpenseRequest request)
     {
         var expense = await _context.Expenses
@@ -376,11 +457,16 @@ public class ExpenseService : IExpenseService
         if (request.Date.HasValue)
             expense.Date = request.Date.Value;
         if (!string.IsNullOrEmpty(request.Category))
-            expense.Category = request.Category;
+            expense.Category = await ResolveCategoryNameAsync(request.Category, expense.ExpenseBookId);
         if (!string.IsNullOrEmpty(request.PaymentMethod))
             expense.PaymentMethod = request.PaymentMethod;
         if (request.Description != null)
-            expense.Description = request.Description;
+        {
+            // Empty string means "clear it" — fall back to the (possibly just-updated) category name
+            expense.Description = string.IsNullOrWhiteSpace(request.Description)
+                ? await ResolveCategoryNameAsync(expense.Category, expense.ExpenseBookId)
+                : request.Description;
+        }
         if (request.Notes != null)
             expense.Notes = request.Notes;
         if (!string.IsNullOrEmpty(request.Type))
@@ -447,6 +533,16 @@ public class ExpenseService : IExpenseService
         await _context.Expenses.ReplaceOneAsync(e => e.Id == expenseId, expense);
 
         return receiptUrl;
+    }
+
+    private async Task<string> ResolveCategoryNameAsync(string categoryIdOrName, string? expenseBookId)
+    {
+        if (string.IsNullOrWhiteSpace(categoryIdOrName)) return string.Empty;
+        var cat = await _context.Categories
+            .Find(c => (c.Id == categoryIdOrName || c.Name == categoryIdOrName)
+                    && (string.IsNullOrEmpty(expenseBookId) || c.ExpenseBookId == expenseBookId))
+            .FirstOrDefaultAsync();
+        return cat?.Name ?? categoryIdOrName;
     }
 
     private DateTime CalculateNextOccurrence(DateTime startDate, string frequency)
@@ -571,6 +667,10 @@ public class ExpenseService : IExpenseService
             OriginalAmount   = expense.OriginalAmount,
             OriginalCurrency = expense.OriginalCurrency,
             FxRate           = expense.FxRate,
+            ReceiptGroupId   = expense.ReceiptGroupId,
+            ReceiptNumber    = expense.ReceiptNumber,
+            IsReceiptItem    = expense.IsReceiptItem,
+            TaxAmount        = expense.TaxAmount,
         };
     }
 
@@ -638,6 +738,8 @@ public class ExpenseService : IExpenseService
             await _context.UpcomingPayments.DeleteOneAsync(u => u.Id == upcomingPayment.Id);
         }
 
+        var expenseDate = upcomingPayment?.DueDate ?? paidDate;
+
         // Create a new expense for this payment
         var expense = new Expense
         {
@@ -645,7 +747,7 @@ public class ExpenseService : IExpenseService
             UserId = userId,
             ExpenseBookId = recurring.ExpenseBookId,
             Amount = recurring.Amount,
-            Date = paidDate,
+            Date = expenseDate,
             Category = recurring.Category,
             PaymentMethod = recurring.PaymentMethod,
             Description = recurring.Description,
@@ -660,16 +762,16 @@ public class ExpenseService : IExpenseService
 
         // Update the recurring expense's last processed date and next occurrence
         recurring.LastProcessed = paidDate;
-        recurring.NextOccurrence = CalculateNextOccurrence(paidDate, recurring.Frequency);
+        recurring.NextOccurrence = CalculateNextOccurrence(expenseDate, recurring.Frequency);
         recurring.UpdatedAt = DateTime.UtcNow;
 
         await _context.RecurringExpenses.ReplaceOneAsync(r => r.Id == recurringExpenseId, recurring);
 
         // Update daily expense summary
-        await UpdateDailyExpenseSummaryAsync(userId, recurring.ExpenseBookId, paidDate, recurring.Category, recurring.Amount, isAdd: true);
+        await UpdateDailyExpenseSummaryAsync(userId, recurring.ExpenseBookId, expenseDate, recurring.Category, recurring.Amount, isAdd: true);
 
         // Invalidate budget cache for the month this payment falls in
-        await _cache.RemoveAsync(CacheKeys.UserBudgets(userId, recurring.ExpenseBookId, CacheKeys.MonthKey(paidDate)));
+        await _cache.RemoveAsync(CacheKeys.UserBudgets(userId, recurring.ExpenseBookId, CacheKeys.MonthKey(expenseDate)));
 
         // Generate new upcoming payments to maintain 2 instances
         await GenerateUpcomingPaymentsForRecurringAsync(recurring);

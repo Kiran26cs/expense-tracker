@@ -60,21 +60,48 @@ public class DashboardService : IDashboardService
             .GroupBy(c => c.Id)
             .ToDictionary(g => g.Key, g => g.First().Name);
 
+        // financialClass lookup by both ID and name for robustness.
+        // GroupBy handles the case where a name exists in both the book's own categories
+        // and the global defaults — we prefer the book-specific entry (IsDefault=false).
+        var financialClassById = categoryDocs
+            .Where(c => !string.IsNullOrEmpty(c.Id) && c.FinancialClass != null)
+            .GroupBy(c => c.Id)
+            .ToDictionary(g => g.Key, g => g.First().FinancialClass!);
+        var financialClassByName = categoryDocs
+            .Where(c => !string.IsNullOrEmpty(c.Name))
+            .GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(c => c.IsDefault).First().FinancialClass,
+                StringComparer.OrdinalIgnoreCase);
+
         string ResolveCategoryName(string rawValue)
         {
             if (string.IsNullOrEmpty(rawValue)) return "Uncategorized";
             return categoryNameMap.TryGetValue(rawValue, out var name) ? name : rawValue;
         }
 
+        string? ResolveFinancialClass(string rawValue, string resolvedName)
+        {
+            if (financialClassById.TryGetValue(rawValue, out var cls)) return cls;
+            if (financialClassByName.TryGetValue(resolvedName, out var cls2)) return cls2;
+            return CategoryService.GetDefaultFinancialClass(resolvedName);
+        }
+
         // Category breakdown — only expense-type records
         var categoryBreakdown = expenses
             .Where(e => (e.Type ?? "expense") != "income")
             .GroupBy(e => e.Category)
-            .Select(g => new CategoryBreakdown
+            .Select(g =>
             {
-                Category = ResolveCategoryName(g.Key),
-                Amount = g.Sum(e => e.Amount),
-                Percentage = totalExpenses > 0 ? (double)(g.Sum(e => e.Amount) / totalExpenses * 100) : 0
+                var resolved = ResolveCategoryName(g.Key);
+                return new CategoryBreakdown
+                {
+                    Category       = resolved,
+                    Amount         = g.Sum(e => e.Amount),
+                    Percentage     = totalExpenses > 0 ? (double)(g.Sum(e => e.Amount) / totalExpenses * 100) : 0,
+                    FinancialClass = ResolveFinancialClass(g.Key, resolved),
+                };
             })
             .OrderByDescending(c => c.Amount)
             .ToList();
@@ -370,7 +397,7 @@ public class DashboardService : IDashboardService
                 UserId = userId,
                 ExpenseBookId = upcomingPayment.ExpenseBookId,
                 Amount = upcomingPayment.Amount,
-                Date = paidDate,
+                Date = upcomingPayment.DueDate,
                 Category = upcomingPayment.Category,
                 PaymentMethod = upcomingPayment.PaymentMethod,
                 Description = upcomingPayment.Description,
@@ -384,7 +411,7 @@ public class DashboardService : IDashboardService
             await _context.Expenses.InsertOneAsync(expense);
 
             // Update daily expense summary
-            await UpdateDailyExpenseSummaryForPaymentAsync(userId, upcomingPayment.ExpenseBookId, paidDate, upcomingPayment.Category, upcomingPayment.Amount);
+            await UpdateDailyExpenseSummaryForPaymentAsync(userId, upcomingPayment.ExpenseBookId, upcomingPayment.DueDate, upcomingPayment.Category, upcomingPayment.Amount);
         }
 
         // Build the DTO to return before deleting

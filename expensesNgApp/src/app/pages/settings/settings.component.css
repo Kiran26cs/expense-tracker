@@ -159,6 +159,24 @@ app-card-content { display: block; }
   white-space: nowrap;
 }
 
+.cat-manage-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+
+/* ── AI rainbow border on Auto-classify button ── */
+@keyframes ai-border-glow {
+  0%   { box-shadow: 0 0 0 2px #8b5cf6; }
+  16%  { box-shadow: 0 0 0 2px #6366f1; }
+  33%  { box-shadow: 0 0 0 2px #3b82f6; }
+  50%  { box-shadow: 0 0 0 2px #10b981; }
+  66%  { box-shadow: 0 0 0 2px #f59e0b; }
+  83%  { box-shadow: 0 0 0 2px #f97316; }
+  100% { box-shadow: 0 0 0 2px #ef4444; }
+}
+.ai-classify-wrap {
+  display: inline-flex;
+  border-radius: var(--radius-md, 8px);
+  animation: ai-border-glow 4s linear infinite;
+}
+
 /* ── Category Management Modal ── */
 .cat-alert { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; margin-bottom: 1rem; }
 .cat-alert--error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
@@ -201,8 +219,13 @@ app-card-content { display: block; }
 .cat-info { display: flex; align-items: center; gap: 0.75rem; flex: 1; }
 .cat-icon-wrap { font-size: 1.25rem; width: 2.25rem; height: 2.25rem; display: flex; align-items: center; justify-content: center; border-radius: 0.5rem; background: rgba(99,102,241,0.08); }
 .cat-name { font-weight: 500; color: var(--color-text-primary); font-size: 0.9rem; }
-.cat-card-actions { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.15s; }
+.cat-card-actions { display: flex; align-items: center; gap: 0.25rem; opacity: 0; transition: opacity 0.15s; }
 .cat-card:hover .cat-card-actions { opacity: 1; }
+.cat-class-select { height: 1.75rem; padding: 0 0.4rem; font-size: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.cat-class-select:focus { outline: none; border-color: var(--color-primary); }
+.cat-class-need { border-color: #10b981; color: #10b981; background: rgba(16,185,129,0.06); }
+.cat-class-want { border-color: #f59e0b; color: #f59e0b; background: rgba(245,158,11,0.06); }
+.cat-class-debt { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.06); }
 
 .cat-icon-btn { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border: none; background: none; border-radius: 0.5rem; cursor: pointer; color: var(--color-text-secondary); transition: all 0.15s; font-size: 0.85rem; }
 .cat-icon-btn:hover { background: var(--color-background); color: var(--color-text-primary); }
