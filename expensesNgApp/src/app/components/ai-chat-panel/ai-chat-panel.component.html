@@ -2,7 +2,7 @@
   <div class="chat-overlay" (click)="close()"></div>
 
   <!-- Hidden file inputs -->
-  <input #imageInput type="file" accept="image/*" capture="environment"
+  <input #imageInput type="file" accept="image/*"
     style="display:none" (change)="onImageSelected($event)">
   <input #pdfInput type="file" accept="application/pdf,image/*"
     style="display:none" (change)="onPdfSelected($event)">

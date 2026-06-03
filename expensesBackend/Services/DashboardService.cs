@@ -88,19 +88,23 @@ public class DashboardService : IDashboardService
             return CategoryService.GetDefaultFinancialClass(resolvedName);
         }
 
-        // Category breakdown — only expense-type records
+        // Category breakdown — only expense-type records.
+        // Group by resolved name (not raw stored value) so that expenses stored with
+        // a category ID and those stored with the category name collapse into one group.
         var categoryBreakdown = expenses
             .Where(e => (e.Type ?? "expense") != "income")
-            .GroupBy(e => e.Category)
+            .GroupBy(e => ResolveCategoryName(e.Category), StringComparer.OrdinalIgnoreCase)
             .Select(g =>
             {
-                var resolved = ResolveCategoryName(g.Key);
+                var resolved = g.Key;
                 return new CategoryBreakdown
                 {
                     Category       = resolved,
                     Amount         = g.Sum(e => e.Amount),
                     Percentage     = totalExpenses > 0 ? (double)(g.Sum(e => e.Amount) / totalExpenses * 100) : 0,
-                    FinancialClass = ResolveFinancialClass(g.Key, resolved),
+                    FinancialClass = financialClassByName.TryGetValue(resolved, out var cls)
+                                         ? cls
+                                         : CategoryService.GetDefaultFinancialClass(resolved),
                 };
             })
             .OrderByDescending(c => c.Amount)
@@ -225,8 +229,8 @@ public class DashboardService : IDashboardService
                 DateLabel = g.Key == today ? "Today" : g.Key == yesterday ? "Yesterday" : g.Key.ToString("MMMM dd, yyyy"),
                 TotalSpent = g.Where(e => (e.Type ?? "expense") != "income").Sum(e => e.Amount),
                 CategorySpending = g.Where(e => (e.Type ?? "expense") != "income")
-                    .GroupBy(e => e.Category)
-                    .Select(cg => new CategorySpendingDto { Category = ResolveName(cg.Key), Amount = cg.Sum(e => e.Amount), Count = cg.Count() })
+                    .GroupBy(e => ResolveName(e.Category), StringComparer.OrdinalIgnoreCase)
+                    .Select(cg => new CategorySpendingDto { Category = cg.Key, Amount = cg.Sum(e => e.Amount), Count = cg.Count() })
                     .OrderByDescending(c => c.Amount).ToList(),
                 Transactions = g.Select(e => new ExpenseDto
                 {

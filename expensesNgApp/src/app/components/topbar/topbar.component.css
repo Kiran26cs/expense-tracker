@@ -200,7 +200,7 @@
 }
 
 .mobile-home-btn  { display: none; color: var(--color-text-secondary); }
-.mobile-menu-btn  { display: none; }
+.mobile-menu-btn  { display: none; color: var(--color-text-secondary); }
 .mobile-menu-wrapper { position: relative; }
 
 .mobile-dropdown {

@@ -98,7 +98,7 @@ export class EditExpenseComponent implements OnInit {
           type: e.type, description: e.description, amount: e.amount,
           date: e.date?.split('T')[0] || '',
           category: resolvedCat?.id || catVal,
-          paymentMethod: resolvedPm?.id || pmVal,
+          paymentMethod: resolvedPm != null ? String(resolvedPm.id) : pmVal,
           currency: e.currency || 'USD', notes: e.notes || '',
           isRecurring: !!(e as any).recurringConfig,
           recurringFrequency: (e as any).recurringConfig?.frequency || 'monthly',

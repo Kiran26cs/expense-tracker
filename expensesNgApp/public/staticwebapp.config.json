@@ -13,7 +13,8 @@
     {
       "route": "/ngsw-worker.js",
       "headers": {
-        "Cache-Control": "no-cache, no-store, must-revalidate"
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Service-Worker-Allowed": "/"
       }
     },
     {
@@ -22,6 +23,10 @@
         "Content-Type": "application/manifest+json",
         "Cache-Control": "no-cache"
       }
+    },
+    {
+      "route": "/*",
+      "allowedRoles": ["anonymous"]
     }
   ]
 }
