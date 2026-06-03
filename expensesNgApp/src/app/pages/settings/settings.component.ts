@@ -100,12 +100,15 @@ export class SettingsComponent implements OnInit {
   classifyLoading = signal(false);
   // Add form
   newCatName = signal('');
+  newCatType = signal<'expense' | 'income' | 'both'>('expense');
   newCatIcon = signal('fa-solid fa-tag');
   newCatColor = signal('#6366f1');
   // Inline edit
   editingCatId = signal<string | null>(null);
-  editCatName = signal('');
-  editCatIcon = signal('');
+  editCatName  = signal('');
+  editCatIcon  = signal('');
+  editCatColor = signal('#6366f1');
+  editCatType  = signal<'expense' | 'income'>('expense');
   // Import
   importCatFile = signal<File | null>(null);
   importCatData = signal<Array<{ name: string; icon: string; color: string }>>([]);
@@ -132,7 +135,11 @@ export class SettingsComponent implements OnInit {
   });
 
   get catModalTitle() {
-    return this.catView() === 'add' ? 'Add Expense Category' : 'Manage Categories';
+    if (this.catView() !== 'add') return 'Manage Categories';
+    const t = this.newCatType();
+    if (t === 'income') return 'Add Income Category';
+    if (t === 'both')   return 'Add Income & Expense Category';
+    return 'Add Expense Category';
   }
 
   ngOnInit() {
@@ -233,6 +240,7 @@ export class SettingsComponent implements OnInit {
   // ── Category Management ──
   openCategoryModal() {
     this.newCatName.set('');
+    this.newCatType.set('expense');
     this.newCatIcon.set('fa-solid fa-tag');
     this.newCatColor.set('#6366f1');
     this.catView.set('main');
@@ -250,6 +258,7 @@ export class SettingsComponent implements OnInit {
   openCatAddView(tab: 'manual' | 'upload') {
     this.catError.set('');
     this.newCatName.set('');
+    this.newCatType.set('expense');
     this.newCatIcon.set('fa-solid fa-tag');
     this.newCatColor.set('#6366f1');
     this.catActiveTab.set(tab);
@@ -258,7 +267,13 @@ export class SettingsComponent implements OnInit {
 
   backToMainView() { this.catView.set('main'); this.catError.set(''); }
 
-  startEditCat(cat: any) { this.editingCatId.set(cat.id); this.editCatName.set(cat.name); this.editCatIcon.set(cat.icon || 'fa-solid fa-tag'); }
+  startEditCat(cat: any) {
+    this.editingCatId.set(cat.id);
+    this.editCatName.set(cat.name);
+    this.editCatIcon.set(cat.icon  || 'fa-solid fa-tag');
+    this.editCatColor.set(cat.color || '#6366f1');
+    this.editCatType.set(cat.type === 'income' ? 'income' : 'expense');
+  }
   cancelEditCat() { this.editingCatId.set(null); }
 
   async updateFinancialClass(catId: string, value: string) {
@@ -309,7 +324,7 @@ export class SettingsComponent implements OnInit {
     if (!cat) return;
     this.catModalLoading.set(true);
     try {
-      const res = await this.settingsService.updateCategory(this.bookId, id, { name: this.editCatName(), icon: this.editCatIcon() || cat.icon, color: cat.color });
+      const res = await this.settingsService.updateCategory(this.bookId, id, { name: this.editCatName(), icon: this.editCatIcon() || cat.icon, color: this.editCatColor(), type: this.editCatType() });
       if (res.success) { this.editingCatId.set(null); this.showCatSuccess('Category updated!'); await this.loadCategories(); }
       else this.catError.set(res.error || 'Failed to update');
     } catch (e: any) { this.catError.set(e.message); }
@@ -321,7 +336,7 @@ export class SettingsComponent implements OnInit {
     this.catModalLoading.set(true);
     this.catError.set('');
     try {
-      const res = await this.settingsService.createCategory(this.bookId, { name: this.newCatName(), icon: this.newCatIcon(), color: this.newCatColor() });
+      const res = await this.settingsService.createCategory(this.bookId, { name: this.newCatName(), type: this.newCatType(), icon: this.newCatIcon(), color: this.newCatColor() });
       if (res.success) {
         this.showCatSuccess('Category added successfully!');
         this.catView.set('main');

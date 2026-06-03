@@ -232,23 +232,20 @@ public class SettingsController : ControllerBase
     }
 
     // POST api/settings/categories
+    // Returns a list — "both" type creates two entries (income + expense); single type returns a list of one.
     [HttpPost("categories")]
-    public async Task<ActionResult<ApiResponse<CategoryDto>>> CreateCategory([FromBody] CreateCategoryRequest request)
+    public async Task<ActionResult<ApiResponse<List<CategoryDto>>>> CreateCategory([FromBody] CreateCategoryRequest request)
     {
         try
         {
             if (string.IsNullOrEmpty(request.ExpenseBookId))
-                return BadRequest(ApiResponse<CategoryDto>.ErrorResponse("ExpenseBookId is required"));
+                return BadRequest(ApiResponse<List<CategoryDto>>.ErrorResponse("ExpenseBookId is required"));
 
             var userId = GetUserId();
             await VerifyBookOwnershipAsync(userId, request.ExpenseBookId);
 
-            var category = await _categoryService.CreateCategoryAsync(request.ExpenseBookId, userId, request);
-            return CreatedAtAction(
-                nameof(GetCategory),
-                new { id = category.Id },
-                ApiResponse<CategoryDto>.SuccessResponse(category)
-            );
+            var categories = await _categoryService.CreateCategoryAsync(request.ExpenseBookId, userId, request);
+            return StatusCode(201, ApiResponse<List<CategoryDto>>.SuccessResponse(categories));
         }
         catch (KeyNotFoundException)
         {
@@ -256,11 +253,11 @@ public class SettingsController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(ApiResponse<CategoryDto>.ErrorResponse(ex.Message));
+            return BadRequest(ApiResponse<List<CategoryDto>>.ErrorResponse(ex.Message));
         }
         catch (Exception ex)
         {
-            return BadRequest(ApiResponse<CategoryDto>.ErrorResponse(ex.Message));
+            return BadRequest(ApiResponse<List<CategoryDto>>.ErrorResponse(ex.Message));
         }
     }
 

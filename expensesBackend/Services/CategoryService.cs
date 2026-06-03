@@ -54,78 +54,98 @@ public class CategoryService : ICategoryService
         }, CategoryCacheTtl) ?? throw new KeyNotFoundException("Category not found");
     }
 
-    public async Task<CategoryDto> CreateCategoryAsync(string expenseBookId, string requestingUserId, CreateCategoryRequest request)
+    public async Task<List<CategoryDto>> CreateCategoryAsync(string expenseBookId, string requestingUserId, CreateCategoryRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new ArgumentException("Category name is required");
 
-        var dupFilter = Builders<Category>.Filter.And(
-            Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId),
-            Builders<Category>.Filter.Eq(c => c.Name, request.Name.Trim()));
+        var inputType = (request.Type ?? "expense").ToLower();
+        if (inputType != "expense" && inputType != "income" && inputType != "both")
+            throw new ArgumentException("Category type must be 'expense', 'income', or 'both'");
 
-        if (await _context.Categories.Find(dupFilter).AnyAsync())
-            throw new ArgumentException($"Category '{request.Name}' already exists");
+        var typesToCreate = inputType == "both"
+            ? new[] { "income", "expense" }
+            : new[] { inputType };
+
+        // Dup check per type — same name can exist as income AND expense, but not twice as the same type
+        var nameVal = request.Name.Trim();
+        foreach (var t in typesToCreate)
+        {
+            var dupFilter = Builders<Category>.Filter.And(
+                Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId),
+                Builders<Category>.Filter.Eq(c => c.Name, nameVal),
+                Builders<Category>.Filter.Eq(c => c.Type, t));
+
+            if (await _context.Categories.Find(dupFilter).AnyAsync())
+                throw new ArgumentException(
+                    inputType == "both"
+                        ? $"Category '{nameVal}' already exists as {t}"
+                        : $"Category '{nameVal}' already exists");
+        }
 
         // Enforce plan limit — Pro is unlimited, skip entirely
         var user = await _context.Users.Find(u => u.Id == requestingUserId).FirstOrDefaultAsync();
         var plan = user?.Plan ?? PlanType.Free;
+        var slotsNeeded = typesToCreate.Length;
 
         if (plan == PlanType.Free)
         {
-            // Global limit: sum CategoriesUsed across all books
             var memberDocs = await _context.ExpenseBookMembers
                 .Find(m => m.UserId == requestingUserId && !m.IsDeleted)
                 .ToListAsync();
             var totalUsed = memberDocs.Sum(m => m.CategoriesUsed);
-            if (totalUsed >= PlanLimits.MaxCategories(PlanType.Free))
+            if (totalUsed + slotsNeeded > PlanLimits.MaxCategories(PlanType.Free))
                 throw new InvalidOperationException(
                     $"Free plan is limited to {PlanLimits.MaxCategories(PlanType.Free)} categories in total. Upgrade to add more.");
         }
         else if (plan == PlanType.Starter)
         {
-            // Per-book limit: check only this book's stored counter
             var memberDoc = await _context.ExpenseBookMembers
                 .Find(m => m.UserId == requestingUserId && m.ExpenseBookId == expenseBookId && !m.IsDeleted)
                 .FirstOrDefaultAsync();
             var bookUsed = memberDoc?.CategoriesUsed ?? 0;
-            if (bookUsed >= PlanLimits.MaxCategories(PlanType.Starter))
+            if (bookUsed + slotsNeeded > PlanLimits.MaxCategories(PlanType.Starter))
                 throw new InvalidOperationException(
                     $"Starter plan is limited to {PlanLimits.MaxCategories(PlanType.Starter)} categories per book. Upgrade to add more.");
         }
-        // Pro: no check
 
-        // User explicitly set a class, or rule table resolved it — no AI needed.
-        var resolvedClass = request.FinancialClass ?? GetDefaultFinancialClass(request.Name.Trim());
-
-        if (resolvedClass == null)
+        // Financial classification only applies to expense categories; skip for income-only creates
+        string? resolvedClass = null;
+        if (inputType != "income")
         {
-            // AI classification needed — consume one Auto-classify usage from the quota.
-            var consume = await _credits.ConsumeAutoClassifyAsync(expenseBookId, requestingUserId);
-            if (consume.Allowed)
-                resolvedClass = await _classifier.ClassifyAsync(request.Name.Trim());
-            // else: quota exhausted and no credits — create as unclassified silently.
+            resolvedClass = request.FinancialClass ?? GetDefaultFinancialClass(nameVal);
+            if (resolvedClass == null)
+            {
+                var consume = await _credits.ConsumeAutoClassifyAsync(expenseBookId, requestingUserId);
+                if (consume.Allowed)
+                    resolvedClass = await _classifier.ClassifyAsync(nameVal);
+            }
         }
 
-        var category = new Category
+        var created = new List<Category>();
+        foreach (var t in typesToCreate)
         {
-            ExpenseBookId  = expenseBookId,
-            Name           = request.Name.Trim(),
-            Type           = request.Type  ?? "expense",
-            Icon           = request.Icon  ?? "fa-solid fa-tag",
-            Color          = request.Color ?? "#6366f1",
-            IsDefault      = false,
-            FinancialClass = resolvedClass,
-            CreatedAt      = DateTime.UtcNow
-        };
+            var category = new Category
+            {
+                ExpenseBookId  = expenseBookId,
+                Name           = nameVal,
+                Type           = t,
+                Icon           = request.Icon  ?? "fa-solid fa-tag",
+                Color          = request.Color ?? "#6366f1",
+                IsDefault      = false,
+                FinancialClass = t == "income" ? null : resolvedClass,
+                CreatedAt      = DateTime.UtcNow
+            };
+            await _context.Categories.InsertOneAsync(category);
+            created.Add(category);
+        }
 
-        await _context.Categories.InsertOneAsync(category);
         await _cache.RemoveAsync(CacheKeys.Categories(expenseBookId));
 
-        // Increment counter in member doc (skip for Pro)
         if (plan != PlanType.Pro)
-            await IncrementMemberCategoryCountAsync(expenseBookId, requestingUserId, +1);
+            await IncrementMemberCategoryCountAsync(expenseBookId, requestingUserId, slotsNeeded);
 
-        return MapToDto(category);
+        return created.Select(MapToDto).ToList();
     }
 
     public async Task<CategoryDto> UpdateCategoryAsync(string expenseBookId, string categoryId, UpdateCategoryRequest request)
@@ -207,8 +227,8 @@ public class CategoryService : ICategoryService
         {
             try
             {
-                await CreateCategoryAsync(expenseBookId, requestingUserId, catReq);
-                response.Imported++;
+                var created = await CreateCategoryAsync(expenseBookId, requestingUserId, catReq);
+                response.Imported += created.Count;
             }
             catch (Exception ex)
             {
@@ -230,9 +250,10 @@ public class CategoryService : ICategoryService
 
     public async Task<int> BulkClassifyAsync(string expenseBookId)
     {
-        // Only target book-specific categories that have no financial class yet
+        // Only target expense-type, book-specific categories that have no financial class yet
         var filter = Builders<Category>.Filter.And(
             Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId),
+            Builders<Category>.Filter.Ne(c => c.Type, "income"),
             Builders<Category>.Filter.Eq(c => c.FinancialClass, null));
 
         var unclassified = await _context.Categories.Find(filter).ToListAsync();
@@ -290,7 +311,8 @@ public class CategoryService : ICategoryService
         Icon = category.Icon,
         Color = category.Color,
         IsDefault = category.IsDefault,
-        FinancialClass = category.FinancialClass ?? DefaultFinancialClass(category.Name),
+        // Financial classification is only meaningful for expense categories
+        FinancialClass = category.Type == "income" ? null : (category.FinancialClass ?? DefaultFinancialClass(category.Name)),
         CreatedAt = category.CreatedAt
     };
 

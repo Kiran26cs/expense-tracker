@@ -1,8 +1,10 @@
 export interface Category {
   id: string;
   name: string;
+  type: 'expense' | 'income';
   icon: string;
   color: string;
+  financialClass?: string | null;
 }
 
 export interface PaymentMethod {

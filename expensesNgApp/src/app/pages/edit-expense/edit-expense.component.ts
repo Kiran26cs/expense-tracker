@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { startWith } from 'rxjs';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ExpenseService } from '../../services/expense.service';
 import { SettingsService } from '../../services/settings.service';
@@ -21,14 +23,6 @@ import { LoadingComponent } from '../../components/loading/loading.component';
 export class EditExpenseComponent implements OnInit {
   categories = signal<any[]>([]);
   paymentMethods = signal<any[]>([]);
-  categoryOptions = computed(() => [
-    { value: '', label: 'Select category' },
-    ...this.categories().map(c => ({ value: c.id, label: c.name }))
-  ]);
-  paymentMethodOptions = computed(() => [
-    { value: '', label: 'Select payment method' },
-    ...this.paymentMethods().map(p => ({ value: String(p.id), label: p.name }))
-  ]);
   loading = signal(false);
   pageLoading = signal(true);
   error = signal('');
@@ -59,6 +53,23 @@ export class EditExpenseComponent implements OnInit {
     recurringFrequency: ['monthly'],
     recurringEndDate: [''],
   });
+
+  selectedType = toSignal(
+    this.form.get('type')!.valueChanges.pipe(startWith('expense')),
+    { initialValue: 'expense' }
+  );
+
+  categoryOptions = computed(() => [
+    { value: '', label: 'Select category' },
+    ...this.categories()
+      .filter(c => (c.type ?? 'expense') === this.selectedType())
+      .map(c => ({ value: c.id, label: c.name }))
+  ]);
+
+  paymentMethodOptions = computed(() => [
+    { value: '', label: 'Select payment method' },
+    ...this.paymentMethods().map(p => ({ value: String(p.id), label: p.name }))
+  ]);
 
   ngOnInit() {
     this.route.parent?.params.subscribe(p => { this.bookId = p['bookId'] || ''; });

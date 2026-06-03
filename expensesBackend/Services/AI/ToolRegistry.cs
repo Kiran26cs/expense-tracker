@@ -131,8 +131,8 @@ public class ToolRegistry
         if (perms.IsOwner)
         {
             tools.Add(new("create_category",
-                "Create a new custom expense category in this book.",
-                """{"type":"object","properties":{"name":{"type":"string","description":"Category name, e.g. 'Groceries', 'Loan'"},"type":{"type":"string","enum":["expense","income"],"description":"Whether this category is for expenses or income (default: expense)"},"icon":{"type":"string","description":"Font Awesome icon class, e.g. 'fa-solid fa-tag' (default if omitted)"},"color":{"type":"string","description":"Hex color code, e.g. '#6366f1' (default if omitted)"},"financialClass":{"type":"string","enum":["need","want","debt"],"description":"Financial classification for the 50-30-20 rule: 'need' (essential expenses like rent/groceries), 'want' (discretionary like dining/entertainment), 'debt' (loan repayments/EMIs). Omit to use rule-based auto-detection."}},"required":["name"]}"""));
+                "Create a new category in this book. Use type='both' to create matching income and expense entries in one call.",
+                """{"type":"object","properties":{"name":{"type":"string","description":"Category name, e.g. 'Groceries', 'Salary', 'Loan'"},"type":{"type":"string","enum":["expense","income","both"],"description":"'expense' for spending categories, 'income' for revenue/salary/returns categories, 'both' to create a matching pair (e.g. Reimbursement). Infer from context — do not ask the user if it is obvious. Default: expense."},"icon":{"type":"string","description":"Font Awesome icon class, e.g. 'fa-solid fa-tag' (default if omitted)"},"color":{"type":"string","description":"Hex color code, e.g. '#6366f1' (default if omitted)"},"financialClass":{"type":"string","enum":["need","want","debt"],"description":"Financial classification for the 50-30-20 rule: 'need' (essential expenses like rent/groceries), 'want' (discretionary like dining/entertainment), 'debt' (loan repayments/EMIs). Omit to use rule-based auto-detection."}},"required":["name"]}"""));
 
             tools.Add(new("update_category",
                 "Rename, change the icon/color, or set the financial classification of an existing custom category. Cannot modify default categories.",
@@ -563,17 +563,11 @@ public class ToolRegistry
             FinancialClass = args["financialClass"]?.GetValue<string>(),
         };
 
-        var category = await _categories.CreateCategoryAsync(ctx.BookId, ctx.UserId, req);
-        return Serialize(new
-        {
-            category.Id,
-            category.Name,
-            category.Type,
-            category.Icon,
-            category.Color,
-            category.FinancialClass,
-            Message = $"Category '{category.Name}' created successfully.",
-        });
+        var created = await _categories.CreateCategoryAsync(ctx.BookId, ctx.UserId, req);
+        var message = created.Count == 2
+            ? $"Created '{created[0].Name}' as both income and expense categories."
+            : $"Category '{created[0].Name}' ({created[0].Type}) created successfully.";
+        return Serialize(new { Categories = created.Select(c => new { c.Id, c.Name, c.Type, c.Icon, c.Color, c.FinancialClass }), Message = message });
     }
 
     private async Task<string> UpdateCategoryAsync(JsonObject args, ToolExecutionContext ctx)

@@ -29,13 +29,25 @@ public class MembersController : ControllerBase
             ?? User.FindFirst(ClaimTypes.Email)?.Value
             ?? string.Empty;
 
-    /// <summary>Returns categories accessible to the current user for this book (used to populate invite/edit modal).</summary>
+    /// <summary>
+    /// Returns categories accessible to the current user for this book.
+    /// Pass transactionType=income or transactionType=expense to filter by category type.
+    /// Omit to receive all categories (used by the Settings management page).
+    /// </summary>
     [HttpGet("categories")]
-    public async Task<ActionResult<ApiResponse<List<CategoryDto>>>> GetAccessibleCategories(string bookId)
+    public async Task<ActionResult<ApiResponse<List<CategoryDto>>>> GetAccessibleCategories(
+        string bookId,
+        [FromQuery] string? transactionType = null)
     {
         try
         {
             var categories = await _memberService.GetAccessibleCategoriesAsync(bookId, GetUserId());
+
+            if (!string.IsNullOrEmpty(transactionType))
+                categories = categories
+                    .Where(c => string.Equals(c.Type, transactionType, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
             return Ok(ApiResponse<List<CategoryDto>>.SuccessResponse(categories));
         }
         catch (UnauthorizedAccessException ex)

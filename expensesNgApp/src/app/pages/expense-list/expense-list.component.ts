@@ -59,10 +59,25 @@ export class ExpenseListComponent implements OnInit {
     { value: '', label: 'All Payment Methods' },
     ...this.paymentMethods().map(p => ({ value: String(p.id), label: p.name }))
   ]);
-  addCategoryOptions = computed(() => [
-    { value: '', label: 'Select category' },
-    ...this.categories().map(c => ({ value: c.id, label: c.name }))
-  ]);
+  addCategoryOptions = computed(() => {
+    const currentType = this.addFormValues()?.type ?? 'expense';
+    return [
+      { value: '', label: 'Select category' },
+      ...this.categories()
+        .filter(c => (c.type ?? 'expense') === currentType)
+        .map(c => ({ value: c.id, label: c.name }))
+    ];
+  });
+
+  editCategoryOptions = computed(() => {
+    const currentType = this.editFormValues()?.type ?? 'expense';
+    return [
+      { value: '', label: 'Select category' },
+      ...this.categories()
+        .filter(c => (c.type ?? 'expense') === currentType)
+        .map(c => ({ value: c.id, label: c.name }))
+    ];
+  });
   addPaymentMethodOptions = computed(() => [
     { value: '', label: 'Select payment method' },
     ...this.paymentMethods().map(p => ({ value: String(p.id), label: p.name }))
@@ -205,7 +220,8 @@ export class ExpenseListComponent implements OnInit {
     recurringEndDate: [''],
   });
 
-  protected addFormValues = toSignal(this.addForm.valueChanges, { initialValue: this.addForm.value });
+  protected addFormValues  = toSignal(this.addForm.valueChanges,  { initialValue: this.addForm.value });
+  protected editFormValues = toSignal(this.editForm.valueChanges, { initialValue: this.editForm.value });
 
   addItemsTotal = computed(() => {
     const items: any[] = this.addFormValues()?.items ?? [];

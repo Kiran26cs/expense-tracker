@@ -82,7 +82,7 @@
         <div class="cat-manage-row">
           <app-button (clicked)="openCategoryModal()">Manage Categories</app-button>
           <div class="ai-classify-wrap">
-            <app-button variant="ghost" [loading]="classifyLoading()" (clicked)="handleBulkClassify()" title="Use AI to auto-classify all untagged categories into Needs / Wants / Debt">
+            <app-button variant="ghost" [loading]="classifyLoading()" (clicked)="handleBulkClassify()" title="Use AI to auto-classify untagged expense categories into Needs / Wants / Debt (income categories are skipped)">
               <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-classify
             </app-button>
           </div>
@@ -168,7 +168,7 @@
           <p style="font-size:0.8rem">Click "Add Category" to get started</p>
         </div>
         <div class="cat-grid" *ngIf="categories().length">
-          <div class="cat-card" *ngFor="let c of categories()">
+          <div class="cat-card" [class.cat-card--editing]="editingCatId() === c.id" *ngFor="let c of categories()">
             <!-- Inline edit mode -->
             <ng-container *ngIf="editingCatId() === c.id">
               <div class="cat-edit-row">
@@ -185,13 +185,37 @@
                   <i class="fa-solid fa-xmark" style="color:var(--color-danger)"></i>
                 </button>
               </div>
+              <div class="cat-edit-meta">
+                <div class="cat-edit-meta-group">
+                  <span class="cat-edit-meta-label">Type</span>
+                  <div class="cat-type-tabs cat-type-tabs--sm">
+                    <button type="button" class="cat-type-tab" [class.active]="editCatType() === 'expense'" (click)="editCatType.set('expense')">
+                      <i class="fa-solid fa-arrow-trend-down"></i> Expense
+                    </button>
+                    <button type="button" class="cat-type-tab" [class.active]="editCatType() === 'income'" (click)="editCatType.set('income')">
+                      <i class="fa-solid fa-arrow-trend-up"></i> Income
+                    </button>
+                  </div>
+                </div>
+                <div class="cat-edit-meta-group">
+                  <span class="cat-edit-meta-label">Color</span>
+                  <div class="cat-color-grid">
+                    <button *ngFor="let color of COLOR_OPTIONS" type="button"
+                      class="cat-color-option"
+                      [class.cat-color-option--selected]="editCatColor() === color"
+                      [style.backgroundColor]="color"
+                      (click)="editCatColor.set(color)">
+                    </button>
+                  </div>
+                </div>
+              </div>
               <div class="cat-icon-grid">
                 <button *ngFor="let item of FA_ICONS" type="button"
                   class="cat-icon-option"
                   [class.cat-icon-option--selected]="editCatIcon() === item.icon"
                   [title]="item.label"
                   (click)="editCatIcon.set(item.icon)">
-                  <i [class]="item.icon"></i>
+                  <i [class]="item.icon" [style.color]="editCatColor()"></i>
                 </button>
               </div>
             </ng-container>
@@ -203,8 +227,8 @@
                 </span>
                 <span class="cat-name">{{ c.name }}</span>
               </div>
-              <!-- Always-visible classification select -->
-              <select class="cat-class-select"
+              <!-- Classification only shown for expense categories -->
+              <select *ngIf="c.type !== 'income'" class="cat-class-select"
                 [class.cat-class-need]="c.financialClass === 'need'"
                 [class.cat-class-want]="c.financialClass === 'want'"
                 [class.cat-class-debt]="c.financialClass === 'debt'"
@@ -248,6 +272,24 @@
       <!-- MANUAL TAB -->
       <ng-container *ngIf="catActiveTab() === 'manual'">
         <div class="cat-manual-form">
+          <div class="cat-form-group">
+            <label class="cat-label">Transaction Type *</label>
+            <div class="cat-type-tabs">
+              <button type="button" class="cat-type-tab" [class.active]="newCatType() === 'expense'" (click)="newCatType.set('expense')">
+                <i class="fa-solid fa-arrow-trend-down"></i> Expense
+              </button>
+              <button type="button" class="cat-type-tab" [class.active]="newCatType() === 'income'" (click)="newCatType.set('income')">
+                <i class="fa-solid fa-arrow-trend-up"></i> Income
+              </button>
+              <button type="button" class="cat-type-tab" [class.active]="newCatType() === 'both'" (click)="newCatType.set('both')">
+                <i class="fa-solid fa-arrow-right-arrow-left"></i> Both
+              </button>
+            </div>
+            <p class="cat-type-hint" *ngIf="newCatType() === 'both'">
+              Creates separate entries for income and expense with the same name.
+            </p>
+          </div>
+
           <app-input
             label="Category Name *"
             [value]="newCatName()"

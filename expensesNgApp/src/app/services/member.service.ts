@@ -77,9 +77,10 @@ export class MemberService {
     );
   }
 
-  getAccessibleCategories(bookId: string) {
-    return firstValueFrom(
-      this.api.get<ApiResponse<Category[]>>(`/expensebooks/${bookId}/members/categories`)
-    );
+  getAccessibleCategories(bookId: string, transactionType?: 'income' | 'expense') {
+    const url = transactionType
+      ? `/expensebooks/${bookId}/members/categories?transactionType=${transactionType}`
+      : `/expensebooks/${bookId}/members/categories`;
+    return firstValueFrom(this.api.get<ApiResponse<Category[]>>(url));
   }
 }

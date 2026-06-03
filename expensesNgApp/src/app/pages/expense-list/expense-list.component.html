@@ -83,8 +83,12 @@
                 </span>
               </td>
               <td class="actions-cell">
-                <app-button *ngIf="bookAccess.canWriteExpenses()" size="sm" variant="ghost" (clicked)="openEditModal(e.id)">Edit</app-button>
-                <app-button *ngIf="bookAccess.canDeleteExpenses()" size="sm" variant="danger" (clicked)="openDeleteConfirm(e)">Delete</app-button>
+                <button *ngIf="bookAccess.canWriteExpenses()" class="txn-icon-btn" (click)="openEditModal(e.id)" title="Edit">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button *ngIf="bookAccess.canDeleteExpenses()" class="txn-icon-btn txn-icon-btn--danger" (click)="openDeleteConfirm(e)" title="Delete">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
               </td>
             </tr>
           </tbody>
@@ -193,8 +197,7 @@
                 <button type="button" class="ae-add-cat-btn" (click)="openAddCategoryModal()" title="Add new category">+</button>
               </label>
               <select class="ae-select" formControlName="category">
-                <option value="">Select an option</option>
-                <option *ngFor="let c of categories()" [value]="c.id">{{ c.name }}</option>
+                <option *ngFor="let opt of addCategoryOptions()" [value]="opt.value">{{ opt.label }}</option>
               </select>
             </div>
             <div class="ae-field" *ngIf="addFormValues()?.type !== 'income'">
@@ -425,8 +428,7 @@
           <div class="ae-field">
             <label class="ae-label">Category</label>
             <select class="ae-select" formControlName="category">
-              <option value="">Select an option</option>
-              <option *ngFor="let c of categories()" [value]="c.id">{{ c.name }}</option>
+              <option *ngFor="let opt of editCategoryOptions()" [value]="opt.value">{{ opt.label }}</option>
             </select>
           </div>
           <div class="ae-field" *ngIf="editForm.get('type')?.value !== 'income'">

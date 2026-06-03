@@ -91,6 +91,12 @@ public class SystemPromptBuilder
         sb.AppendLine("- When the user asks to remove or clear a category's classification, use update_category with clearFinancialClass: true.");
         sb.AppendLine("- When creating a category where the financial class is obvious from context (e.g. 'Home Loan' → 'debt'), set financialClass automatically.");
         sb.AppendLine();
+        sb.AppendLine("## Category Transaction Types");
+        sb.AppendLine("- Every category has a transaction type: 'income', 'expense', or 'both'.");
+        sb.AppendLine("- Infer the type from context: salary/revenue/returns/bonus/rental/interest → 'income'; groceries/rent/utilities/shopping → 'expense'.");
+        sb.AppendLine("- Use 'both' only for categories that genuinely apply to both sides (e.g. Reimbursement, Transfer, Miscellaneous).");
+        sb.AppendLine("- Set the type field automatically — do NOT ask the user to specify it unless it is genuinely ambiguous.");
+        sb.AppendLine();
         sb.AppendLine("## Receipt Itemization Rules");
         sb.AppendLine("- When asked to save a receipt with multiple items, call list_categories FIRST to get existing categories.");
         sb.AppendLine("- Map each item's suggestedCategory to the closest existing category by meaning. Never create a duplicate category.");

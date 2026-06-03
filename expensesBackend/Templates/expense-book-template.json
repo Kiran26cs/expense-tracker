@@ -15,8 +15,15 @@
     { "name": "Utilities",        "icon": "fa-solid fa-bolt",         "color": "#6366f1", "type": "expense" },
     { "name": "Housing",          "icon": "fa-solid fa-house",        "color": "#f97316", "type": "expense" },
     { "name": "Travel",           "icon": "fa-solid fa-plane",        "color": "#14b8a6", "type": "expense" },
-    { "name": "Salary",           "icon": "fa-solid fa-briefcase",    "color": "#22c55e", "type": "income" },
-    { "name": "Freelance",        "icon": "fa-solid fa-laptop-code",  "color": "#06b6d4", "type": "income" }
+    { "name": "Salary",            "icon": "fa-solid fa-briefcase",             "color": "#22c55e", "type": "income" },
+    { "name": "Freelance",         "icon": "fa-solid fa-laptop-code",           "color": "#06b6d4", "type": "income" },
+    { "name": "Business Income",   "icon": "fa-solid fa-store",                 "color": "#10b981", "type": "income" },
+    { "name": "Investment Returns","icon": "fa-solid fa-chart-line",            "color": "#6366f1", "type": "income" },
+    { "name": "Rental Income",     "icon": "fa-solid fa-building",              "color": "#f97316", "type": "income" },
+    { "name": "Interest Income",   "icon": "fa-solid fa-piggy-bank",            "color": "#f59e0b", "type": "income" },
+    { "name": "Bonus",             "icon": "fa-solid fa-gift",                  "color": "#ec4899", "type": "income" },
+    { "name": "Pension / Annuity", "icon": "fa-solid fa-hand-holding-dollar",   "color": "#8b5cf6", "type": "income" },
+    { "name": "Other Income",      "icon": "fa-solid fa-circle-plus",           "color": "#64748b", "type": "income" }
   ],
   "expenses": [
     { "description": "Monthly Rent",         "amount": 1200,  "daysAgo": 1,  "category": "Housing",          "paymentMethod": "Bank Transfer", "type": "expense" },
