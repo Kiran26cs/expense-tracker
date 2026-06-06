@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace ExpensesBackend.API.Domain.Entities;
 
+[BsonIgnoreExtraElements]
 public class User
 {
     [BsonId]
@@ -11,9 +12,6 @@ public class User
 
     [BsonElement("email")]
     public string? Email { get; set; }
-
-    [BsonElement("phone")]
-    public string? Phone { get; set; }
 
     [BsonElement("name")]
     public string Name { get; set; } = string.Empty;

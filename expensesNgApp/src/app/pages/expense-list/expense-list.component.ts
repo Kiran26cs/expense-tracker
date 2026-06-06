@@ -357,8 +357,13 @@ export class ExpenseListComponent implements OnInit {
     ]);
     if (catsResult.status === 'fulfilled' && catsResult.value.success)
       this.categories.set(catsResult.value.data || []);
-    if (methodsResult.status === 'fulfilled' && methodsResult.value.success)
+    if (methodsResult.status === 'fulfilled' && methodsResult.value.success) {
       this.paymentMethods.set(methodsResult.value.data || []);
+      // If the add modal opened before filters finished loading, apply the default now
+      if (this.showAddModal() && !this.addForm.get('paymentMethod')?.value) {
+        this.addForm.get('paymentMethod')!.setValue(this.defaultPaymentMethodId());
+      }
+    }
   }
 
   async onAddCurrencyChange(currency: string) {
@@ -439,7 +444,7 @@ export class ExpenseListComponent implements OnInit {
 
   private defaultPaymentMethodId(): string {
     const cash = this.paymentMethods().find(p => p.name?.toLowerCase() === 'cash');
-    return cash?.id ?? '';
+    return cash != null ? String(cash.id) : '';
   }
 
   openAddModal() {

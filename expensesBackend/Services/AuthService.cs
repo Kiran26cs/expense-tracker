@@ -27,167 +27,114 @@ public class AuthService : IAuthService
         _messaging = messaging;
     }
 
-    public async Task<bool> SendOtpAsync(string? email, string? phone, bool isLogin = false)
+    public async Task<bool> SendOtpAsync(string email, bool isLogin = false)
     {
-        if (string.IsNullOrEmpty(email) && string.IsNullOrEmpty(phone))
+        if (string.IsNullOrEmpty(email))
             return false;
 
         if (isLogin)
         {
             var userExists = await _context.Users
-                .Find(BuildUserFilter(email, phone))
+                .Find(u => u.Email == email)
                 .AnyAsync();
             if (!userExists)
                 return true; // silently succeed — do not reveal whether account exists
         }
 
-        // Generate 6-digit OTP
         var otp = GenerateOtp();
         var expiresAt = DateTime.UtcNow.AddMinutes(OTP_EXPIRY_MINUTES);
 
-        // Create OTP record
         var otpRecord = new OtpRecord
         {
             Email = email,
-            Phone = phone,
             Otp = otp,
             ExpiresAt = expiresAt,
             Attempts = 0,
             Verified = false
         };
 
-        // Delete any existing OTP strictly matching the provided identifier only
-        var filter = BuildOtpFilter(email, phone);
-        await _context.OtpRecords.DeleteManyAsync(filter);
+        await _context.OtpRecords.DeleteManyAsync(
+            Builders<OtpRecord>.Filter.Eq(o => o.Email, email));
 
-        // Insert new OTP
         await _context.OtpRecords.InsertOneAsync(otpRecord);
         Console.WriteLine($"your otp is: {otp}");
-        bool sent;
-        if (!string.IsNullOrEmpty(email))
-        {
-            var emailVariables = new Dictionary<string, string>
-            {
-                ["otp"] = otp,
-                ["company_name"] = "Expense Tracker"
-            };
-            sent = await _messaging.SendEmailAsync(
-                email,
-                "Your Nidhiwise OTP",
-                $"Your Nidhiwise OTP for login is {otp}. Expires in {OTP_EXPIRY_MINUTES} minutes.",
-                emailVariables);
-        }
-        else
-        {
-            var smsVariables = new Dictionary<string, string>
-            {
-                ["otp"] = otp,
-                ["expiry"] = OTP_EXPIRY_MINUTES.ToString()
-            };
-            sent = await _messaging.SendSmsAsync(
-                phone!,
-                $"Your Expense Tracker OTP is: {otp}. Expires in {OTP_EXPIRY_MINUTES} minutes.",
-                smsVariables);
-        }
 
-        return sent;
+        var emailVariables = new Dictionary<string, string>
+        {
+            ["otp"] = otp,
+            ["company_name"] = "Expense Tracker"
+        };
+        return await _messaging.SendEmailAsync(
+            email,
+            "Your Nidhiwise OTP",
+            $"Your Nidhiwise OTP for login is {otp}. Expires in {OTP_EXPIRY_MINUTES} minutes.",
+            emailVariables);
     }
 
-    public async Task<bool> VerifyOtpAsync(string? email, string? phone, string otp)
+    public async Task<bool> VerifyOtpAsync(string email, string otp)
     {
-        if (string.IsNullOrEmpty(email) && string.IsNullOrEmpty(phone))
+        if (string.IsNullOrEmpty(email))
             return false;
 
-        // Find OTP record — filter strictly by the provided identifier only
-        var filter = BuildOtpFilter(email, phone)
+        var filter = Builders<OtpRecord>.Filter.Eq(o => o.Email, email)
                      & Builders<OtpRecord>.Filter.Gt(o => o.ExpiresAt, DateTime.UtcNow);
 
-        var otpRecord = await _context.OtpRecords
-            .Find(filter)
-            .FirstOrDefaultAsync();
+        var otpRecord = await _context.OtpRecords.Find(filter).FirstOrDefaultAsync();
 
         if (otpRecord == null)
             return false;
 
-        // Check attempts
         if (otpRecord.Attempts >= MAX_OTP_ATTEMPTS)
         {
             await _context.OtpRecords.DeleteOneAsync(Builders<OtpRecord>.Filter.Eq(o => o.Id, otpRecord.Id));
             return false;
         }
 
-        // Verify OTP
         if (otpRecord.Otp != otp)
         {
-            // Increment attempts
             var update = Builders<OtpRecord>.Update.Inc(o => o.Attempts, 1);
             await _context.OtpRecords.UpdateOneAsync(
-                Builders<OtpRecord>.Filter.Eq(o => o.Id, otpRecord.Id),
-                update
-            );
+                Builders<OtpRecord>.Filter.Eq(o => o.Id, otpRecord.Id), update);
             return false;
         }
 
-        // Mark as verified
         var verifyUpdate = Builders<OtpRecord>.Update.Set(o => o.Verified, true);
         await _context.OtpRecords.UpdateOneAsync(
-            Builders<OtpRecord>.Filter.Eq(o => o.Id, otpRecord.Id),
-            verifyUpdate
-        );
+            Builders<OtpRecord>.Filter.Eq(o => o.Id, otpRecord.Id), verifyUpdate);
 
         return true;
     }
 
-    /// <summary>
-    /// Check if OTP has already been verified (used for signup/login, not for initial verification)
-    /// </summary>
-    private async Task<bool> IsOtpVerifiedAsync(string? email, string? phone, string otp)
+    private async Task<bool> IsOtpVerifiedAsync(string email, string otp)
     {
-        if (string.IsNullOrEmpty(email) && string.IsNullOrEmpty(phone))
+        if (string.IsNullOrEmpty(email))
             return false;
 
-        // Find OTP record — strict match on the single provided identifier
         var otpRecord = await _context.OtpRecords
-            .Find(BuildOtpFilter(email, phone))
+            .Find(Builders<OtpRecord>.Filter.Eq(o => o.Email, email))
             .FirstOrDefaultAsync();
-        
-        if (otpRecord == null)
-            return false;
-        
-        // Verify OTP code matches
-        if (otpRecord.Otp != otp)
-            return false;
-        
-        // Check it's marked as verified
-        if (!otpRecord.Verified)
-            return false;
-        
-        // Check not expired
-        if (DateTime.UtcNow > otpRecord.ExpiresAt)
-            return false;
-        
-        return true;
+
+        return otpRecord != null
+            && otpRecord.Otp == otp
+            && otpRecord.Verified
+            && DateTime.UtcNow <= otpRecord.ExpiresAt;
     }
 
     public async Task<AuthResponse> SignupAsync(SignupRequest request, string otp)
     {
-        if (!await IsOtpVerifiedAsync(request.Email, request.Phone, otp))
+        if (!await IsOtpVerifiedAsync(request.Email, otp))
             throw new UnauthorizedAccessException("Invalid or expired OTP. Please verify OTP first.");
 
         var existingUser = await _context.Users
-            .Find(BuildUserFilter(request.Email, request.Phone))
+            .Find(u => u.Email == request.Email)
             .FirstOrDefaultAsync();
 
         if (existingUser != null)
-        {
-            var identifier = !string.IsNullOrEmpty(request.Email) ? "Email" : "Phone number";
-            throw new InvalidOperationException($"{identifier} is already registered. Please sign in instead.");
-        }
+            throw new InvalidOperationException("Email is already registered. Please sign in instead.");
 
         var user = new User
         {
             Email = request.Email,
-            Phone = request.Phone,
             Name = request.Name,
             Currency = request.Currency,
             MonthlyIncome = request.MonthlyIncome
@@ -203,13 +150,13 @@ public class AuthService : IAuthService
         };
     }
 
-    public async Task<AuthResponse> LoginAsync(string? email, string? phone, string otp)
+    public async Task<AuthResponse> LoginAsync(string email, string otp)
     {
-        if (!await IsOtpVerifiedAsync(email, phone, otp))
+        if (!await IsOtpVerifiedAsync(email, otp))
             throw new UnauthorizedAccessException("Invalid or expired OTP. Please verify OTP first.");
 
         var user = await _context.Users
-            .Find(BuildUserFilter(email, phone))
+            .Find(u => u.Email == email)
             .FirstOrDefaultAsync();
 
         if (user == null)
@@ -304,27 +251,12 @@ public class AuthService : IAuthService
     private static string GenerateOtp()
         => RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
 
-    private static FilterDefinition<OtpRecord> BuildOtpFilter(string? email, string? phone)
-    {
-        if (!string.IsNullOrEmpty(email))
-            return Builders<OtpRecord>.Filter.Eq(o => o.Email, email);
-        return Builders<OtpRecord>.Filter.Eq(o => o.Phone, phone);
-    }
-
-    private static FilterDefinition<User> BuildUserFilter(string? email, string? phone)
-    {
-        if (!string.IsNullOrEmpty(email))
-            return Builders<User>.Filter.Eq(u => u.Email, email);
-        return Builders<User>.Filter.Eq(u => u.Phone, phone);
-    }
-
-    private UserDto MapToUserDto(User user)
+    private static UserDto MapToUserDto(User user)
     {
         return new UserDto
         {
             Id = user.Id,
             Email = user.Email,
-            Phone = user.Phone,
             Name = user.Name,
             Currency = user.Currency,
             MonthlyIncome = user.MonthlyIncome,

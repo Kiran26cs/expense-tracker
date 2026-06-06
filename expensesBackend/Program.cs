@@ -103,6 +103,10 @@ builder.Services.AddSingleton(Channel.CreateBounded<TemplateCreationJobPayload>(
     new BoundedChannelOptions(10) { FullMode = BoundedChannelFullMode.Wait }));
 builder.Services.AddHostedService<TemplateBookProcessorService>();
 
+// Push Notifications
+builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+builder.Services.AddHostedService<NotificationSchedulerService>();
+
 // Messaging Service — switch provider via Messaging:Provider in Azure App Configuration
 builder.Services.AddHttpClient("MSG91");
 var messagingProvider = builder.Configuration["Messaging:Provider"] ?? "MSG91";

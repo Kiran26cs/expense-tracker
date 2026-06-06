@@ -102,7 +102,7 @@
       <div class="dropdown-menu" *ngIf="isMenuOpen">
         <div class="dropdown-user-info">
           <div class="dropdown-name">{{ authState.user()?.name }}</div>
-          <div class="dropdown-email">{{ authState.user()?.email || authState.user()?.phone }}</div>
+          <div class="dropdown-email">{{ authState.user()?.email }}</div>
           <div class="dropdown-plan-pill"
                [class.plan-free]="userPlan === 'Free'"
                [class.plan-starter]="userPlan === 'Starter'"

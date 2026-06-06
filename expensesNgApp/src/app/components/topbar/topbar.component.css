@@ -68,6 +68,7 @@
   height: 36px;
   border: none;
   background: none;
+  color: var(--color-text-secondary);
   border-radius: var(--radius-lg);
   cursor: pointer;
   display: flex;

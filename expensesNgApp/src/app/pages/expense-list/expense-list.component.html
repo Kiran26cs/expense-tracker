@@ -204,7 +204,7 @@
               <label class="ae-label">Payment Method</label>
               <select class="ae-select" formControlName="paymentMethod">
                 <option value="">Select an option</option>
-                <option *ngFor="let p of paymentMethods()" [value]="p.id">{{ p.name }}</option>
+                <option *ngFor="let p of paymentMethods()" [value]="p.id.toString()">{{ p.name }}</option>
               </select>
             </div>
           </div>
@@ -251,7 +251,7 @@
               <label class="ae-label">Payment Method</label>
               <select class="ae-select" formControlName="paymentMethod">
                 <option value="">Select an option</option>
-                <option *ngFor="let p of paymentMethods()" [value]="p.id">{{ p.name }}</option>
+                <option *ngFor="let p of paymentMethods()" [value]="p.id.toString()">{{ p.name }}</option>
               </select>
             </div>
           </div>
@@ -435,7 +435,7 @@
             <label class="ae-label">Payment Method</label>
             <select class="ae-select" formControlName="paymentMethod">
               <option value="">Select an option</option>
-              <option *ngFor="let p of paymentMethods()" [value]="p.id">{{ p.name }}</option>
+              <option *ngFor="let p of paymentMethods()" [value]="p.id.toString()">{{ p.name }}</option>
             </select>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { ThemeService } from '../../services/theme.service';
 import { ToastService } from '../../services/toast.service';
 import { UpgradeModalService } from '../../services/upgrade-modal.service';
 import { ApiService } from '../../services/api.service';
+import { PushNotificationService, NotifStatus } from '../../services/push-notification.service';
 import { TopbarComponent } from '../../components/topbar/topbar.component';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent } from '../../components/card/card.component';
 import { ButtonComponent } from '../../components/button/button.component';
@@ -42,10 +43,13 @@ export class UserSettingsComponent implements OnInit {
   private toast = inject(ToastService);
   private api   = inject(ApiService);
   private fb    = inject(FormBuilder);
+  private push  = inject(PushNotificationService);
 
-  saving      = signal(false);
+  saving       = signal(false);
   usageLoading = signal(false);
-  usage       = signal<UsageDto | null>(null);
+  usage        = signal<UsageDto | null>(null);
+  notifStatus  = signal<NotifStatus>('loading');
+  notifBusy    = signal(false);
 
   readonly planLimits: Record<string, { books: string; expenses: string; categories: string; credits: string; autoClassify: string }> = {
     Free:    { books: '3',         expenses: '150 / month',   categories: '20',        credits: '15 (one-time trial)', autoClassify: '5 (lifetime)'    },
@@ -69,6 +73,7 @@ export class UserSettingsComponent implements OnInit {
       });
     }
     this.loadUsage();
+    this.push.getStatus().then(s => this.notifStatus.set(s));
   }
 
   async loadUsage() {
@@ -89,6 +94,31 @@ export class UserSettingsComponent implements OnInit {
     if (pct >= 90) return 'bar-danger';
     if (pct >= 70) return 'bar-warning';
     return 'bar-ok';
+  }
+
+  async toggleNotifications() {
+    if (this.notifBusy()) return;
+    this.notifBusy.set(true);
+    try {
+      if (this.notifStatus() === 'subscribed') {
+        await this.push.unsubscribe();
+        this.notifStatus.set('unsubscribed');
+        this.toast.success('Notifications disabled');
+      } else {
+        await this.push.subscribe();
+        this.notifStatus.set('subscribed');
+        this.toast.success('Notifications enabled');
+      }
+    } catch {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+        this.notifStatus.set('blocked');
+        this.toast.error('Notifications blocked — allow them in your browser settings');
+      } else {
+        this.toast.error('Could not update notification settings');
+      }
+    } finally {
+      this.notifBusy.set(false);
+    }
   }
 
   async savePreferences() {

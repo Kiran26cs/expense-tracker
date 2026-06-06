@@ -51,12 +51,16 @@ public class MongoDbContext
     public IMongoCollection<UserSubscription> UserSubscriptions =>
         _database.GetCollection<UserSubscription>("userSubscriptions");
 
+    public IMongoCollection<PushSubscription> PushSubscriptions =>
+        _database.GetCollection<PushSubscription>("pushSubscriptions");
+
+    public IMongoCollection<NotificationLog> NotificationLogs =>
+        _database.GetCollection<NotificationLog>("notificationLogs");
+
     private void CreateIndexes()
     {
         // User indexes
-        var userIndexKeys = Builders<User>.IndexKeys
-            .Ascending(u => u.Email)
-            .Ascending(u => u.Phone);
+        var userIndexKeys = Builders<User>.IndexKeys.Ascending(u => u.Email);
         Users.Indexes.CreateOne(new CreateIndexModel<User>(userIndexKeys));
 
         // ExpenseBook indexes
@@ -154,11 +158,8 @@ public class MongoDbContext
         RecurringExpenses.Indexes.CreateOne(new CreateIndexModel<RecurringExpense>(recurringIndexKeys));
 
         // OTP indexes - auto-delete expired OTPs after 5 minutes
-        var otpIndexKeys = Builders<OtpRecord>.IndexKeys
-            .Ascending(o => o.Email)
-            .Ascending(o => o.Phone);
-        var otpIndexOptions = new CreateIndexModel<OtpRecord>(otpIndexKeys);
-        OtpRecords.Indexes.CreateOne(otpIndexOptions);
+        var otpIndexKeys = Builders<OtpRecord>.IndexKeys.Ascending(o => o.Email);
+        OtpRecords.Indexes.CreateOne(new CreateIndexModel<OtpRecord>(otpIndexKeys));
 
         // TTL index to auto-delete expired OTPs
         var ttlIndexKeys = Builders<OtpRecord>.IndexKeys.Ascending(o => o.ExpiresAt);
@@ -286,6 +287,27 @@ public class MongoDbContext
                 .Ascending(ct => ct.ExpenseBookId)
                 .Descending(ct => ct.Timestamp),
             new CreateIndexOptions { Name = "idx_credittx_book_time" }));
+
+        // PushSubscription indexes — one subscription per user+endpoint combination
+        PushSubscriptions.Indexes.CreateOne(new CreateIndexModel<PushSubscription>(
+            Builders<PushSubscription>.IndexKeys
+                .Ascending(s => s.UserId)
+                .Ascending(s => s.Endpoint),
+            new CreateIndexOptions { Name = "idx_push_user_endpoint", Unique = true }));
+
+        // NotificationLog indexes — deduplication lookup by user + book + type + sentAt
+        NotificationLogs.Indexes.CreateOne(new CreateIndexModel<NotificationLog>(
+            Builders<NotificationLog>.IndexKeys
+                .Ascending(l => l.UserId)
+                .Ascending(l => l.ExpenseBookId)
+                .Ascending(l => l.NotificationType)
+                .Ascending(l => l.SentAt),
+            new CreateIndexOptions { Name = "idx_notiflog_user_book_type_sent" }));
+
+        // TTL: auto-delete notification logs after 45 days (well past any payment cycle)
+        NotificationLogs.Indexes.CreateOne(new CreateIndexModel<NotificationLog>(
+            Builders<NotificationLog>.IndexKeys.Ascending(l => l.SentAt),
+            new CreateIndexOptions { Name = "idx_notiflog_ttl", ExpireAfter = TimeSpan.FromDays(45) }));
 
     }
 }

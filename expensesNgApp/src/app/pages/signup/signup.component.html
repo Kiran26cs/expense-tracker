@@ -11,7 +11,7 @@
         <form *ngIf="step() === 'input'" (ngSubmit)="handleRequestOTP()" class="auth-form">
           <div *ngIf="error()" class="error-banner">{{ error() }}</div>
           <app-input label="Full Name" [value]="name()" (valueChange)="name.set($event)" placeholder="Your full name" [required]="true"></app-input>
-          <app-input label="Email or Phone" [value]="emailOrPhone()" (valueChange)="emailOrPhone.set($event)" placeholder="Enter email or phone number" [required]="true"></app-input>
+          <app-input label="Email" [value]="emailOrPhone()" (valueChange)="emailOrPhone.set($event)" placeholder="Enter your email address" [required]="true"></app-input>
           <app-button type="submit" [loading]="loading()" [fullWidth]="true">Send OTP</app-button>
         </form>
 

@@ -52,9 +52,4 @@ public class AzureCommunicationMessagingService : IMessagingService
         }
     }
 
-    public Task<bool> SendSmsAsync(string to, string message, Dictionary<string, string>? variables = null)
-    {
-        _logger.LogWarning("SMS is not configured for ACS provider. Use MSG91 for SMS.");
-        return Task.FromResult(false);
-    }
 }

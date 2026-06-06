@@ -159,6 +159,70 @@
       </app-card-content>
     </app-card>
 
+    <!-- Notifications -->
+    <app-card>
+      <app-card-header>
+        <app-card-title>
+          <i class="fa-solid fa-bell" style="margin-right:6px"></i>Notifications
+        </app-card-title>
+      </app-card-header>
+      <app-card-content>
+
+        @if (notifStatus() === 'loading') {
+          <div class="setting-row">
+            <div class="setting-info">
+              <p class="setting-name">Push Notifications</p>
+              <p class="setting-desc">Checking status...</p>
+            </div>
+          </div>
+        }
+
+        @if (notifStatus() === 'unsupported') {
+          <div class="setting-row">
+            <div class="setting-info">
+              <p class="setting-name">Push Notifications</p>
+              <p class="setting-desc">Not supported in this browser. Try Chrome or Edge.</p>
+            </div>
+          </div>
+        }
+
+        @if (notifStatus() === 'blocked') {
+          <div class="notif-blocked">
+            <i class="fa-solid fa-ban"></i>
+            <div>
+              <p class="setting-name">Notifications blocked</p>
+              <p class="setting-desc">
+                Click the lock icon in your browser's address bar, set Notifications to "Allow", then reload the page.
+              </p>
+            </div>
+          </div>
+        }
+
+        @if (notifStatus() === 'subscribed' || notifStatus() === 'unsubscribed') {
+          <div class="setting-row">
+            <div class="setting-info">
+              <p class="setting-name">Push Notifications</p>
+              <p class="setting-desc">
+                @if (notifStatus() === 'subscribed') {
+                  You'll receive reminders for upcoming payments on this device.
+                } @else {
+                  Enable to get upcoming payment reminders in your browser.
+                }
+              </p>
+            </div>
+            <label class="toggle-switch" [class.toggle-busy]="notifBusy()">
+              <input type="checkbox"
+                     [checked]="notifStatus() === 'subscribed'"
+                     [disabled]="notifBusy()"
+                     (change)="toggleNotifications()" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        }
+
+      </app-card-content>
+    </app-card>
+
     <!-- Preferences -->
     <app-card>
       <app-card-header><app-card-title>Preferences</app-card-title></app-card-header>

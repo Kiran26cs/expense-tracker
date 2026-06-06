@@ -22,7 +22,7 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var result = await _authService.SendOtpAsync(request.Email, request.Phone, request.IsLogin);
+            var result = await _authService.SendOtpAsync(request.Email, request.IsLogin);
             return Ok(ApiResponse<bool>.SuccessResponse(result));
         }
         catch (Exception ex)
@@ -36,7 +36,7 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var result = await _authService.VerifyOtpAsync(request.Email, request.Phone, request.Otp);
+            var result = await _authService.VerifyOtpAsync(request.Email, request.Otp);
             return Ok(ApiResponse<bool>.SuccessResponse(result));
         }
         catch (Exception ex)
@@ -64,7 +64,7 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var result = await _authService.LoginAsync(request.Email, request.Phone, otp);
+            var result = await _authService.LoginAsync(request.Email, otp);
             return Ok(ApiResponse<AuthResponse>.SuccessResponse(result));
         }
         catch (Exception ex)

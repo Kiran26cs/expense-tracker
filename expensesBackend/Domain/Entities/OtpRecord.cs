@@ -10,10 +10,7 @@ public class OtpRecord
     public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
     [BsonElement("email")]
-    public string? Email { get; set; }
-
-    [BsonElement("phone")]
-    public string? Phone { get; set; }
+    public string Email { get; set; } = string.Empty;
 
     [BsonElement("otp")]
     public string Otp { get; set; } = string.Empty;

@@ -5,6 +5,7 @@ import { ApiService } from './api.service';
 import { SessionBus } from './session-bus.service';
 import { ToastService } from './toast.service';
 import { ThemeService } from './theme.service';
+import { PushNotificationService } from './push-notification.service';
 import { User, ApiResponse } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
@@ -23,6 +24,7 @@ export class AuthStateService {
     private sessionBus: SessionBus,
     private toast: ToastService,
     private themeService: ThemeService,
+    private pushNotifications: PushNotificationService,
   ) {
     this.sessionBus.expired$.subscribe(() => this.onSessionExpired());
     this.checkAuth();
@@ -57,6 +59,7 @@ export class AuthStateService {
   private persistUser(user: User): void {
     localStorage.setItem('authUser', JSON.stringify(user));
     this.userSignal.set(user);
+    this.pushNotifications.initPushNotifications();
   }
 
   async checkAuth(): Promise<void> {
@@ -85,11 +88,9 @@ export class AuthStateService {
     this.loadingSignal.set(false);
   }
 
-  async login(emailOrPhone: string, otp: string): Promise<void> {
-    const email = emailOrPhone.includes('@') ? emailOrPhone : undefined;
-    const phone = emailOrPhone.includes('@') ? undefined : emailOrPhone;
+  async login(email: string, otp: string): Promise<void> {
     const response = await firstValueFrom(
-      this.api.post<ApiResponse<{ token: string; user: User }>>(`/Auth/login?otp=${otp}`, { email, phone })
+      this.api.post<ApiResponse<{ token: string; user: User }>>(`/Auth/login?otp=${otp}`, { email })
     );
 
     if (response.success && response.data) {
@@ -100,12 +101,10 @@ export class AuthStateService {
     }
   }
 
-  async signup(name: string, emailOrPhone: string, otp: string): Promise<void> {
-    const email = emailOrPhone.includes('@') ? emailOrPhone : undefined;
-    const phone = emailOrPhone.includes('@') ? undefined : emailOrPhone;
+  async signup(name: string, email: string, otp: string): Promise<void> {
     const response = await firstValueFrom(
       this.api.post<ApiResponse<{ token: string; user: User }>>(`/Auth/signup?otp=${otp}`, {
-        name, email, phone, currency: 'USD', monthlyIncome: 0,
+        name, email, currency: 'USD', monthlyIncome: 0,
       })
     );
     if (response.success && response.data) {
@@ -128,16 +127,12 @@ export class AuthStateService {
     }
   }
 
-  async requestOTP(emailOrPhone: string, isLogin = false): Promise<ApiResponse<boolean>> {
-    const email = emailOrPhone.includes('@') ? emailOrPhone : undefined;
-    const phone = emailOrPhone.includes('@') ? undefined : emailOrPhone;
-    return firstValueFrom(this.api.post<ApiResponse<boolean>>('/Auth/send-otp', { email, phone, isLogin }));
+  async requestOTP(email: string, isLogin = false): Promise<ApiResponse<boolean>> {
+    return firstValueFrom(this.api.post<ApiResponse<boolean>>('/Auth/send-otp', { email, isLogin }));
   }
 
-  async verifyOTP(emailOrPhone: string, otp: string): Promise<ApiResponse<boolean>> {
-    const email = emailOrPhone.includes('@') ? emailOrPhone : undefined;
-    const phone = emailOrPhone.includes('@') ? undefined : emailOrPhone;
-    return firstValueFrom(this.api.post<ApiResponse<boolean>>('/Auth/verify-otp', { email, phone, otp }));
+  async verifyOTP(email: string, otp: string): Promise<ApiResponse<boolean>> {
+    return firstValueFrom(this.api.post<ApiResponse<boolean>>('/Auth/verify-otp', { email, otp }));
   }
 
   logout(): void {

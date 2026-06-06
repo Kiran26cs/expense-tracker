@@ -137,10 +137,6 @@ export const isValidEmail = (email: string): boolean => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
 
-export const isValidPhone = (phone: string): boolean => {
-  return /^\+?[\d\s\-()]{8,15}$/.test(phone);
-};
-
 export const truncateText = (text: string, maxLength: number): string => {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength) + '...';

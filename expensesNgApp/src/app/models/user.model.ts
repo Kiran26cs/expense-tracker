@@ -4,7 +4,6 @@ export interface User {
   id: string;
   name: string;
   email?: string;
-  phone?: string;
   currency: string;
   monthlyIncome: number;
   monthlySavingsGoal?: number;
@@ -14,14 +13,12 @@ export interface User {
 
 export interface AuthCredentials {
   email?: string;
-  phone?: string;
   otp?: string;
 }
 
 export interface SignupData {
   name: string;
   email?: string;
-  phone?: string;
   otp?: string;
   currency?: string;
   monthlyIncome?: number;

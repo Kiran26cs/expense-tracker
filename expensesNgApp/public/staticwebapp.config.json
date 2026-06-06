@@ -1,4 +1,8 @@
 {
+  "globalHeaders": {
+    "Access-Control-Allow-Origin": "https://nidhiwise.com",
+    "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS"
+  },
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/assets/*", "/icons/*", "/*.{css,js,ico,png,jpg,svg,woff,woff2,ttf,eot}", "/ngsw*", "/manifest.webmanifest", "/favicon*"]

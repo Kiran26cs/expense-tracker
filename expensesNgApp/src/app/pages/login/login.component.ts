@@ -5,7 +5,7 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent } from '../../components/input/input.component';
-import { isValidEmail, isValidPhone } from '../../utils/helpers';
+import { isValidEmail } from '../../utils/helpers';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -145,9 +145,9 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   async handleRequestOTP() {
     this.error.set('');
-    if (!this.emailOrPhone().trim()) { this.error.set('Please enter your email or phone'); return; }
-    if (!isValidEmail(this.emailOrPhone()) && !isValidPhone(this.emailOrPhone())) {
-      this.error.set('Please enter a valid email or phone number'); return;
+    if (!this.emailOrPhone().trim()) { this.error.set('Please enter your email'); return; }
+    if (!isValidEmail(this.emailOrPhone())) {
+      this.error.set('Please enter a valid email address'); return;
     }
     this.loading.set(true);
     try {
