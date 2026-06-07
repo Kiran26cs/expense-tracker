@@ -329,13 +329,18 @@ public class DashboardService : IDashboardService
         }
 
         var filterBuilder = Builders<UpcomingPayment>.Filter;
-        // Only return upcoming payments that are NOT paid
-        var filter = filterBuilder.Eq(u => u.UserId, userId) &
-                     filterBuilder.Ne(u => u.Status, "paid");
-        
+        // When viewing a specific book, query by book so all members see the same payments.
+        // Without a book filter, fall back to the user's own payments across all personal books.
+        FilterDefinition<UpcomingPayment> filter;
         if (!string.IsNullOrEmpty(expenseBookId))
         {
-            filter &= filterBuilder.Eq(u => u.ExpenseBookId, expenseBookId);
+            filter = filterBuilder.Eq(u => u.ExpenseBookId, expenseBookId) &
+                     filterBuilder.Ne(u => u.Status, "paid");
+        }
+        else
+        {
+            filter = filterBuilder.Eq(u => u.UserId, userId) &
+                     filterBuilder.Ne(u => u.Status, "paid");
         }
 
         var total = (int)await _context.UpcomingPayments.CountDocumentsAsync(filter);

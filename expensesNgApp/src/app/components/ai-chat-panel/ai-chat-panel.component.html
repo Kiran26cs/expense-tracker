@@ -99,144 +99,150 @@
             </div>
           </div>
 
-          @if (r.missingFields.length > 0) {
-            <div class="receipt-missing">
-              <i class="fa-solid fa-triangle-exclamation"></i>
-              Couldn't read: {{ r.missingFields.join(', ') }}
-            </div>
-          }
-
-          <!-- Shared header fields -->
-          <div class="receipt-fields">
-            <div class="receipt-field receipt-field-row">
-              <div class="receipt-field">
-                <label class="receipt-field-label">Date</label>
-                <input class="receipt-field-input" type="date" [value]="r.date"
-                  (input)="updateReceiptHeader('date', $any($event.target).value)">
+          <div class="receipt-card-body">
+            @if (r.missingFields.length > 0) {
+              <div class="receipt-missing">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                Couldn't read: {{ r.missingFields.join(', ') }}
               </div>
-              <div class="receipt-field">
-                <label class="receipt-field-label">Currency</label>
-                <input class="receipt-field-input receipt-currency-input" type="text" maxlength="5"
-                  [value]="r.currency"
-                  (input)="updateReceiptHeader('currency', $any($event.target).value.toUpperCase())">
-              </div>
-            </div>
-            <div class="receipt-field receipt-field-row">
-              <div class="receipt-field">
-                <label class="receipt-field-label">Payment</label>
-                <input class="receipt-field-input" type="text" [value]="r.paymentMethod"
-                  (input)="updateReceiptHeader('paymentMethod', $any($event.target).value)">
-              </div>
-              <div class="receipt-field">
-                <label class="receipt-field-label">Receipt #</label>
-                <input class="receipt-field-input" type="text" [value]="r.receiptNumber"
-                  (input)="updateReceiptHeader('receiptNumber', $any($event.target).value)">
-              </div>
-            </div>
-
-            @if (receiptIsForeign()) {
-              @if (receiptConversionPreview(); as preview) {
-                <div class="receipt-fx-preview">
-                  <i class="fa-solid fa-arrow-right-arrow-left"></i>
-                  Total ≈ {{ preview.bookCurrency }} {{ preview.converted | number:'1.2-2' }}
-                  <span class="receipt-fx-rate">(rate: {{ preview.rate }})</span>
-                </div>
-              } @else if (receiptNoRate()) {
-                <div class="receipt-fx-warn">
-                  <i class="fa-solid fa-triangle-exclamation"></i>
-                  No rate for {{ r.currency }} — AI will note this.
-                </div>
-              }
             }
-          </div>
 
-          <!-- Mode toggle -->
-          <div class="receipt-mode-tabs">
-            <button class="receipt-mode-tab" [class.active]="r.mode === 'itemized'"
-              (click)="setReceiptMode('itemized')">
-              <i class="fa-solid fa-list"></i> Save as Items ({{ r.items.length + (r.taxAmount ? 1 : 0) }})
-            </button>
-            <button class="receipt-mode-tab" [class.active]="r.mode === 'single'"
-              (click)="setReceiptMode('single')">
-              <i class="fa-solid fa-circle-dot"></i> Single Entry
-            </button>
-          </div>
-
-          <!-- Itemized mode -->
-          @if (r.mode === 'itemized') {
-            <div class="receipt-items-list">
-              @for (item of r.items; track $index) {
-                <div class="receipt-item-row">
-                  <input class="receipt-field-input receipt-item-name" type="text"
-                    placeholder="Item name" [value]="item.name"
-                    (input)="updateReceiptItem($index, 'name', $any($event.target).value)">
-                  <input class="receipt-field-input receipt-item-amount" type="number" min="0" step="0.01"
-                    placeholder="0.00" [value]="item.amount ?? ''"
-                    (input)="updateReceiptItem($index, 'amount', +$any($event.target).value || null)">
-                  <input class="receipt-field-input receipt-item-category" type="text"
-                    placeholder="Category" [value]="item.category"
-                    (input)="updateReceiptItem($index, 'category', $any($event.target).value)">
-                  <button class="receipt-item-remove" (click)="removeReceiptItem($index)" title="Remove">
-                    <i class="fa-solid fa-xmark"></i>
-                  </button>
-                </div>
-              }
-              <button class="receipt-add-item-btn" (click)="addReceiptItem()">
-                <i class="fa-solid fa-plus"></i> Add Item
-              </button>
-
-              <!-- Tax row -->
-              <div class="receipt-tax-row">
-                <span class="receipt-tax-label">Tax (optional)</span>
-                <input class="receipt-field-input receipt-item-name" type="text"
-                  placeholder="GST / VAT / Tax" [value]="r.taxLabel"
-                  (input)="updateTax('taxLabel', $any($event.target).value)">
-                <input class="receipt-field-input receipt-item-amount" type="number" min="0" step="0.01"
-                  placeholder="0.00" [value]="r.taxAmount ?? ''"
-                  (input)="updateTax('taxAmount', +$any($event.target).value || null)">
-              </div>
-
-              <div class="receipt-total-row">
-                <span>Total</span>
-                <strong>{{ r.currency }} {{ receiptTotal() | number:'1.2-2' }}</strong>
-              </div>
-            </div>
-          }
-
-          <!-- Single entry mode -->
-          @if (r.mode === 'single') {
+            <!-- Shared header fields -->
             <div class="receipt-fields">
-              <div class="receipt-field">
-                <label class="receipt-field-label">Description</label>
-                <input class="receipt-field-input" type="text" [value]="r.singleDescription"
-                  (input)="updateSingle('singleDescription', $any($event.target).value)">
+              <div class="receipt-field receipt-field-row">
+                <div class="receipt-field">
+                  <label class="receipt-field-label">Date</label>
+                  <input class="receipt-field-input" type="date" [value]="r.date"
+                    (input)="updateReceiptHeader('date', $any($event.target).value)">
+                </div>
+                <div class="receipt-field">
+                  <label class="receipt-field-label">Currency</label>
+                  <input class="receipt-field-input receipt-currency-input" type="text" maxlength="5"
+                    [value]="r.currency"
+                    (input)="updateReceiptHeader('currency', $any($event.target).value.toUpperCase())">
+                </div>
               </div>
               <div class="receipt-field receipt-field-row">
                 <div class="receipt-field">
-                  <label class="receipt-field-label">Amount</label>
-                  <input class="receipt-field-input" type="number" min="0" step="0.01"
-                    [value]="r.singleAmount ?? ''"
-                    (input)="updateSingle('singleAmount', +$any($event.target).value || null)">
+                  <label class="receipt-field-label">Payment</label>
+                  <input class="receipt-field-input" type="text" [value]="r.paymentMethod"
+                    (input)="updateReceiptHeader('paymentMethod', $any($event.target).value)">
                 </div>
                 <div class="receipt-field">
-                  <label class="receipt-field-label">Category</label>
-                  <input class="receipt-field-input" type="text" [value]="r.singleCategory"
-                    (input)="updateSingle('singleCategory', $any($event.target).value)">
+                  <label class="receipt-field-label">Receipt #</label>
+                  <input class="receipt-field-input" type="text" [value]="r.receiptNumber"
+                    (input)="updateReceiptHeader('receiptNumber', $any($event.target).value)">
                 </div>
               </div>
-            </div>
-          }
 
-          <div class="receipt-card-actions">
-            <button class="receipt-btn receipt-btn-primary" (click)="addReceiptExpense()" [disabled]="loading">
-              <i class="fa-solid fa-floppy-disk"></i>
-              {{ r.mode === 'itemized' ? 'Save Items' : 'Save Expense' }}
-            </button>
-            <button class="receipt-btn receipt-btn-ghost" (click)="dismissReceipt()">Dismiss</button>
+              @if (receiptIsForeign()) {
+                @if (receiptConversionPreview(); as preview) {
+                  <div class="receipt-fx-preview">
+                    <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                    Total ≈ {{ preview.bookCurrency }} {{ preview.converted | number:'1.2-2' }}
+                    <span class="receipt-fx-rate">(rate: {{ preview.rate }})</span>
+                  </div>
+                } @else if (receiptNoRate()) {
+                  <div class="receipt-fx-warn">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    No rate for {{ r.currency }} — AI will note this.
+                  </div>
+                }
+              }
+            </div>
+
+            <!-- Mode toggle -->
+            <div class="receipt-mode-tabs">
+              <button class="receipt-mode-tab" [class.active]="r.mode === 'itemized'"
+                (click)="setReceiptMode('itemized')">
+                <i class="fa-solid fa-list"></i> Save as Items ({{ r.items.length + (r.taxAmount ? 1 : 0) }})
+              </button>
+              <button class="receipt-mode-tab" [class.active]="r.mode === 'single'"
+                (click)="setReceiptMode('single')">
+                <i class="fa-solid fa-circle-dot"></i> Single Entry
+              </button>
+            </div>
+
+            <!-- Itemized mode -->
+            @if (r.mode === 'itemized') {
+              <div class="receipt-items-list">
+                @for (item of r.items; track $index) {
+                  <div class="receipt-item-row">
+                    <input class="receipt-field-input receipt-item-name" type="text"
+                      placeholder="Item name" [value]="item.name"
+                      (input)="updateReceiptItem($index, 'name', $any($event.target).value)">
+                    <input class="receipt-field-input receipt-item-amount" type="number" min="0" step="0.01"
+                      placeholder="0.00" [value]="item.amount ?? ''"
+                      (input)="updateReceiptItem($index, 'amount', +$any($event.target).value || null)">
+                    <input class="receipt-field-input receipt-item-category" type="text"
+                      placeholder="Category" [value]="item.category"
+                      (input)="updateReceiptItem($index, 'category', $any($event.target).value)">
+                    <button class="receipt-item-remove" (click)="removeReceiptItem($index)" title="Remove">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                }
+                <button class="receipt-add-item-btn" (click)="addReceiptItem()">
+                  <i class="fa-solid fa-plus"></i> Add Item
+                </button>
+
+                <!-- Tax row -->
+                <div class="receipt-tax-row">
+                  <span class="receipt-tax-label">Tax (optional)</span>
+                  <input class="receipt-field-input receipt-item-name" type="text"
+                    placeholder="GST / VAT / Tax" [value]="r.taxLabel"
+                    (input)="updateTax('taxLabel', $any($event.target).value)">
+                  <input class="receipt-field-input receipt-item-amount" type="number" min="0" step="0.01"
+                    placeholder="0.00" [value]="r.taxAmount ?? ''"
+                    (input)="updateTax('taxAmount', +$any($event.target).value || null)">
+                </div>
+
+                <div class="receipt-total-row">
+                  <span>Total</span>
+                  <strong>{{ r.currency }} {{ receiptTotal() | number:'1.2-2' }}</strong>
+                </div>
+              </div>
+            }
+
+            <!-- Single entry mode -->
+            @if (r.mode === 'single') {
+              <div class="receipt-fields">
+                <div class="receipt-field">
+                  <label class="receipt-field-label">Description</label>
+                  <input class="receipt-field-input" type="text" [value]="r.singleDescription"
+                    (input)="updateSingle('singleDescription', $any($event.target).value)">
+                </div>
+                <div class="receipt-field receipt-field-row">
+                  <div class="receipt-field">
+                    <label class="receipt-field-label">Amount</label>
+                    <input class="receipt-field-input" type="number" min="0" step="0.01"
+                      [value]="r.singleAmount ?? ''"
+                      (input)="updateSingle('singleAmount', +$any($event.target).value || null)">
+                  </div>
+                  <div class="receipt-field">
+                    <label class="receipt-field-label">Category</label>
+                    <input class="receipt-field-input" type="text" [value]="r.singleCategory"
+                      (input)="updateSingle('singleCategory', $any($event.target).value)">
+                  </div>
+                </div>
+              </div>
+            }
           </div>
+
         </div>
       }
     </div>
+
+    <!-- Receipt action bar (pinned above input when receipt is active) -->
+    @if (receiptConfirmation(); as r) {
+      <div class="receipt-action-bar">
+        <button class="receipt-btn receipt-btn-primary" (click)="addReceiptExpense()" [disabled]="loading">
+          <i class="fa-solid fa-floppy-disk"></i>
+          {{ r.mode === 'itemized' ? 'Save Items' : 'Save Expense' }}
+        </button>
+        <button class="receipt-btn receipt-btn-ghost" (click)="dismissReceipt()">Dismiss</button>
+      </div>
+    }
 
     <!-- Reference context banner -->
     @if (reference) {
@@ -272,7 +278,8 @@
       </div>
     }
 
-    <!-- Input -->
+    <!-- Input (hidden while reviewing a receipt) -->
+    @if (!receiptConfirmation()) {
     <div class="chat-input-area" [class.input-disabled]="noCredits">
       <textarea
         class="chat-input"
@@ -298,5 +305,6 @@
         <i class="fa-solid fa-paper-plane"></i>
       </button>
     </div>
+    }
   </div>
 }

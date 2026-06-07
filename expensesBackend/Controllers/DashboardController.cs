@@ -111,8 +111,14 @@ public class DashboardController : ControllerBase
         try
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+            if (!string.IsNullOrEmpty(expenseBookId))
+                await _memberService.EnsureHasAccessAsync(expenseBookId, userId, "dashboard:view");
             var result = await _dashboardService.GetUpcomingPaymentsAsync(userId, expenseBookId, page, pageSize);
             return Ok(ApiResponse<UpcomingPaymentsPaginatedResponse>.SuccessResponse(result));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid();
         }
         catch (Exception ex)
         {

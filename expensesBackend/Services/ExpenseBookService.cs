@@ -1,6 +1,7 @@
 using ExpensesBackend.API.Domain;
 using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Domain.Entities;
+using ExpensesBackend.API.Infrastructure.Cache;
 using ExpensesBackend.API.Infrastructure.Data;
 using ExpensesBackend.API.Services.Interfaces;
 using MongoDB.Driver;
@@ -11,11 +12,13 @@ public class ExpenseBookService : IExpenseBookService
 {
     private readonly MongoDbContext _context;
     private readonly IExpenseBookDependencyService _dependencyService;
+    private readonly ICacheService _cache;
 
-    public ExpenseBookService(MongoDbContext context, IExpenseBookDependencyService dependencyService)
+    public ExpenseBookService(MongoDbContext context, IExpenseBookDependencyService dependencyService, ICacheService cache)
     {
         _context = context;
         _dependencyService = dependencyService;
+        _cache = cache;
     }
 
     public async Task<List<ExpenseBookResponse>> GetExpenseBooksAsync(string userId)
@@ -142,25 +145,28 @@ public class ExpenseBookService : IExpenseBookService
             throw new KeyNotFoundException("Expense book not found");
 
         // If setting as default, unset any existing default for the book's owner
-        if (request.IsDefault && !expenseBook.IsDefault)
+        if (request.IsDefault == true && !expenseBook.IsDefault)
         {
             var update = Builders<ExpenseBook>.Update.Set(eb => eb.IsDefault, false);
             await _context.ExpenseBooks.UpdateManyAsync(eb => eb.UserId == expenseBook.UserId && eb.IsDefault, update);
         }
 
-        expenseBook.Name = request.Name;
-        expenseBook.Description = request.Description;
-        expenseBook.Category = request.Category;
-        expenseBook.Currency = request.Currency;
-        expenseBook.Color = request.Color;
-        expenseBook.Icon = request.Icon;
-        expenseBook.IsDefault = request.IsDefault;
+        if (request.Name        != null) expenseBook.Name        = request.Name;
+        if (request.Description != null) expenseBook.Description = request.Description;
+        if (request.Category    != null) expenseBook.Category    = request.Category;
+        if (request.Currency    != null) expenseBook.Currency    = request.Currency;
+        if (request.Color       != null) expenseBook.Color       = request.Color;
+        if (request.Icon        != null) expenseBook.Icon        = request.Icon;
+        if (request.IsDefault   != null) expenseBook.IsDefault   = request.IsDefault.Value;
         expenseBook.UpdatedAt = DateTime.UtcNow;
 
         await _context.ExpenseBooks.ReplaceOneAsync(
             eb => eb.Id == expenseBookId,
             expenseBook
         );
+
+        await _cache.RemoveAsync(CacheKeys.BookSettings(expenseBookId));
+        await _cache.RemoveAsync(CacheKeys.UserExpenseBooks(expenseBook.UserId));
 
         return MapToExpenseBookResponse(expenseBook);
     }

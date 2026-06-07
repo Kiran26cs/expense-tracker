@@ -13,13 +13,13 @@ public class CreateExpenseBookRequest
 
 public class UpdateExpenseBookRequest
 {
-    public string Name { get; set; } = string.Empty;
+    public string? Name { get; set; }
     public string? Description { get; set; }
-    public string Category { get; set; } = string.Empty;
-    public string Currency { get; set; } = "USD";
+    public string? Category { get; set; }
+    public string? Currency { get; set; }
     public string? Color { get; set; }
     public string? Icon { get; set; }
-    public bool IsDefault { get; set; } = false;
+    public bool? IsDefault { get; set; }
 }
 
 public class ExpenseBookResponse

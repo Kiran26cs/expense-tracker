@@ -556,11 +556,22 @@
 .receipt-fx-rate { opacity: 0.75; font-size: 11px; }
 .receipt-fx-warn { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; font-size: 11px; color: var(--color-text-secondary); }
 .receipt-fx-warn i { color: #f59e0b; flex-shrink: 0; }
+/* Kept for reference but no longer rendered inside the card */
 .receipt-card-actions {
   display: flex;
   gap: 8px;
   padding: 10px 14px;
   border-top: 1px solid var(--color-border);
+}
+
+/* Pinned action bar — always visible above the chat input */
+.receipt-action-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
 }
 
 .receipt-btn {
