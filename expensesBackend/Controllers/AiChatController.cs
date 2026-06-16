@@ -180,6 +180,58 @@ public class AiChatController : ControllerBase
         }
     }
 
+    [HttpPost("parse-message")]
+    public async Task<ActionResult<ApiResponse<ReceiptExtractResponse>>> ParseMessage(
+        [FromBody] ParseMessageRequest request)
+    {
+        try
+        {
+            var userId = GetUserId();
+
+            if (string.IsNullOrWhiteSpace(request.BookId))
+                return BadRequest(ApiResponse<ReceiptExtractResponse>.ErrorResponse("BookId is required."));
+
+            if (string.IsNullOrWhiteSpace(request.Text))
+                return BadRequest(ApiResponse<ReceiptExtractResponse>.ErrorResponse("Text is required."));
+
+            var book = await _bookService.GetExpenseBookByIdAsync(userId, request.BookId);
+            if (book == null)
+                return NotFound(ApiResponse<ReceiptExtractResponse>.ErrorResponse("Expense book not found."));
+
+            if (!book.AiChatEnabled)
+                return StatusCode(403, ApiResponse<ReceiptExtractResponse>.ErrorResponse(
+                    "AI Chat is not enabled for this expense book."));
+
+            await _permissions.AssertIsMemberAsync(request.BookId, userId);
+
+            var hasCredits = await _credits.HasCreditsAsync(request.BookId);
+            if (!hasCredits)
+                return StatusCode(402, ApiResponse<ReceiptExtractResponse>.ErrorResponse(
+                    "This expense book has no AI credits left."));
+
+            var result = await _orchestrator.ParseMessageAsync(
+                request.Text,
+                book.Currency,
+                DateTime.UtcNow.ToString("yyyy-MM-dd"));
+
+            await _credits.DeductAsync(request.BookId, userId, ["parse_message"]);
+
+            return Ok(ApiResponse<ReceiptExtractResponse>.SuccessResponse(result));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<ReceiptExtractResponse>.ErrorResponse(ex.Message));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<ReceiptExtractResponse>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<ReceiptExtractResponse>.ErrorResponse(ex.Message));
+        }
+    }
+
     private string GetUserId() =>
         User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
 }

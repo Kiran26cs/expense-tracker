@@ -36,6 +36,7 @@ public class UserDto
     public decimal MonthlyIncome { get; set; }
     public decimal MonthlySavingsGoal { get; set; }
     public string Plan { get; set; } = "Free";
+    public bool HasPrivacyPin { get; set; }
 }
 
 public class UpdateProfileRequest

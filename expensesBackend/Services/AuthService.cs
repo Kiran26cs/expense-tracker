@@ -261,7 +261,8 @@ public class AuthService : IAuthService
             Currency = user.Currency,
             MonthlyIncome = user.MonthlyIncome,
             MonthlySavingsGoal = user.MonthlySavingsGoal,
-            Plan = user.Plan.ToString()
+            Plan = user.Plan.ToString(),
+            HasPrivacyPin = !string.IsNullOrEmpty(user.PrivacyPinHash)
         };
     }
 

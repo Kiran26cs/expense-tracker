@@ -29,3 +29,18 @@ public class UpdateUserSettingsRequest
     public string? DefaultCurrency { get; set; }
     public decimal? MonthlySavingsGoal { get; set; }
 }
+
+public class SetPrivacyPinRequest
+{
+    public string PinHash { get; set; } = string.Empty;
+}
+
+public class VerifyPrivacyPinRequest
+{
+    public string PinHash { get; set; } = string.Empty;
+}
+
+public class VerifyPrivacyPinResponse
+{
+    public bool Valid { get; set; }
+}

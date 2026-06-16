@@ -9,6 +9,7 @@ export interface User {
   monthlySavingsGoal?: number;
   createdAt?: string;
   plan?: PlanType;
+  hasPrivacyPin?: boolean;
 }
 
 export interface AuthCredentials {

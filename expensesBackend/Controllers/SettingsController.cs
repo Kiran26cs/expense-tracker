@@ -356,6 +356,75 @@ public class SettingsController : ControllerBase
         }
     }
 
+    // GET api/settings/privacy-pin/status  — check if PIN is set (no hash exposed)
+    [HttpGet("privacy-pin/status")]
+    public async Task<ActionResult<ApiResponse<object>>> GetPrivacyPinStatus()
+    {
+        var userId = GetUserId();
+        var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+        if (user == null)
+            return NotFound(ApiResponse<object>.ErrorResponse("User not found"));
+
+        return Ok(ApiResponse<object>.SuccessResponse(new { hasPinSet = !string.IsNullOrEmpty(user.PrivacyPinHash) }));
+    }
+
+    // POST api/settings/privacy-pin  — set or update PIN hash
+    [HttpPost("privacy-pin")]
+    public async Task<ActionResult<ApiResponse<bool>>> SetPrivacyPin([FromBody] SetPrivacyPinRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.PinHash))
+            return BadRequest(ApiResponse<bool>.ErrorResponse("PIN hash is required"));
+
+        var userId = GetUserId();
+        var update = Builders<Domain.Entities.User>.Update
+            .Set(u => u.PrivacyPinHash, request.PinHash)
+            .Set(u => u.UpdatedAt, DateTime.UtcNow);
+
+        var result = await _context.Users.UpdateOneAsync(
+            Builders<Domain.Entities.User>.Filter.Eq(u => u.Id, userId), update);
+
+        if (result.MatchedCount == 0)
+            return NotFound(ApiResponse<bool>.ErrorResponse("User not found"));
+
+        await _cache.RemoveAsync(CacheKeys.UserSettings(userId));
+        return Ok(ApiResponse<bool>.SuccessResponse(true));
+    }
+
+    // POST api/settings/privacy-pin/verify  — verify PIN hash
+    [HttpPost("privacy-pin/verify")]
+    public async Task<ActionResult<ApiResponse<VerifyPrivacyPinResponse>>> VerifyPrivacyPin([FromBody] VerifyPrivacyPinRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.PinHash))
+            return BadRequest(ApiResponse<VerifyPrivacyPinResponse>.ErrorResponse("PIN hash is required"));
+
+        var userId = GetUserId();
+        var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+        if (user == null)
+            return NotFound(ApiResponse<VerifyPrivacyPinResponse>.ErrorResponse("User not found"));
+
+        var valid = string.Equals(user.PrivacyPinHash, request.PinHash, StringComparison.Ordinal);
+        return Ok(ApiResponse<VerifyPrivacyPinResponse>.SuccessResponse(new VerifyPrivacyPinResponse { Valid = valid }));
+    }
+
+    // DELETE api/settings/privacy-pin  — remove PIN
+    [HttpDelete("privacy-pin")]
+    public async Task<ActionResult<ApiResponse<bool>>> RemovePrivacyPin()
+    {
+        var userId = GetUserId();
+        var update = Builders<Domain.Entities.User>.Update
+            .Unset(u => u.PrivacyPinHash)
+            .Set(u => u.UpdatedAt, DateTime.UtcNow);
+
+        var result = await _context.Users.UpdateOneAsync(
+            Builders<Domain.Entities.User>.Filter.Eq(u => u.Id, userId), update);
+
+        if (result.MatchedCount == 0)
+            return NotFound(ApiResponse<bool>.ErrorResponse("User not found"));
+
+        await _cache.RemoveAsync(CacheKeys.UserSettings(userId));
+        return Ok(ApiResponse<bool>.SuccessResponse(true));
+    }
+
     // POST api/settings/categories/import
     [HttpPost("categories/import")]
     public async Task<ActionResult<ApiResponse<ImportCategoriesResponse>>> ImportCategories([FromBody] ImportCategoriesRequest request)

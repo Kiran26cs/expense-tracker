@@ -223,6 +223,77 @@ public class ClaudeOrchestrator
         }
     }
 
+    // ── Message parsing ──────────────────────────────────────────────────────
+
+    public async Task<ReceiptExtractResponse> ParseMessageAsync(
+        string text,
+        string bookCurrency,
+        string todayDate)
+    {
+        var jsonTemplate =
+            "{\n"
+            + "  \"description\": \"short expense description\",\n"
+            + "  \"merchant\": \"merchant or payee name or null\",\n"
+            + $"  \"currency\": \"{bookCurrency}\",\n"
+            + "  \"amount\": 0.00,\n"
+            + "  \"date\": \"YYYY-MM-DD\",\n"
+            + "  \"paymentMethod\": \"Cash|Credit Card|Debit Card|UPI|Net Banking|Other or null\",\n"
+            + "  \"category\": \"Food & Dining|Transport|Shopping|Utilities|Healthcare|Entertainment|Personal Care|Education|Other\",\n"
+            + "  \"type\": \"expense\",\n"
+            + "  \"notes\": null,\n"
+            + "  \"confidence\": 85,\n"
+            + "  \"missingFields\": []\n"
+            + "}";
+
+        var systemPrompt =
+            $"You are an expense extractor for a personal finance app.\n"
+            + $"Extract a single expense entry from the provided message text (SMS, WhatsApp message, bank alert, UPI notification, etc.).\n"
+            + $"The expense book uses {bookCurrency} as its currency. Today's date is {todayDate}.\n\n"
+            + "Respond with ONLY a valid JSON object — no markdown, no extra text.\n"
+            + jsonTemplate + "\n\n"
+            + "Rules:\n"
+            + "- description: a short human-readable label (e.g. 'Lunch at Zomato', 'Electricity bill', 'Transfer to Rahul').\n"
+            + "- merchant: the payee, merchant, or recipient name if visible, otherwise null.\n"
+            + "- amount: the transaction amount as a positive number.\n"
+            + "- type: 'expense' for debits/payments; 'income' for credits/received money.\n"
+            + "- date: YYYY-MM-DD; default to today if not present in the message.\n"
+            + "- paymentMethod: infer from context (UPI → 'UPI', bank debit → 'Debit Card', credit card → 'Credit Card') or null.\n"
+            + "- category: pick the closest from Food & Dining, Transport, Shopping, Utilities, Healthcare, Entertainment, Personal Care, Education, Other.\n"
+            + "- confidence: 0–100 indicating how certain you are. Use 0 if this is not a financial transaction.\n"
+            + "- missingFields: list of field names you could not determine.";
+
+        var body = new
+        {
+            model = "claude-haiku-4-5-20251001",
+            max_tokens = 512,
+            system = systemPrompt,
+            messages = new[]
+            {
+                new { role = "user", content = $"Extract expense details from this message:\n\n{text}" }
+            }
+        };
+
+        var responseJson = await PostAsync(JsonSerializer.Serialize(body, SerializeOpts));
+        var response = JsonNode.Parse(responseJson)!.AsObject();
+        var responseText = response["content"]?[0]?["text"]?.GetValue<string>() ?? "{}";
+
+        var jsonStart = responseText.IndexOf('{');
+        var jsonEnd   = responseText.LastIndexOf('}');
+        if (jsonStart >= 0 && jsonEnd > jsonStart)
+            responseText = responseText[jsonStart..(jsonEnd + 1)];
+
+        try
+        {
+            return JsonSerializer.Deserialize<ReceiptExtractResponse>(responseText,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? new ReceiptExtractResponse { MissingFields = ["all fields"], Confidence = 0 };
+        }
+        catch
+        {
+            return new ReceiptExtractResponse { MissingFields = ["all fields"], Confidence = 0 };
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private string BuildRequestJson(

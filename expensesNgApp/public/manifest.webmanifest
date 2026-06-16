@@ -8,6 +8,15 @@
   "orientation": "portrait-primary",
   "scope": "/",
   "start_url": "/app",
+  "share_target": {
+    "action": "/share-target",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "icons": [
     {
       "src": "icons/icon-192.svg",

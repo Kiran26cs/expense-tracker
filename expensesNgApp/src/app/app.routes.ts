@@ -32,6 +32,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/accept-invite/accept-invite.component').then(m => m.AcceptInviteComponent),
   },
   {
+    path: 'share-target',
+    loadComponent: () => import('./pages/share-target/share-target.component').then(m => m.ShareTargetComponent),
+    canActivate: [authGuard],
+  },
+  {
     path: ':bookId',
     loadComponent: () => import('./layouts/app-layout/app-layout.component').then(m => m.AppLayoutComponent),
     canActivate: [authGuard],

@@ -10,12 +10,16 @@ import { AiChatService } from '../../services/ai-chat.service';
 import { SettingsService } from '../../services/settings.service';
 import { MemberService } from '../../services/member.service';
 import { ToastService } from '../../services/toast.service';
+import { UserPreferencesService } from '../../services/user-preferences.service';
+import { PrivacyService } from '../../services/privacy.service';
+import { AuthStateService } from '../../services/auth-state.service';
 import { DashboardSummary, DailyTransactionGroup, UpcomingPayment } from '../../models/dashboard.model';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent } from '../../components/card/card.component';
 import { ButtonComponent } from '../../components/button/button.component';
 import { LoadingComponent, EmptyStateComponent } from '../../components/loading/loading.component';
 import { DateRangePickerComponent } from '../../components/date-range-picker/date-range-picker.component';
 import { ModalComponent } from '../../components/modal/modal.component';
+import { PrivacyUnlockModalComponent } from '../../components/privacy-unlock-modal/privacy-unlock-modal.component';
 import { formatCurrency, formatCalendarDate, localDateString } from '../../utils/helpers';
 
 const SESSION_KEY = (bookId: string) => `dashboard-filters-${bookId}`;
@@ -47,7 +51,7 @@ const BUCKET_ORDER = ['need', 'want', 'debt', 'unclassified'] as const;
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, BaseChartDirective, CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent, ButtonComponent, LoadingComponent, EmptyStateComponent, DateRangePickerComponent, ModalComponent],
+  imports: [CommonModule, FormsModule, BaseChartDirective, CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComponent, ButtonComponent, LoadingComponent, EmptyStateComponent, DateRangePickerComponent, ModalComponent, PrivacyUnlockModalComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -62,6 +66,7 @@ export class DashboardComponent implements OnInit {
   showMarkPaidModal = signal(false);
   selectedPayment = signal<UpcomingPayment | null>(null);
   markPaidLoading = false;
+  filterSaved = signal(false);
 
   dateStart = signal(defaultLast30Start());
   dateEnd = signal(localDateString() + 'T23:59:59Z');
@@ -71,10 +76,16 @@ export class DashboardComponent implements OnInit {
   private dashboardService = inject(DashboardService);
   private settingsService = inject(SettingsService);
   private memberService = inject(MemberService);
+  private auth = inject(AuthStateService);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
   private aiChat = inject(AiChatService);
   private destroyRef = inject(DestroyRef);
+  private userPrefs = inject(UserPreferencesService);
+  privacy = inject(PrivacyService);
+
+  showPrivacyModal = signal(false);
+  privacySetupMode = signal(false);
 
   categories = signal<any[]>([]);
 
@@ -170,6 +181,13 @@ export class DashboardComponent implements OnInit {
   }
 
   private restoreFilters() {
+    // Saved preference (localStorage) takes priority over session filter
+    const saved = this.userPrefs.get<DashboardFilterState>('dashboard-filters', this.bookId);
+    if (saved?.dateStart && saved?.dateEnd) {
+      this.dateStart.set(saved.dateStart);
+      this.dateEnd.set(saved.dateEnd);
+      return;
+    }
     try {
       const raw = sessionStorage.getItem(SESSION_KEY(this.bookId));
       if (!raw) return;
@@ -177,6 +195,37 @@ export class DashboardComponent implements OnInit {
       if (state.dateStart) this.dateStart.set(state.dateStart);
       if (state.dateEnd)   this.dateEnd.set(state.dateEnd);
     } catch { /* ignore malformed */ }
+  }
+
+  saveFilterPreference() {
+    const state: DashboardFilterState = { dateStart: this.dateStart(), dateEnd: this.dateEnd() };
+    this.userPrefs.set('dashboard-filters', this.bookId, state);
+    this.filterSaved.set(true);
+    setTimeout(() => this.filterSaved.set(false), 2000);
+  }
+
+  async onPrivacyLockClick(): Promise<void> {
+    if (this.privacy.isHidden()) {
+      if (this.privacy.isVerifiedThisSession) {
+        // Already verified this session — just show, no credential prompt
+        this.privacy.toggleVisibility();
+      } else {
+        // Fresh check against backend — guards against stale localStorage cache
+        const hasPinSet = await this.privacy.checkPinExists();
+        this.privacySetupMode.set(!hasPinSet);
+        this.showPrivacyModal.set(true);
+      }
+    } else {
+      this.privacy.hide();
+    }
+  }
+
+  onPrivacyVerified(): void {
+    this.showPrivacyModal.set(false);
+  }
+
+  onPrivacyModalClosed(): void {
+    this.showPrivacyModal.set(false);
   }
 
   ngOnInit() {

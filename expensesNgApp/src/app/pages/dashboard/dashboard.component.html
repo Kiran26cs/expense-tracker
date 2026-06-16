@@ -7,6 +7,12 @@
     </div>
     <div class="header-actions">
       <app-date-range-picker [startDate]="dateStart()" [endDate]="dateEnd()" (rangeChange)="onDateRangeChange($event)"></app-date-range-picker>
+      <button class="save-filter-btn" [class.saved]="filterSaved()" (click)="saveFilterPreference()" [title]="filterSaved() ? 'Filter saved!' : 'Save filter as default'">
+        <i [class]="filterSaved() ? 'fa-solid fa-check' : 'fa-solid fa-floppy-disk'"></i>
+      </button>
+      <button class="save-filter-btn privacy-lock-btn" (click)="onPrivacyLockClick()" [title]="privacy.isHidden() ? 'Show financial values' : 'Hide financial values'">
+        <i [class]="privacy.isHidden() ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+      </button>
       <app-button variant="ghost" (clicked)="loadAll()">↻ Refresh</app-button>
     </div>
   </div>
@@ -16,31 +22,41 @@
   <ng-container *ngIf="!loading()">
     <!-- Summary Cards -->
     <div class="summary-cards" *ngIf="summary()">
-      <app-card class="summary-card">
+      <app-card class="summary-card privacy-card" (click)="onPrivacyLockClick()">
         <app-card-content>
           <div class="card-icon card-icon-income">↑</div>
           <div class="card-data">
             <p class="card-label">Total Income</p>
-            <p class="card-value">{{ formatCurrency(summary()!.totalIncome, summary()!.currency) }}</p>
+            <p class="card-value" [class.privacy-masked]="privacy.isHidden()">
+              <span *ngIf="!privacy.isHidden()">{{ formatCurrency(summary()!.totalIncome, summary()!.currency) }}</span>
+              <span *ngIf="privacy.isHidden()" class="masked-value">••••••</span>
+            </p>
           </div>
         </app-card-content>
       </app-card>
-      <app-card class="summary-card">
+      <app-card class="summary-card privacy-card" (click)="onPrivacyLockClick()">
         <app-card-content>
           <div class="card-icon card-icon-expense">↓</div>
           <div class="card-data">
             <p class="card-label">Total Expenses</p>
-            <p class="card-value">{{ formatCurrency(summary()!.totalExpenses, summary()!.currency) }}</p>
+            <p class="card-value" [class.privacy-masked]="privacy.isHidden()">
+              <span *ngIf="!privacy.isHidden()">{{ formatCurrency(summary()!.totalExpenses, summary()!.currency) }}</span>
+              <span *ngIf="privacy.isHidden()" class="masked-value">••••••</span>
+            </p>
           </div>
         </app-card-content>
       </app-card>
-      <app-card class="summary-card">
+      <app-card class="summary-card privacy-card" (click)="onPrivacyLockClick()">
         <app-card-content>
           <div class="card-icon card-icon-savings">≡</div>
           <div class="card-data">
             <p class="card-label">Net Savings</p>
-            <p class="card-value" [class.positive]="((summary()!.netSavings ?? summary()!.savings) ?? 0) >= 0" [class.negative]="((summary()!.netSavings ?? summary()!.savings) ?? 0) < 0">
-              {{ formatCurrency((summary()!.netSavings ?? summary()!.savings) ?? 0, summary()!.currency) }}
+            <p class="card-value"
+               [class.positive]="!privacy.isHidden() && ((summary()!.netSavings ?? summary()!.savings) ?? 0) >= 0"
+               [class.negative]="!privacy.isHidden() && ((summary()!.netSavings ?? summary()!.savings) ?? 0) < 0"
+               [class.privacy-masked]="privacy.isHidden()">
+              <span *ngIf="!privacy.isHidden()">{{ formatCurrency((summary()!.netSavings ?? summary()!.savings) ?? 0, summary()!.currency) }}</span>
+              <span *ngIf="privacy.isHidden()" class="masked-value">••••••</span>
             </p>
           </div>
         </app-card-content>
@@ -92,14 +108,22 @@
         <app-card-header><app-card-title>Financial Health <span class="fh-rule-badge">50-30-20</span></app-card-title></app-card-header>
         <app-card-content>
           <ng-container *ngIf="summary()?.totalIncome; else noIncomeData">
-            <p class="fh-income-line">Based on {{ formatCurrency(summary()!.totalIncome, summary()!.currency) }} income this period</p>
+            <p class="fh-income-line">
+              Based on
+              <span *ngIf="!privacy.isHidden()">{{ formatCurrency(summary()!.totalIncome, summary()!.currency) }}</span>
+              <span *ngIf="privacy.isHidden()" class="masked-value">••••••</span>
+              income this period
+            </p>
             <div class="fh-buckets">
               <ng-container *ngFor="let b of financialBuckets()">
                 <ng-container *ngIf="b.key !== 'unclassified' || b.amount > 0">
                   <div class="fh-row">
                     <div class="fh-row-header">
                       <span class="fh-bucket-label" [style.color]="b.color">{{ b.label }}</span>
-                      <span class="fh-bucket-amount">{{ formatCurrency(b.amount, summary()!.currency) }}</span>
+                      <span class="fh-bucket-amount">
+                        <span *ngIf="!privacy.isHidden()">{{ formatCurrency(b.amount, summary()!.currency) }}</span>
+                        <span *ngIf="privacy.isHidden()" class="masked-value">••••</span>
+                      </span>
                       <span class="fh-bucket-pct">{{ summary()!.totalIncome > 0 ? ((b.amount / summary()!.totalIncome) * 100 | number:'1.0-0') : 0 }}%</span>
                       <ng-container *ngIf="b.key === 'need'">
                         <span class="fh-target-badge" [class.fh-ok]="(b.amount / summary()!.totalIncome) <= 0.50" [class.fh-over]="(b.amount / summary()!.totalIncome) > 0.50">target 50%</span>
@@ -118,7 +142,10 @@
               <div class="fh-row fh-savings-row">
                 <div class="fh-row-header">
                   <span class="fh-bucket-label fh-savings-label">Savings</span>
-                  <span class="fh-bucket-amount">{{ formatCurrency(summary()!.totalIncome - summary()!.totalExpenses, summary()!.currency) }}</span>
+                  <span class="fh-bucket-amount">
+                    <span *ngIf="!privacy.isHidden()">{{ formatCurrency(summary()!.totalIncome - summary()!.totalExpenses, summary()!.currency) }}</span>
+                    <span *ngIf="privacy.isHidden()" class="masked-value">••••</span>
+                  </span>
                   <span class="fh-bucket-pct">{{ summary()!.totalIncome > 0 ? (((summary()!.totalIncome - summary()!.totalExpenses) / summary()!.totalIncome) * 100 | number:'1.0-0') : 0 }}%</span>
                   <span class="fh-target-badge" [class.fh-ok]="(summary()!.totalIncome - summary()!.totalExpenses) / summary()!.totalIncome >= 0.20" [class.fh-over]="(summary()!.totalIncome - summary()!.totalExpenses) / summary()!.totalIncome < 0.20">target 20%</span>
                 </div>
@@ -203,6 +230,14 @@
       </app-card-content>
     </app-card>
   </ng-container>
+
+  <!-- Privacy Unlock Modal -->
+  <app-privacy-unlock-modal
+    [isOpen]="showPrivacyModal()"
+    [setupMode]="privacySetupMode()"
+    (verified)="onPrivacyVerified()"
+    (closed)="onPrivacyModalClosed()">
+  </app-privacy-unlock-modal>
 
   <!-- Mark Paid Modal -->
   <app-modal [isOpen]="showMarkPaidModal()" title="Confirm Payment" (closed)="closeMarkPaidModal()">

@@ -166,7 +166,8 @@ builder.Services.AddCors(options =>
         policy.WithOrigins([.. corsOrigins])
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials();
+              .AllowCredentials()
+              .WithExposedHeaders("X-Api-Version");
     });
 });
 
@@ -191,6 +192,8 @@ app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseMiddleware<ApiVersionMiddleware>();
 
 app.MapControllers();
 

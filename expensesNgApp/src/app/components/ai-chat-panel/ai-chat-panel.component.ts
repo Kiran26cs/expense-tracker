@@ -218,7 +218,10 @@ export class AiChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked
 
     try {
       const base64 = await this.compressImage(file);
-      const result = await this.chatService.extractReceipt(this.book!.id, base64, mimeType);
+      // compressImage always re-encodes to JPEG via canvas regardless of the original format,
+      // so we must send image/jpeg — not file.type — to avoid a media_type mismatch on mobile
+      // (e.g. PNG screenshots get re-encoded to JPEG but file.type would still say image/png).
+      const result = await this.chatService.extractReceipt(this.book!.id, base64, 'image/jpeg');
       if (result) {
         this.receiptConfirmation.set(this.buildConfirmation(result, previewUrl));
         this.loadReceiptRate();
@@ -249,7 +252,8 @@ export class AiChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked
       const base64 = isImage
         ? await this.compressImage(file)
         : await this.readFileAsBase64(file);
-      const result = await this.chatService.extractReceipt(this.book!.id, base64, mimeType);
+      // If it went through compressImage, the output is always JPEG regardless of source format
+      const result = await this.chatService.extractReceipt(this.book!.id, base64, isImage ? 'image/jpeg' : mimeType);
       if (result) {
         this.receiptConfirmation.set(this.buildConfirmation(result, previewUrl));
         this.loadReceiptRate();

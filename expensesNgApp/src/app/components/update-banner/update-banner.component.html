@@ -1,0 +1,6 @@
+@if (version.updateAvailable$ | async) {
+  <div class="update-banner">
+    <span>A new version of the app is available. Please refresh to get the latest updates.</span>
+    <button (click)="version.refresh()">Refresh now</button>
+  </div>
+}

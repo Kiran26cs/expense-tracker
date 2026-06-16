@@ -9,6 +9,12 @@
   },
   "routes": [
     {
+      "route": "/version.json",
+      "headers": {
+        "Cache-Control": "no-store, no-cache, must-revalidate"
+      }
+    },
+    {
       "route": "/ngsw.json",
       "headers": {
         "Cache-Control": "no-cache, no-store, must-revalidate"

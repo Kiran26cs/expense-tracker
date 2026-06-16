@@ -41,6 +41,7 @@ export interface ReceiptExtractResponse {
   description: string | null;
   amount: number | null;
   category: string | null;
+  type: string | null;
 }
 
 export interface ChatHistoryMessage {
@@ -196,6 +197,18 @@ export class AiChatService {
       if (res.success && res.data) {
         return res.data;
       }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  async parseMessage(bookId: string, text: string): Promise<ReceiptExtractResponse | null> {
+    try {
+      const res = await firstValueFrom(
+        this.api.post<ApiResponse<ReceiptExtractResponse>>('/ai/parse-message', { bookId, text })
+      );
+      if (res.success && res.data) return res.data;
       return null;
     } catch {
       return null;

@@ -1,0 +1,92 @@
+<div class="share-target-page">
+
+  <!-- Loading / Parsing -->
+  <app-loading *ngIf="status() === 'loading'" text="Loading..."></app-loading>
+  <app-loading *ngIf="status() === 'parsing'" text="Reading message..."></app-loading>
+
+  <!-- Error -->
+  <div *ngIf="status() === 'error'" class="state-card">
+    <div class="state-icon">⚠️</div>
+    <p class="state-message">{{ errorMessage() }}</p>
+    <app-button (clicked)="discard()">Go to App</app-button>
+  </div>
+
+  <!-- Book selector (multiple books) -->
+  <app-card *ngIf="status() === 'book-select'" class="form-card">
+    <app-card-header>
+      <app-card-title>Add Shared Expense</app-card-title>
+    </app-card-header>
+    <app-card-content>
+      <div class="message-preview">
+        <p class="preview-label">Shared message</p>
+        <p class="preview-text">{{ sharedText() }}</p>
+      </div>
+      <div class="form-field">
+        <label class="input-label">Select expense book</label>
+        <select class="native-select" (change)="onBookSelected($any($event.target).value)">
+          <option value="">Choose a book...</option>
+          <option *ngFor="let opt of bookOptions()" [value]="opt.value">{{ opt.label }}</option>
+        </select>
+      </div>
+    </app-card-content>
+  </app-card>
+
+  <!-- Review / Save form -->
+  <div *ngIf="status() === 'review' || status() === 'saving'" class="share-content">
+    <div class="page-header">
+      <button class="back-btn" (click)="discard()">← Cancel</button>
+      <h1 class="page-title">Add from Message</h1>
+    </div>
+
+    <div class="message-pill">
+      <span class="pill-label">Message</span>
+      <span class="pill-text">{{ sharedText().length > 100 ? sharedText().slice(0, 100) + '…' : sharedText() }}</span>
+    </div>
+
+    <div *ngIf="aiUnavailable()" class="info-banner">
+      AI parsing not available for this book — fill in the details below.
+    </div>
+    <div *ngIf="!aiUnavailable() && parseConfidence() !== null && parseConfidence()! < 60" class="info-banner warning">
+      Low confidence extraction — please review the fields carefully.
+    </div>
+
+    <app-card class="form-card">
+      <app-card-header>
+        <app-card-title>{{ selectedBook()?.name }}</app-card-title>
+      </app-card-header>
+      <app-card-content>
+        <form [formGroup]="form" (ngSubmit)="save()" class="expense-form">
+
+          <div class="type-tabs">
+            <button type="button" class="type-tab" [class.active]="form.get('type')?.value === 'expense'" (click)="form.get('type')?.setValue('expense')">Expense</button>
+            <button type="button" class="type-tab" [class.active]="form.get('type')?.value === 'income'" (click)="form.get('type')?.setValue('income')">Income</button>
+          </div>
+
+          <app-input
+            label="Description"
+            formControlName="description"
+            placeholder="What was this for?"
+            [required]="true"
+            class="full-width">
+          </app-input>
+
+          <div class="form-grid">
+            <app-input label="Amount" type="number" formControlName="amount" placeholder="0.00" [required]="true"></app-input>
+            <app-input label="Date" type="date" formControlName="date" [required]="true"></app-input>
+            <app-select label="Category" formControlName="category" [options]="categoryOptions()"></app-select>
+            <app-select label="Payment Method" formControlName="paymentMethod" [options]="paymentMethodOptions()"></app-select>
+          </div>
+
+          <app-textarea label="Notes (optional)" formControlName="notes" placeholder="Any additional notes..."></app-textarea>
+
+          <div class="form-actions">
+            <app-button type="button" variant="ghost" (clicked)="discard()">Discard</app-button>
+            <app-button type="submit" [loading]="status() === 'saving'">Save Expense</app-button>
+          </div>
+
+        </form>
+      </app-card-content>
+    </app-card>
+  </div>
+
+</div>

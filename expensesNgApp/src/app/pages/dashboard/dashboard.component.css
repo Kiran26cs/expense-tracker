@@ -48,6 +48,32 @@
 .fh-savings-row { padding-top: 0.75rem; border-top: 1px solid var(--color-border); }
 .fh-note { font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 0.75rem; }
 .header-right { margin-left: auto; }
+
+.save-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.save-filter-btn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+.save-filter-btn.saved {
+  color: var(--color-success);
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+}
+.save-filter-btn i { font-size: 0.85rem; pointer-events: none; }
 .payments-list { display: flex; flex-direction: column; gap: 0.75rem; }
 .payment-item { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; border-radius: var(--radius-lg); background: var(--color-background); }
 .payment-item.overdue { background: var(--color-danger-light); }
@@ -69,6 +95,15 @@
 .txn-amount.expense { color: var(--color-danger); }
 .mark-paid-amount { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); color: var(--color-primary); }
 .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem; }
+/* ── Privacy masking ─────────────────────────────────────────────── */
+.masked-value {
+  letter-spacing: 0.15em;
+  color: var(--color-text-tertiary, var(--color-text-secondary));
+  user-select: none;
+}
+.privacy-card { cursor: pointer; }
+.privacy-card:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 30%, transparent); }
+
 @media (max-width: 767px) {
   .dashboard { overflow-x: hidden; width: 100%; box-sizing: border-box; }
 

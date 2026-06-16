@@ -43,6 +43,13 @@ public class ReceiptExtractRequest
     public string MimeType { get; set; } = "image/jpeg";
 }
 
+public class ParseMessageRequest
+{
+    public string BookId { get; set; } = string.Empty;
+    /// <summary>Raw text shared from SMS, WhatsApp, or any messaging app.</summary>
+    public string Text { get; set; } = string.Empty;
+}
+
 public class ReceiptLineItem
 {
     public string? Name { get; set; }

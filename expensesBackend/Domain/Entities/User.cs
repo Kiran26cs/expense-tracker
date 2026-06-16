@@ -34,4 +34,7 @@ public class User
     [BsonElement("plan")]
     [BsonRepresentation(BsonType.String)]
     public PlanType Plan { get; set; } = PlanType.Free;
+
+    [BsonElement("privacyPinHash")]
+    public string? PrivacyPinHash { get; set; }
 }

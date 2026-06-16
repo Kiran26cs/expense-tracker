@@ -1,0 +1,53 @@
+<div class="privacy-backdrop" *ngIf="isOpen" (click)="close()">
+  <div class="privacy-modal" (click)="$event.stopPropagation()">
+
+    <div class="pm-header">
+      <div class="pm-lock-icon">
+        <i class="fa-solid fa-lock"></i>
+      </div>
+      <h2 class="pm-title">{{ title }}</h2>
+      <p class="pm-subtitle">{{ subtitle }}</p>
+    </div>
+
+    <!-- PIN dots -->
+    <div class="pm-dots">
+      <span *ngFor="let filled of dots" class="pm-dot" [class.pm-dot-filled]="filled"></span>
+    </div>
+
+    <!-- Error -->
+    <p *ngIf="error()" class="pm-error">{{ error() }}</p>
+
+    <!-- Number pad -->
+    <div class="pm-pad">
+      <ng-container *ngFor="let key of digits">
+        <button
+          *ngIf="key !== null && key !== 'del'"
+          class="pm-key"
+          [disabled]="loading()"
+          (click)="onDigit(key)">
+          {{ key }}
+        </button>
+        <div *ngIf="key === null" class="pm-key pm-key-empty"></div>
+        <button
+          *ngIf="key === 'del'"
+          class="pm-key pm-key-del"
+          [disabled]="loading() || activePin.length === 0"
+          (click)="onDelete()">
+          <i class="fa-solid fa-delete-left"></i>
+        </button>
+      </ng-container>
+    </div>
+
+    <!-- Biometric button -->
+    <div *ngIf="mode() === 'unlock' && biometricAvailable()" class="pm-biometric">
+      <button class="pm-biometric-btn" [disabled]="loading()" (click)="useBiometric()">
+        <i class="fa-solid fa-fingerprint"></i>
+        <span>{{ biometricRegistered() ? 'Use Biometric' : 'Set Up Biometric' }}</span>
+      </button>
+    </div>
+
+    <!-- Cancel -->
+    <button class="pm-cancel" (click)="close()">Cancel</button>
+
+  </div>
+</div>

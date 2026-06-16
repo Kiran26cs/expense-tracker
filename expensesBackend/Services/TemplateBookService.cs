@@ -50,6 +50,21 @@ public class TemplateBookService : ITemplateBookService
         };
         await _context.ExpenseBooks.InsertOneAsync(book);
 
+        // Add the requesting user as owner of the demo book
+        var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+        var ownerMember = new ExpenseBookMember
+        {
+            ExpenseBookId      = book.Id,
+            UserId             = userId,
+            InvitedEmail       = user?.Email ?? string.Empty,
+            InviteStatus       = "accepted",
+            Role               = "owner",
+            CanDeleteExpenses  = true,
+            AllowedCategoryIds = [],
+            AddedBy            = userId,
+        };
+        await _context.ExpenseBookMembers.InsertOneAsync(ownerMember);
+
         // Build 5-phase ImportSession for progress tracking
         var session = new ImportSession
         {
