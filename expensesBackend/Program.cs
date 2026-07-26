@@ -1,9 +1,10 @@
 using Azure.Identity;
 using ExpensesBackend.API.Domain.DTOs;
-using ExpensesBackend.API.Infrastructure.Data;
 using ExpensesBackend.API.Middleware;
 using ExpensesBackend.API.Services;
+using ExpensesBackend.API.Services.Admin;
 using ExpensesBackend.API.Services.AI;
+using ExpensesBackend.API.Services.BankSync;
 using ExpensesBackend.API.Services.Interfaces;
 using ExpensesBackend.API.Services.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -75,6 +76,13 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<ILendingService, LendingService>();
 builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<IBankConnectionService, BankConnectionService>();
+builder.Services.AddScoped<IBankSyncService, BankSyncService>();
+builder.Services.AddScoped<AiBankStatementParser>();
+builder.Services.AddSingleton<AiBankTransactionCategorizer>();
+builder.Services.AddScoped<PdfBankStatementParser>();
+builder.Services.AddScoped<BankStatementPdfExtractor>();
+builder.Services.AddScoped<BankStatementParserFactory>();
 builder.Services.AddHttpClient<ICurrencyConversionService, FrankfurterCurrencyService>();
 builder.Services.AddScoped<ITemplateBookService, TemplateBookService>();
 builder.Services.AddSingleton<ITemplateBlobService, TemplateBlobService>();
@@ -110,12 +118,24 @@ builder.Services.AddHostedService<NotificationSchedulerService>();
 // Messaging Service — switch provider via Messaging:Provider in Azure App Configuration
 builder.Services.AddHttpClient("MSG91");
 var messagingProvider = builder.Configuration["Messaging:Provider"] ?? "MSG91";
+// Singleton so the service can be safely captured in fire-and-forget background tasks
+// (all implementations are stateless HTTP clients — singleton lifetime is appropriate)
 if (messagingProvider.Equals("AzureCommunication", StringComparison.OrdinalIgnoreCase))
-    builder.Services.AddScoped<IMessagingService, AzureCommunicationMessagingService>();
+    builder.Services.AddSingleton<IMessagingService, AzureCommunicationMessagingService>();
 else if (messagingProvider.Equals("TwilioSendGrid", StringComparison.OrdinalIgnoreCase))
-    builder.Services.AddScoped<IMessagingService, TwilioSendGridMessagingService>();
+    builder.Services.AddSingleton<IMessagingService, TwilioSendGridMessagingService>();
 else
-    builder.Services.AddScoped<IMessagingService, Msg91MessagingService>();
+    builder.Services.AddSingleton<IMessagingService, Msg91MessagingService>();
+
+// Admin Services
+builder.Services.AddScoped<IPlatformAdminAuthService, PlatformAdminAuthService>();
+builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IAdminCreditService, AdminCreditService>();
+builder.Services.AddScoped<IAdminBookService, AdminBookService>();
+builder.Services.AddScoped<IAdminCacheService, AdminCacheService>();
+builder.Services.AddScoped<IAdminJobService, AdminJobService>();
+builder.Services.AddScoped<IAdminPlatformAdminService, AdminPlatformAdminService>();
 
 // Redis Distributed Cache
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -128,6 +148,7 @@ builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 // JWT Authentication
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "your-super-secret-key-min-32-chars-long";
 var key = Encoding.UTF8.GetBytes(jwtSecret);
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "ExpensesBackend";
 
 builder.Services.AddAuthentication(options =>
 {
@@ -142,13 +163,33 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "ExpensesBackend",
+        ValidIssuer = jwtIssuer,
         ValidAudience = builder.Configuration["Jwt:Audience"] ?? "ExpensesBackend",
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+})
+.AddJwtBearer("AdminBearer", options =>
+{
+    // Separate scheme for platform admins — different audience prevents cross-use of tokens
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = "platform-admin-v1",
         IssuerSigningKey = new SymmetricSecurityKey(key)
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("PlatformAdmin", policy =>
+    {
+        policy.AddAuthenticationSchemes("AdminBearer");
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim("type", "platform_admin");
+    });
 
 // CORS — origins from config + local dev defaults
 var frontendUrl = builder.Configuration["App:FrontendUrl"];
@@ -158,6 +199,8 @@ if (!string.IsNullOrEmpty(frontendUrl))
 // Always allow the production domains
 corsOrigins.Add("https://nidhiwise.com");
 corsOrigins.Add("https://app.nidhiwise.com");
+corsOrigins.Add("https://admin.nidhiwise.com");
+corsOrigins.Add("http://localhost:4300"); // admin app local dev
 
 builder.Services.AddCors(options =>
 {

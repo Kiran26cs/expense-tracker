@@ -52,6 +52,11 @@ public class ExpenseBook
     [BsonElement("aiChatEnabled")]
     public bool AiChatEnabled { get; set; } = false;
 
+    // Maps this book to a user-level BankConnection for statement sync
+    [BsonElement("bankConnectionId")]
+    [BsonIgnoreIfNull]
+    public string? BankConnectionId { get; set; }
+
     [BsonElement("updatedAt")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -91,6 +91,10 @@ public class ImportRecord
     [BsonIgnoreIfNull]
     public string? Currency { get; set; }
 
+    [BsonElement("externalTxnRef")]
+    [BsonIgnoreIfNull]
+    public string? ExternalTxnRef { get; set; }
+
     [BsonElement("status")]
     public string Status { get; set; } = ImportRecordStatus.Pending;
 
@@ -101,7 +105,8 @@ public class ImportRecord
 
 public static class ImportRecordStatus
 {
-    public const string Pending = "pending";
-    public const string Success = "success";
-    public const string Failed  = "failed";
+    public const string Pending   = "pending";
+    public const string Success   = "success";
+    public const string Failed    = "failed";
+    public const string Duplicate = "duplicate";
 }

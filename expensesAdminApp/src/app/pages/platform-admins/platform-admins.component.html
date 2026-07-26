@@ -1,0 +1,170 @@
+<div class="page-header">
+  <div>
+    <h2>Platform Admins</h2>
+    <p>{{ total() }} admin{{ total() === 1 ? '' : 's' }} with platform access</p>
+  </div>
+  <button class="btn btn-primary" (click)="openCreate()">+ Add Admin</button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  @if (loading()) {
+    <div class="skeleton" style="height:260px;border-radius:0;"></div>
+  } @else if (loadError()) {
+    <div class="load-error">
+      <span>⚠ {{ loadError() }}</span>
+      <button class="btn btn-sm btn-secondary" (click)="load()">Retry</button>
+    </div>
+  } @else if (admins().length === 0) {
+    <div class="empty-state">No platform admins yet.</div>
+  } @else {
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr><th>Name / Email</th><th>Permissions</th><th>Status</th><th>Last Login</th><th>Granted At</th><th></th></tr>
+        </thead>
+        <tbody>
+          @for (admin of admins(); track admin.id) {
+            <tr [class.row-inactive]="!admin.isActive">
+              <td>
+                <div class="admin-name">
+                  {{ admin.name }}
+                  @if (isCurrentAdmin(admin.id)) { <span class="you-tag">you</span> }
+                </div>
+                <div class="muted">{{ admin.email }}</div>
+              </td>
+              <td>
+                <button class="perm-badge"
+                  [class.perm-badge-empty]="admin.permissions.length === 0"
+                  (click)="openPermPopover(admin, $event)">
+                  @if (admin.permissions.length === 0) {
+                    <span>none</span>
+                  } @else {
+                    <span class="perm-badge-icon">🔒</span>
+                    <span>{{ admin.permissions.length }} perm{{ admin.permissions.length !== 1 ? 's' : '' }}</span>
+                    <span class="perm-badge-arrow">▾</span>
+                  }
+                </button>
+              </td>
+              <td>
+                <span class="status-pill" [class.active]="admin.isActive">
+                  {{ admin.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="muted">{{ admin.lastLoginAt ? (admin.lastLoginAt | date:'dd MMM yyyy') : 'Never' }}</td>
+              <td class="muted">{{ admin.grantedAt | date:'dd MMM yyyy' }}</td>
+              <td class="row-actions">
+                <button class="btn btn-sm btn-secondary" (click)="openEdit(admin)">Edit</button>
+                <button class="btn btn-sm"
+                  [class.btn-danger]="admin.isActive"
+                  [class.btn-secondary]="!admin.isActive"
+                  [disabled]="isCurrentAdmin(admin.id)"
+                  (click)="toggleActive(admin)">
+                  {{ admin.isActive ? 'Deactivate' : 'Activate' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- Create Admin Modal -->
+@if (showCreateForm()) {
+  <div class="overlay" (click)="showCreateForm.set(false)"></div>
+  <div class="modal">
+    <h3>Add Platform Admin</h3>
+    <p class="modal-sub">The new admin will be able to log in via OTP to their email address.</p>
+
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" placeholder="admin@company.com"
+        [value]="createEmail()" (input)="createEmail.set($any($event.target).value)" />
+    </div>
+    <div class="form-group">
+      <label>Display Name</label>
+      <input type="text" placeholder="Full name"
+        [value]="createName()" (input)="createName.set($any($event.target).value)" />
+    </div>
+
+    <div class="form-group">
+      <label>Permissions</label>
+      <div class="perm-grid">
+        @for (p of allPermissions; track p) {
+          <label class="perm-option" [class.selected]="createPerms().includes(p)">
+            <input type="checkbox" [checked]="createPerms().includes(p)" (change)="toggleCreatePerm(p)" />
+            {{ p }}
+          </label>
+        }
+      </div>
+    </div>
+
+    @if (createError()) {
+      <div class="result-err">{{ createError() }}</div>
+    }
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" (click)="showCreateForm.set(false)">Cancel</button>
+      <button class="btn btn-primary" [disabled]="createSaving()" (click)="submitCreate()">
+        {{ createSaving() ? 'Creating…' : 'Create Admin' }}
+      </button>
+    </div>
+  </div>
+}
+
+<!-- Edit Admin Panel -->
+@if (editTarget()) {
+  <div class="overlay" (click)="editTarget.set(null)"></div>
+  <div class="modal">
+    <h3>Edit Admin</h3>
+    <p class="modal-sub">{{ editTarget()!.email }}</p>
+
+    <div class="form-group">
+      <label>Display Name</label>
+      <input type="text" [value]="editName()" (input)="editName.set($any($event.target).value)" />
+    </div>
+
+    <div class="form-group">
+      <label>Permissions</label>
+      <div class="perm-grid">
+        @for (p of allPermissions; track p) {
+          <label class="perm-option" [class.selected]="editPerms().includes(p)">
+            <input type="checkbox" [checked]="editPerms().includes(p)" (change)="toggleEditPerm(p)" />
+            {{ p }}
+          </label>
+        }
+      </div>
+    </div>
+
+    @if (editError()) {
+      <div class="result-err">{{ editError() }}</div>
+    }
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" (click)="editTarget.set(null)">Cancel</button>
+      <button class="btn btn-primary" [disabled]="editSaving()" (click)="submitEdit()">
+        {{ editSaving() ? 'Saving…' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+}
+
+<!-- Permission popover — position:fixed escapes all overflow/scroll containers -->
+@if (permPopover(); as pop) {
+  <div class="perm-popover"
+       [style.top.px]="pop.top"
+       [style.left.px]="pop.left"
+       (click)="$event.stopPropagation()">
+    <div class="perm-popover-title">Permissions</div>
+    @if (pop.permissions.length === 0) {
+      <span class="perm-popover-empty">No permissions assigned</span>
+    } @else {
+      <div class="perm-popover-chips">
+        @for (p of pop.permissions; track p) {
+          <span class="perm-chip">{{ p }}</span>
+        }
+      </div>
+    }
+  </div>
+}

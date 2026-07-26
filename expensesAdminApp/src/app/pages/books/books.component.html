@@ -1,0 +1,70 @@
+<div class="page-header">
+  <h2>Expense Books</h2>
+  <p>{{ total() | number }} active books</p>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+  <input type="text" placeholder="Search by book name…"
+    [value]="search()" (input)="search.set($any($event.target).value)"
+    (keydown.enter)="onSearch()" />
+  <select [value]="aiFilter()" (change)="aiFilter.set($any($event.target).value); onSearch()">
+    <option value="">All books</option>
+    <option value="true">AI enabled</option>
+    <option value="false">AI disabled</option>
+  </select>
+  <button class="btn btn-primary" (click)="onSearch()">Filter</button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  @if (loading()) {
+    <div class="skeleton" style="height:300px;border-radius:0;"></div>
+  } @else {
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr><th>Book</th><th>Owner</th><th>Plan</th><th>Expenses</th><th>Members</th><th>AI Chat</th><th>Created</th><th></th></tr>
+      </thead>
+      <tbody>
+        @for (book of books(); track book.id) {
+          <tr>
+            <td class="book-name">{{ book.name }}</td>
+            <td class="muted">{{ book.ownerEmail }}</td>
+            <td><span class="badge" [class]="'badge-' + book.ownerPlan.toLowerCase()">{{ book.ownerPlan }}</span></td>
+            <td>{{ book.expenseCount }}</td>
+            <td>{{ book.memberCount }}</td>
+            <td>
+              <button class="toggle-btn" [class.on]="book.aiChatEnabled" (click)="toggleAiChat(book.id, book.aiChatEnabled)">
+                {{ book.aiChatEnabled ? 'ON' : 'OFF' }}
+              </button>
+            </td>
+            <td class="muted">{{ book.createdAt | date:'dd MMM yyyy' }}</td>
+            <td>
+              <button class="btn btn-sm btn-danger" (click)="confirmDelete(book.id)">Delete</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    </div>
+
+    <div class="pagination">
+      <button class="btn btn-sm btn-secondary" [disabled]="page() === 1" (click)="prevPage()">← Prev</button>
+      <span>Page {{ page() }} of {{ totalPages }}</span>
+      <button class="btn btn-sm btn-secondary" [disabled]="page() >= totalPages" (click)="nextPage()">Next →</button>
+    </div>
+  }
+</div>
+
+<!-- Delete Confirm Modal -->
+@if (confirmDeleteId()) {
+  <div class="overlay" (click)="cancelDelete()"></div>
+  <div class="confirm-modal">
+    <h3>Delete Book?</h3>
+    <p>This will permanently delete the book and all its expenses, categories, budgets, and members. This cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+      <button class="btn btn-danger" (click)="deleteBook(confirmDeleteId()!)">Yes, Delete</button>
+    </div>
+  </div>
+}

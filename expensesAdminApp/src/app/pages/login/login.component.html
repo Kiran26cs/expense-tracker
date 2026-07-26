@@ -1,0 +1,66 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-logo">N</div>
+      <h1>Nidhiwise Admin</h1>
+      <p>Platform Administration Portal</p>
+    </div>
+
+    @if (step() === 'email') {
+      <form class="login-form" (ngSubmit)="onSendOtp()">
+        <div class="field">
+          <label for="email">Admin Email</label>
+          <input
+            id="email"
+            type="email"
+            [value]="email()"
+            (input)="email.set($any($event.target).value)"
+            name="email"
+            placeholder="Enter your admin email"
+            autocomplete="email"
+            required
+          />
+        </div>
+
+        @if (error()) {
+          <div class="error-msg">{{ error() }}</div>
+        }
+
+        <button type="submit" class="btn-primary" [disabled]="loading() || !email().trim()">
+          {{ loading() ? 'Sending...' : 'Send OTP' }}
+        </button>
+      </form>
+    } @else {
+      <form class="login-form" (ngSubmit)="onVerifyOtp()">
+        <p class="otp-hint">OTP sent to <strong>{{ email() }}</strong></p>
+
+        <div class="field">
+          <label for="otp">One-Time Password</label>
+          <input
+            id="otp"
+            type="text"
+            [value]="otp()"
+            (input)="otp.set($any($event.target).value)"
+            name="otp"
+            placeholder="6-digit OTP"
+            maxlength="6"
+            autocomplete="one-time-code"
+            required
+          />
+        </div>
+
+        @if (error()) {
+          <div class="error-msg">{{ error() }}</div>
+        }
+
+        <button type="submit" class="btn-primary" [disabled]="loading() || !otp().trim()">
+          {{ loading() ? 'Verifying...' : 'Login' }}
+        </button>
+
+        <button type="button" class="btn-ghost" (click)="backToEmail()">
+          ← Use different email
+        </button>
+      </form>
+    }
+  </div>
+</div>

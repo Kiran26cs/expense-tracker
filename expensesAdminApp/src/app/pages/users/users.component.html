@@ -1,0 +1,136 @@
+<div class="page-header">
+  <h2>Users</h2>
+  <p>{{ total() | number }} total users</p>
+</div>
+
+<!-- Search -->
+<div class="search-bar">
+  <input type="text" placeholder="Search by email or name…"
+    [value]="search()" (input)="search.set($any($event.target).value)"
+    (keydown.enter)="onSearch()" />
+  <button class="btn btn-primary" (click)="onSearch()">Search</button>
+</div>
+
+<!-- Table -->
+<div class="card" style="padding:0;overflow:hidden;">
+  @if (loading()) {
+    <div class="skeleton" style="height:300px;border-radius:0;"></div>
+  } @else {
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name / Email</th>
+          <th>Plan</th>
+          <th>Books</th>
+          <th>Joined</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (user of users(); track user.id) {
+          <tr>
+            <td>
+              <div class="user-name">{{ user.name }}</div>
+              <div class="user-email">{{ user.email }}</div>
+            </td>
+            <td><span class="badge" [class]="'badge-' + user.plan.toLowerCase()">{{ user.plan }}</span></td>
+            <td>{{ user.bookCount }}</td>
+            <td>{{ user.createdAt | date:'dd MMM yyyy' }}</td>
+            <td><button class="btn btn-sm btn-secondary" (click)="openDetail(user.id)">View</button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      <button class="btn btn-sm btn-secondary" [disabled]="page() === 1" (click)="prevPage()">← Prev</button>
+      <span>Page {{ page() }} of {{ totalPages }}</span>
+      <button class="btn btn-sm btn-secondary" [disabled]="page() >= totalPages" (click)="nextPage()">Next →</button>
+    </div>
+  }
+</div>
+
+<!-- Detail Panel -->
+@if (selectedUser() || detailLoading()) {
+  <div class="overlay" (click)="closeDetail()"></div>
+  <aside class="detail-panel">
+    <div class="panel-header">
+      <h3>User Detail</h3>
+      <button class="close-btn" (click)="closeDetail()">✕</button>
+    </div>
+
+    @if (detailLoading()) {
+      <div class="skeleton" style="height:200px;border-radius:8px;margin:16px;"></div>
+    } @else {
+      @let u = selectedUser();
+      <div class="panel-body">
+        <div class="detail-section">
+          <div class="detail-name">{{ u?.name }}</div>
+          <div class="detail-email">{{ u?.email }}</div>
+          <div class="detail-meta">Joined {{ u?.createdAt | date:'dd MMM yyyy' }} · {{ u?.currency }}</div>
+        </div>
+
+        <!-- Change Plan -->
+        <div class="detail-section">
+          <div class="section-label">Plan</div>
+          <div class="plan-change">
+            <select [value]="newPlan()" (change)="newPlan.set($any($event.target).value)">
+              <option value="Free">Free</option>
+              <option value="Starter">Starter</option>
+              <option value="Pro">Pro</option>
+            </select>
+            <button class="btn btn-sm btn-primary" (click)="changePlan()" [disabled]="planChanging() || newPlan() === u?.plan">
+              {{ planChanging() ? 'Saving…' : 'Update Plan' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Subscription -->
+        @if (u?.subscription) {
+          <div class="detail-section">
+            <div class="section-label">Subscription</div>
+            <div class="detail-row"><span>Status</span><span class="badge" [class]="'badge-' + (u?.subscription?.status === 'active' ? 'active' : 'inactive')">{{ u?.subscription?.status }}</span></div>
+            <div class="detail-row"><span>Period ends</span><span>{{ u?.subscription?.currentPeriodEnd | date:'dd MMM yyyy' }}</span></div>
+            @if (u?.subscription?.cancelAtPeriodEnd) {
+              <div class="detail-row warn">Cancels at period end</div>
+            }
+          </div>
+        }
+
+        <!-- Credits -->
+        <div class="detail-section">
+          <div class="section-label">Credits (all books)</div>
+          <div class="detail-row"><span>Free left</span><span>{{ u?.credits?.totalFreeLeft }}</span></div>
+          <div class="detail-row"><span>Paid left</span><span>{{ u?.credits?.totalPaidLeft }}</span></div>
+        </div>
+
+        <!-- Books -->
+        <div class="detail-section">
+          <div class="section-label">Expense Books ({{ u?.books?.length }})</div>
+          @for (book of u?.books; track book.id) {
+            <div class="book-row">
+              <span>{{ book.name }}</span>
+              <span class="muted">{{ book.expenseCount }} expenses</span>
+              @if (book.aiChatEnabled) { <span class="badge badge-active">AI</span> }
+            </div>
+          }
+        </div>
+
+        <!-- Actions -->
+        <div class="detail-section">
+          <div class="section-label">Account Actions</div>
+          <div class="action-row">
+            @if (u?.isActive) {
+              <button class="btn btn-danger btn-sm" (click)="setActive(false)">Deactivate Account</button>
+            } @else {
+              <button class="btn btn-primary btn-sm" (click)="setActive(true)">Reactivate Account</button>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </aside>
+}

@@ -1,0 +1,95 @@
+<div class="page-header">
+  <h2>Background Jobs</h2>
+  <p>Monitor CSV import sessions and manage scheduled job triggers.</p>
+</div>
+
+<!-- Credit Reset Panel -->
+<div class="card action-card">
+  <div class="action-left">
+    <div class="card-icon credit-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    </div>
+    <div>
+      <h3>Monthly Credit Reset</h3>
+      <p>Grants the monthly free credit allocation to all eligible expense books. Normally runs automatically on the 1st of each month.</p>
+    </div>
+  </div>
+  <button class="btn btn-warning" [disabled]="creditResetRunning()" (click)="triggerCreditReset()">
+    @if (creditResetRunning()) { Running… } @else { Trigger Now }
+  </button>
+</div>
+
+@if (creditResetResult()) {
+  <div class="result-ok mb-16">{{ creditResetResult() }}</div>
+}
+@if (creditResetError()) {
+  <div class="result-err mb-16">{{ creditResetError() }}</div>
+}
+
+<!-- Import Sessions -->
+<div class="section-header">
+  <h3>CSV Import Sessions</h3>
+  <div class="filter-row">
+    <select [value]="statusFilter()" (change)="statusFilter.set($any($event.target).value); loadSessions()">
+      <option value="">All statuses</option>
+      <option value="queued">Queued</option>
+      <option value="processing">Processing</option>
+      <option value="completed">Completed</option>
+      <option value="completedWithErrors">Completed w/ errors</option>
+      <option value="failed">Failed</option>
+    </select>
+    <button class="btn btn-secondary btn-sm" (click)="loadSessions()">Refresh</button>
+  </div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  @if (loading()) {
+    <div class="skeleton" style="height:300px;border-radius:0;"></div>
+  } @else if (sessions().length === 0) {
+    <div class="empty-state">No import sessions found.</div>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Book ID</th>
+          <th>Status</th>
+          <th>Records</th>
+          <th>Success</th>
+          <th>Failed</th>
+          <th>Started</th>
+          <th>Completed</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (s of sessions(); track s.id) {
+          <tr>
+            <td class="file-name">{{ s.fileName }}</td>
+            <td class="mono muted">{{ s.expenseBookId }}</td>
+            <td><span class="status-badge" [class]="statusClass(s.status)">{{ s.status }}</span></td>
+            <td>{{ s.totalRecords }}</td>
+            <td class="count-ok">{{ s.successCount }}</td>
+            <td class="count-err">{{ s.failedCount }}</td>
+            <td class="muted">{{ s.createdAt | date:'dd MMM, HH:mm' }}</td>
+            <td class="muted">{{ s.completedAt ? (s.completedAt | date:'dd MMM, HH:mm') : '—' }}</td>
+            <td>
+              @if (s.status === 'failed' || s.status === 'completedWithErrors') {
+                <button class="btn btn-sm btn-secondary"
+                  [disabled]="retryingId() === s.id"
+                  (click)="retryImport(s.id)">
+                  {{ retryingId() === s.id ? 'Retrying…' : 'Retry' }}
+                </button>
+              }
+              @if (retryResults()[s.id]) {
+                <span class="retry-msg">{{ retryResults()[s.id] }}</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

@@ -1,0 +1,204 @@
+<div class="page-header">
+  <h2>Dashboard</h2>
+  <p>Platform overview — live data</p>
+</div>
+
+<!-- Row 1: KPI Cards -->
+<div class="kpi-grid">
+
+  <!-- Total Users -->
+  <div class="kpi-card">
+    <div class="kpi-label">Total Users</div>
+    @if (loadingUsers()) {
+      <div class="skeleton kpi-skel"></div>
+    } @else {
+      <div class="kpi-value">{{ userStats()?.total | number }}</div>
+      <div class="kpi-sub">+{{ userStats()?.newThisMonth }} this month</div>
+    }
+  </div>
+
+  <!-- Active Subscriptions -->
+  <div class="kpi-card">
+    <div class="kpi-label">Active Subscriptions</div>
+    @if (loadingSubscriptions()) {
+      <div class="skeleton kpi-skel"></div>
+    } @else {
+      <div class="kpi-value">{{ subscriptionStats()?.active | number }}</div>
+      <div class="kpi-sub">+{{ subscriptionStats()?.newThisMonth }} this month</div>
+    }
+  </div>
+
+  <!-- Estimated MRR -->
+  <div class="kpi-card">
+    <div class="kpi-label">Est. MRR (INR)</div>
+    @if (loadingSubscriptions()) {
+      <div class="skeleton kpi-skel"></div>
+    } @else {
+      <div class="kpi-value">₹{{ subscriptionStats()?.mrr?.total | number }}</div>
+      <div class="kpi-sub">
+        {{ subscriptionStats()?.mrr?.starterCount }} Starter · {{ subscriptionStats()?.mrr?.proCount }} Pro
+      </div>
+    }
+  </div>
+
+  <!-- AI Credits Used -->
+  <div class="kpi-card">
+    <div class="kpi-label">AI Credits Used (Month)</div>
+    @if (loadingCredits()) {
+      <div class="skeleton kpi-skel"></div>
+    } @else {
+      <div class="kpi-value">{{ creditStats()?.consumedThisMonth | number }}</div>
+      <div class="kpi-sub">
+        Chat: {{ creditStats()?.byReason?.aiChat }} · Classify: {{ creditStats()?.byReason?.autoClassify }}
+      </div>
+    }
+  </div>
+
+</div>
+
+<!-- Row 2: User plan breakdown + Growth -->
+<div class="two-col">
+
+  <div class="card">
+    <div class="card-title">Users by Plan</div>
+    @if (loadingUsers()) {
+      <div class="skeleton" style="height:120px;border-radius:8px;"></div>
+    } @else {
+      <div class="plan-bars">
+        @let u = userStats();
+        <div class="plan-row">
+          <span class="plan-name">Free</span>
+          <div class="bar-track"><div class="bar bar-free" [style.width]="planPercent(u?.byPlan?.free ?? 0, u?.total ?? 0)"></div></div>
+          <span class="plan-count">{{ u?.byPlan?.free }}</span>
+        </div>
+        <div class="plan-row">
+          <span class="plan-name">Starter</span>
+          <div class="bar-track"><div class="bar bar-starter" [style.width]="planPercent(u?.byPlan?.starter ?? 0, u?.total ?? 0)"></div></div>
+          <span class="plan-count">{{ u?.byPlan?.starter }}</span>
+        </div>
+        <div class="plan-row">
+          <span class="plan-name">Pro</span>
+          <div class="bar-track"><div class="bar bar-pro" [style.width]="planPercent(u?.byPlan?.pro ?? 0, u?.total ?? 0)"></div></div>
+          <span class="plan-count">{{ u?.byPlan?.pro }}</span>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="card">
+    <div class="card-title">Subscription Health</div>
+    @if (loadingSubscriptions()) {
+      <div class="skeleton" style="height:120px;border-radius:8px;"></div>
+    } @else {
+      <div class="stat-rows">
+        <div class="stat-row">
+          <span>New this month</span>
+          <span class="stat-val green">+{{ subscriptionStats()?.newThisMonth }}</span>
+        </div>
+        <div class="stat-row">
+          <span>Cancelled this month</span>
+          <span class="stat-val red">{{ subscriptionStats()?.cancelledThisMonth }}</span>
+        </div>
+        <div class="stat-row">
+          <span>Pending cancellation</span>
+          <span class="stat-val amber">{{ subscriptionStats()?.pendingCancellation }}</span>
+        </div>
+        <div class="stat-row">
+          <span>Starter MRR</span>
+          <span class="stat-val">₹{{ subscriptionStats()?.mrr?.starterMrr | number }}</span>
+        </div>
+        <div class="stat-row">
+          <span>Pro MRR</span>
+          <span class="stat-val">₹{{ subscriptionStats()?.mrr?.proMrr | number }}</span>
+        </div>
+      </div>
+    }
+  </div>
+
+</div>
+
+<!-- Row 3: Book Stats + Import Jobs -->
+<div class="two-col" style="margin-top:16px;">
+
+  <div class="card">
+    <div class="card-title">Expense Books</div>
+    @if (loadingBooks()) {
+      <div class="skeleton" style="height:120px;border-radius:8px;"></div>
+    } @else {
+      <div class="stat-rows">
+        <div class="stat-row"><span>Total active books</span><span class="stat-val">{{ bookStats()?.total }}</span></div>
+        <div class="stat-row"><span>New this month</span><span class="stat-val green">+{{ bookStats()?.newThisMonth }}</span></div>
+        <div class="stat-row"><span>AI chat enabled</span><span class="stat-val">{{ bookStats()?.aiChatEnabled }}</span></div>
+        <div class="stat-row"><span>Template/demo books</span><span class="stat-val">{{ bookStats()?.templateBooks }}</span></div>
+      </div>
+    }
+  </div>
+
+  <div class="card">
+    <div class="card-title">Import Jobs (last 24h)</div>
+    @if (loadingImports()) {
+      <div class="skeleton" style="height:120px;border-radius:8px;"></div>
+    } @else {
+      <div class="stat-rows">
+        <div class="stat-row"><span>Completed</span><span class="stat-val green">{{ importStats()?.last24h?.completed }}</span></div>
+        <div class="stat-row"><span>Completed with errors</span><span class="stat-val amber">{{ importStats()?.last24h?.completedWithErrors }}</span></div>
+        <div class="stat-row"><span>Failed</span><span class="stat-val red">{{ importStats()?.last24h?.failed }}</span></div>
+        <div class="stat-row"><span>Processing</span><span class="stat-val">{{ importStats()?.last24h?.processing }}</span></div>
+        <div class="stat-row"><span>Queued</span><span class="stat-val">{{ importStats()?.last24h?.queued }}</span></div>
+      </div>
+    }
+  </div>
+
+</div>
+
+<!-- Row 4: Zero Credit Books -->
+@if ((creditStats()?.zeroCreditBooks?.length ?? 0) > 0) {
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title">⚠ Books with Zero Credits</div>
+    <table class="data-table">
+      <thead>
+        <tr><th>Book</th><th>Owner</th><th>Plan</th></tr>
+      </thead>
+      <tbody>
+        @for (book of creditStats()?.zeroCreditBooks; track book.bookId) {
+          <tr>
+            <td>{{ book.bookName }}</td>
+            <td>{{ book.ownerEmail }}</td>
+            <td><span class="badge" [class]="'badge-' + book.plan.toLowerCase()">{{ book.plan }}</span></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<!-- Row 5: Recent Admin Actions -->
+<div class="card" style="margin-top:16px;">
+  <div class="card-title">Recent Admin Actions</div>
+  @if (loadingActions()) {
+    <div class="skeleton" style="height:120px;border-radius:8px;"></div>
+  } @else if (!recentActions()?.actions?.length) {
+    <p class="empty-state">No admin actions recorded yet.</p>
+  } @else {
+    <div class="audit-table-wrap">
+      <table class="data-table audit-table">
+        <thead>
+          <tr><th>Time</th><th>Admin</th><th>Action</th><th>Target</th><th>Summary</th></tr>
+        </thead>
+        <tbody>
+          @for (log of recentActions()?.actions; track log.id) {
+            <tr>
+              <td class="time-cell">{{ log.timestamp | date:'dd MMM, HH:mm' }}</td>
+              <td class="cell-truncate" [title]="log.adminEmail">{{ log.adminEmail }}</td>
+              <td><span class="action-badge">{{ formatAction(log.action) }}</span></td>
+              <td class="muted" [title]="log.targetType + (log.targetId ? ' #' + log.targetId : '')">
+                {{ log.targetType }} {{ log.targetId ? '#' + log.targetId.slice(-6) : '' }}
+              </td>
+              <td class="cell-truncate" [title]="log.summary">{{ log.summary }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

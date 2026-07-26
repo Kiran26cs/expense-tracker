@@ -79,6 +79,13 @@ public class Expense
     [BsonIgnoreIfNull]
     public decimal? TaxAmount { get; set; }
 
+    // Fingerprint for duplicate detection: SHA256(bookId+date+amount+description)
+    // For AA auto-sync: the bank's own transaction ID.
+    // Unique sparse index on (expenseBookId, externalTxnRef) prevents re-import.
+    [BsonElement("externalTxnRef")]
+    [BsonIgnoreIfNull]
+    public string? ExternalTxnRef { get; set; }
+
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

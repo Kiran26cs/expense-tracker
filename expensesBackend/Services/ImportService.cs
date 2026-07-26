@@ -34,16 +34,17 @@ public class ImportService : IImportService
             TotalRecords  = request.Rows.Count,
             Records       = request.Rows.Select(r => new ImportRecord
             {
-                RowNumber     = r.RowNumber,
-                Description   = r.Description,
-                Amount        = r.Amount,
-                Category      = r.Category,
-                Date          = r.Date,
-                PaymentMethod = r.PaymentMethod,
-                Notes         = string.IsNullOrWhiteSpace(r.Notes) ? null : r.Notes,
-                Type          = r.Type,
-                Currency      = string.IsNullOrWhiteSpace(r.Currency) ? null : r.Currency,
-                Status        = ImportRecordStatus.Pending
+                RowNumber      = r.RowNumber,
+                Description    = r.Description,
+                Amount         = r.Amount,
+                Category       = r.Category,
+                Date           = r.Date,
+                PaymentMethod  = r.PaymentMethod,
+                Notes          = string.IsNullOrWhiteSpace(r.Notes) ? null : r.Notes,
+                Type           = r.Type,
+                Currency       = string.IsNullOrWhiteSpace(r.Currency) ? null : r.Currency,
+                ExternalTxnRef = string.IsNullOrWhiteSpace(r.ExternalTxnRef) ? null : r.ExternalTxnRef,
+                Status         = ImportRecordStatus.Pending
             }).ToList()
         };
 
@@ -51,11 +52,13 @@ public class ImportService : IImportService
 
         await _channel.Writer.WriteAsync(new ImportJobPayload
         {
-            ImportSessionId   = session.Id,
-            ExpenseBookId     = expenseBookId,
-            UserId            = userId,
-            Rows              = request.Rows,
-            AllowedCategoryIds = allowedCategoryIds
+            ImportSessionId    = session.Id,
+            ExpenseBookId      = expenseBookId,
+            UserId             = userId,
+            Rows               = request.Rows,
+            AllowedCategoryIds = allowedCategoryIds,
+            BankSyncSessionId  = request.BankSyncSessionId,
+            BankName           = request.BankName
         });
 
         return MapToDto(session);
@@ -122,15 +125,16 @@ public class ImportService : IImportService
         // Build retry rows from the stored row data
         var rows = toRetry.Select(r => new CsvExpenseRow
         {
-            RowNumber     = r.RowNumber,
-            Description   = r.Description,
-            Amount        = r.Amount,
-            Category      = r.Category,
-            Date          = r.Date,
-            PaymentMethod = r.PaymentMethod,
-            Notes         = r.Notes ?? string.Empty,
-            Type          = r.Type,
-            Currency      = r.Currency ?? string.Empty
+            RowNumber      = r.RowNumber,
+            Description    = r.Description,
+            Amount         = r.Amount,
+            Category       = r.Category,
+            Date           = r.Date,
+            PaymentMethod  = r.PaymentMethod,
+            Notes          = r.Notes ?? string.Empty,
+            Type           = r.Type,
+            Currency       = r.Currency ?? string.Empty,
+            ExternalTxnRef = r.ExternalTxnRef
         }).ToList();
 
         await _channel.Writer.WriteAsync(new ImportJobPayload

@@ -1,0 +1,501 @@
+description,amount,date,category,paymentMethod,notes,type,currency
+Morning coffee,80,2024-01-03,Food & Dining,Cash,Café coffee,expense,INR
+Lunch at restaurant,450,2024-01-10,Food & Dining,UPI,South Indian thali,expense,INR
+Pizza delivery,650,2024-01-15,Food & Dining,Card,Dominos order,expense,INR
+Dinner date,1200,2024-01-22,Food & Dining,Card,Fine dining,expense,INR
+Street food,120,2024-02-02,Food & Dining,Cash,Chaat & snacks,expense,INR
+Biryani,280,2024-02-08,Food & Dining,UPI,Paradise restaurant,expense,INR
+Swiggy order,380,2024-02-14,Food & Dining,Card,Valentines day dinner,expense,INR
+Coffee shop,150,2024-02-20,Food & Dining,UPI,Starbucks,expense,INR
+Office lunch,200,2024-03-05,Food & Dining,Cash,Canteen meal,expense,INR
+Birthday dinner,2200,2024-03-12,Food & Dining,Card,Group dinner,expense,INR
+Breakfast,90,2024-03-18,Food & Dining,Cash,Idli & vada,expense,INR
+Zomato order,520,2024-03-25,Food & Dining,UPI,Chinese food,expense,INR
+Ice cream,180,2024-04-03,Food & Dining,Cash,Baskin Robbins,expense,INR
+Lunch meeting,750,2024-04-10,Food & Dining,Card,Client lunch,expense,INR
+Juice bar,100,2024-04-17,Food & Dining,UPI,Fresh juice,expense,INR
+Fast food,220,2024-04-24,Food & Dining,Cash,McDonald's,expense,INR
+Dinner,480,2024-05-07,Food & Dining,UPI,Family dinner,expense,INR
+Breakfast cafe,320,2024-05-14,Food & Dining,Card,Weekend breakfast,expense,INR
+Tea stall,30,2024-05-21,Food & Dining,Cash,Evening tea,expense,INR
+Weekend brunch,680,2024-05-28,Food & Dining,Card,Brunch with friends,expense,INR
+Swiggy order,410,2024-06-04,Food & Dining,UPI,Quick meal,expense,INR
+Restaurant dinner,900,2024-06-11,Food & Dining,Card,Seafood dinner,expense,INR
+Filter coffee,75,2024-06-18,Food & Dining,Cash,Filter coffee,expense,INR
+Pizza Hut,720,2024-06-25,Food & Dining,Card,Pizza Hut,expense,INR
+Veg thali,260,2024-07-03,Food & Dining,UPI,Veg thali,expense,INR
+Evening snacks,150,2024-07-10,Food & Dining,Cash,Samosa & chai,expense,INR
+Dinner out,550,2024-07-17,Food & Dining,Card,North Indian cuisine,expense,INR
+Zomato order,430,2024-07-24,Food & Dining,UPI,Weekend dinner,expense,INR
+Blue Tokai coffee,200,2024-08-02,Food & Dining,Card,Blue Tokai,expense,INR
+Mess lunch,300,2024-08-09,Food & Dining,Cash,Mess lunch,expense,INR
+Burger King,350,2024-08-16,Food & Dining,UPI,Burger King,expense,INR
+Ice cream date,280,2024-08-23,Food & Dining,Cash,Summer treat,expense,INR
+Anniversary dinner,1100,2024-09-06,Food & Dining,Card,Anniversary dinner,expense,INR
+Breakfast,120,2024-09-13,Food & Dining,Cash,Poha & chai,expense,INR
+Swiggy late night,490,2024-09-20,Food & Dining,UPI,Office late night,expense,INR
+Business lunch,850,2024-09-27,Food & Dining,Card,Business lunch,expense,INR
+Morning chai,90,2024-10-04,Food & Dining,Cash,Morning chai,expense,INR
+Special dinner,1350,2024-10-11,Food & Dining,Card,Special occasion,expense,INR
+KFC,240,2024-10-18,Food & Dining,UPI,KFC,expense,INR
+Weekend brunch,780,2024-10-25,Food & Dining,Card,Brunch out,expense,INR
+Zomato Friday,380,2024-11-01,Food & Dining,UPI,Friday dinner,expense,INR
+Family dinner,650,2024-11-08,Food & Dining,Card,Dinner with family,expense,INR
+Café visit,130,2024-11-15,Food & Dining,Cash,Café visit,expense,INR
+Work day lunch,290,2024-11-22,Food & Dining,UPI,Work day lunch,expense,INR
+Date night dinner,470,2024-12-06,Food & Dining,Card,Date night,expense,INR
+Christmas dinner,2500,2024-12-25,Food & Dining,Card,Christmas celebration,expense,INR
+New Year dinner,1800,2024-12-31,Food & Dining,Card,New Year eve,expense,INR
+Swiggy weekend,350,2025-01-10,Food & Dining,UPI,Weekend order,expense,INR
+Valentines lunch,600,2025-02-14,Food & Dining,Card,Valentines lunch,expense,INR
+Morning coffee,170,2025-03-05,Food & Dining,UPI,Morning coffee,expense,INR
+Ola cab,280,2024-01-05,Transport,UPI,Office commute,expense,INR
+Petrol refill,2200,2024-01-12,Transport,Card,Full tank,expense,INR
+Metro card recharge,500,2024-01-19,Transport,UPI,Monthly metro,expense,INR
+Uber ride,350,2024-01-26,Transport,Card,Airport drop,expense,INR
+Auto rickshaw,80,2024-02-04,Transport,Cash,Short ride,expense,INR
+Bus ticket,25,2024-02-11,Transport,Cash,City bus,expense,INR
+Petrol,1800,2024-02-18,Transport,Card,Weekly refill,expense,INR
+Ola cab,200,2024-02-25,Transport,UPI,Evening ride,expense,INR
+Parking fee,150,2024-03-04,Transport,Cash,Mall parking,expense,INR
+Toll charges,250,2024-03-11,Transport,Card,Highway toll,expense,INR
+Uber late night,420,2024-03-18,Transport,Card,Late night cab,expense,INR
+Petrol fill,2000,2024-03-25,Transport,Card,Full tank fill,expense,INR
+Metro recharge,300,2024-04-05,Transport,UPI,Top up,expense,INR
+Auto rickshaw,100,2024-04-12,Transport,Cash,Market trip,expense,INR
+Cab ride,320,2024-04-19,Transport,UPI,Weekend outing,expense,INR
+Petrol,1900,2024-04-26,Transport,Card,Monthly fuel,expense,INR
+Car service,3500,2024-05-03,Transport,Card,Quarterly service,expense,INR
+Ola cab,180,2024-05-10,Transport,UPI,Office commute,expense,INR
+Bus pass,600,2024-05-17,Transport,Cash,Monthly pass,expense,INR
+Petrol,2100,2024-05-24,Transport,Card,Refill,expense,INR
+Uber night out,380,2024-06-03,Transport,Card,Night out,expense,INR
+Parking fee,200,2024-06-10,Transport,Card,Movie parking,expense,INR
+Auto rickshaw,90,2024-06-17,Transport,Cash,Errands,expense,INR
+Petrol,2200,2024-06-24,Transport,Card,Full tank,expense,INR
+Airport pickup cab,450,2024-07-02,Transport,UPI,Airport pickup,expense,INR
+Metro recharge,250,2024-07-09,Transport,UPI,Recharge,expense,INR
+Petrol,1950,2024-07-16,Transport,Card,Weekly fuel,expense,INR
+Ola cab rainy day,220,2024-07-23,Transport,UPI,Rain day cab,expense,INR
+Expressway toll,180,2024-08-01,Transport,Card,Expressway,expense,INR
+Petrol,2000,2024-08-08,Transport,Card,Fuel,expense,INR
+Car wash,300,2024-08-15,Transport,Cash,Monthly wash,expense,INR
+Uber work travel,290,2024-08-22,Transport,Card,Work travel,expense,INR
+Petrol full fill,2100,2024-09-05,Transport,Card,Full fill,expense,INR
+Auto quick trip,70,2024-09-12,Transport,Cash,Quick trip,expense,INR
+Night cab,400,2024-09-19,Transport,UPI,Night cab,expense,INR
+Petrol,1800,2024-09-26,Transport,Card,Fuel top up,expense,INR
+Metro monthly,500,2024-10-04,Transport,UPI,Monthly card,expense,INR
+Ola cab,250,2024-10-11,Transport,UPI,Office commute,expense,INR
+Petrol,2200,2024-10-18,Transport,Card,Full tank,expense,INR
+Uber night,350,2024-10-25,Transport,Card,Night out,expense,INR
+Parking fee,120,2024-11-04,Transport,Cash,Parking,expense,INR
+Petrol,2050,2024-11-11,Transport,Card,Weekly fuel,expense,INR
+Auto,85,2024-11-18,Transport,Cash,Quick ride,expense,INR
+Long distance cab,480,2024-11-25,Transport,UPI,Long distance,expense,INR
+Petrol full,2200,2024-12-05,Transport,Card,Full tank,expense,INR
+Uber holiday,320,2024-12-12,Transport,Card,Holiday ride,expense,INR
+Airport taxi,600,2024-12-26,Transport,Card,Airport transfer,expense,INR
+Petrol,2000,2025-01-08,Transport,Card,New year fuel,expense,INR
+Ola cab,260,2025-02-10,Transport,UPI,Office commute,expense,INR
+Petrol,2100,2025-03-10,Transport,Card,Monthly fuel,expense,INR
+T-shirt,599,2024-01-07,Shopping,Card,Myntra sale,expense,INR
+Jeans,1299,2024-01-14,Shopping,Card,Denim purchase,expense,INR
+Amazon order,2500,2024-01-21,Shopping,Card,Electronics accessories,expense,INR
+Sports shoes,2999,2024-01-28,Shopping,Card,Sports shoes,expense,INR
+Kurta,899,2024-02-05,Shopping,UPI,Traditional wear,expense,INR
+Flipkart home goods,1800,2024-02-12,Shopping,Card,Home goods,expense,INR
+Watch,3500,2024-02-19,Shopping,Card,Casual watch,expense,INR
+Handbag,1500,2024-02-26,Shopping,Card,New bag,expense,INR
+Amazon accessories,750,2024-03-06,Shopping,Card,Accessories,expense,INR
+Party dress,1200,2024-03-13,Shopping,Card,Party wear,expense,INR
+Headphones,4500,2024-03-20,Shopping,Card,Noise cancelling,expense,INR
+Study books,850,2024-03-27,Shopping,Card,Study material,expense,INR
+Sunglasses,1800,2024-04-04,Shopping,Card,Summer sunglasses,expense,INR
+Flipkart Big Sale,3200,2024-04-11,Shopping,Card,Big Billion Days,expense,INR
+Nike shoes,5999,2024-04-18,Shopping,Card,Nike shoes,expense,INR
+Office shirt,799,2024-04-25,Shopping,UPI,Office shirt,expense,INR
+Amazon kitchen,1200,2024-05-06,Shopping,Card,Kitchen items,expense,INR
+Winter jacket,2500,2024-05-13,Shopping,Card,Winter jacket,expense,INR
+Myntra casual wear,1100,2024-05-20,Shopping,Card,Casual wear,expense,INR
+Wireless earphones,2000,2024-05-27,Shopping,Card,Wireless earphones,expense,INR
+Saree,3500,2024-06-05,Shopping,Card,Festive shopping,expense,INR
+Flipkart appliance,1650,2024-06-12,Shopping,Card,Home appliance,expense,INR
+Leather wallet,800,2024-06-19,Shopping,Card,Leather wallet,expense,INR
+T-shirts pack,1200,2024-06-26,Shopping,Card,Pack of 3,expense,INR
+Amazon smart speaker,7500,2024-07-04,Shopping,Card,Smart speaker,expense,INR
+Formal shoes,3999,2024-07-11,Shopping,Card,Office shoes,expense,INR
+Summer shorts,650,2024-07-18,Shopping,UPI,Summer shorts,expense,INR
+Myntra end of season,2800,2024-07-25,Shopping,Card,End of season,expense,INR
+Travel backpack,2200,2024-08-03,Shopping,Card,Travel backpack,expense,INR
+Amazon stationery,1500,2024-08-10,Shopping,Card,Stationery,expense,INR
+Party dress,1800,2024-08-17,Shopping,Card,Party dress,expense,INR
+Smartwatch,12000,2024-08-24,Shopping,Card,Fitness tracker,expense,INR
+Flipkart September,2100,2024-09-07,Shopping,Card,September deals,expense,INR
+Kurta set Navratri,1800,2024-09-14,Shopping,Card,Navratri shopping,expense,INR
+Festive footwear,4500,2024-09-21,Shopping,Card,Festive footwear,expense,INR
+Amazon Great Sale,3500,2024-09-28,Shopping,Card,Amazon sale,expense,INR
+Diwali clothes,5000,2024-10-20,Shopping,Card,Festival shopping,expense,INR
+Ethnic wear,2800,2024-10-27,Shopping,Card,Traditional,expense,INR
+Winter collection,3200,2024-11-05,Shopping,Card,Winter collection,expense,INR
+Amazon winter,1800,2024-11-12,Shopping,Card,Winter accessories,expense,INR
+Winter jacket,3500,2024-11-19,Shopping,Card,Winter jacket,expense,INR
+Black Friday Flipkart,2200,2024-11-26,Shopping,Card,Black Friday,expense,INR
+Christmas gifts,4500,2024-12-10,Shopping,Card,Gift shopping,expense,INR
+New year outfit,2500,2024-12-22,Shopping,Card,Party wear,expense,INR
+Year end sale,1900,2024-12-29,Shopping,Card,Year end sale,expense,INR
+Myntra January sale,1400,2025-01-15,Shopping,Card,Sale picks,expense,INR
+Adidas shoes,6500,2025-02-05,Shopping,Card,Adidas shoes,expense,INR
+Amazon home items,2300,2025-02-20,Shopping,Card,Home items,expense,INR
+Holi shopping,1700,2025-03-08,Shopping,Card,Holi shopping,expense,INR
+Flipkart spring,2800,2025-03-25,Shopping,Card,Spring sale,expense,INR
+Electricity bill,1200,2024-01-05,Utilities,Bank Transfer,January bill,expense,INR
+Internet broadband,799,2024-01-10,Utilities,Bank Transfer,Monthly plan,expense,INR
+Water bill,250,2024-01-15,Utilities,UPI,Municipal bill,expense,INR
+Gas cylinder,850,2024-01-20,Utilities,Cash,LPG cylinder,expense,INR
+Mobile recharge,399,2024-01-28,Utilities,UPI,Jio prepaid,expense,INR
+Electricity bill,1350,2024-02-05,Utilities,Bank Transfer,February bill,expense,INR
+DTH subscription,350,2024-02-10,Utilities,Card,Tata Sky,expense,INR
+Internet,799,2024-02-15,Utilities,Bank Transfer,Broadband,expense,INR
+Gas cylinder,850,2024-02-22,Utilities,Cash,LPG refill,expense,INR
+Water bill,300,2024-03-05,Utilities,UPI,March water,expense,INR
+Electricity bill,1100,2024-03-08,Utilities,Bank Transfer,March bill,expense,INR
+Internet,799,2024-03-15,Utilities,Bank Transfer,Monthly internet,expense,INR
+Mobile recharge,299,2024-03-20,Utilities,UPI,Top up,expense,INR
+Gas cylinder,900,2024-03-28,Utilities,Cash,LPG,expense,INR
+DTH recharge,350,2024-04-05,Utilities,Card,Monthly pack,expense,INR
+Electricity bill,1400,2024-04-08,Utilities,Bank Transfer,April bill,expense,INR
+Internet,799,2024-04-15,Utilities,Bank Transfer,Broadband,expense,INR
+Water bill,280,2024-04-22,Utilities,UPI,Water charges,expense,INR
+Mobile recharge,399,2024-04-29,Utilities,UPI,Monthly recharge,expense,INR
+Electricity bill,1250,2024-05-07,Utilities,Bank Transfer,May electricity,expense,INR
+Gas cylinder,875,2024-05-12,Utilities,Cash,LPG refill,expense,INR
+Internet,799,2024-05-15,Utilities,Bank Transfer,Monthly plan,expense,INR
+Society maintenance,2500,2024-05-20,Utilities,Bank Transfer,Monthly maintenance,expense,INR
+Electricity bill,1800,2024-06-07,Utilities,Bank Transfer,Summer bill,expense,INR
+Internet,799,2024-06-15,Utilities,Bank Transfer,Monthly net,expense,INR
+Mobile recharge,299,2024-06-20,Utilities,UPI,Recharge,expense,INR
+Gas cylinder,900,2024-06-28,Utilities,Cash,LPG,expense,INR
+Electricity bill,2200,2024-07-07,Utilities,Bank Transfer,AC bill July,expense,INR
+Internet,799,2024-07-15,Utilities,Bank Transfer,Broadband,expense,INR
+Water bill,300,2024-07-22,Utilities,UPI,Water bill,expense,INR
+Electricity bill,2100,2024-08-07,Utilities,Bank Transfer,August electricity,expense,INR
+Internet,799,2024-08-15,Utilities,Bank Transfer,Monthly plan,expense,INR
+Gas cylinder,925,2024-08-22,Utilities,Cash,LPG,expense,INR
+Mobile recharge,399,2024-08-29,Utilities,UPI,Recharge,expense,INR
+Electricity bill,1600,2024-09-07,Utilities,Bank Transfer,September bill,expense,INR
+Internet,799,2024-09-15,Utilities,Bank Transfer,Broadband,expense,INR
+DTH monthly,350,2024-09-20,Utilities,Card,Monthly DTH,expense,INR
+Water bill,280,2024-09-25,Utilities,UPI,September water,expense,INR
+Electricity bill,1300,2024-10-07,Utilities,Bank Transfer,October bill,expense,INR
+Internet,799,2024-10-15,Utilities,Bank Transfer,Monthly net,expense,INR
+Gas cylinder,900,2024-10-22,Utilities,Cash,LPG refill,expense,INR
+Mobile recharge,299,2024-10-29,Utilities,UPI,Monthly pack,expense,INR
+Electricity bill,1150,2024-11-07,Utilities,Bank Transfer,November bill,expense,INR
+Internet,799,2024-11-15,Utilities,Bank Transfer,Broadband,expense,INR
+Society maintenance,2500,2024-11-20,Utilities,Bank Transfer,Maintenance,expense,INR
+Electricity bill,1200,2024-12-07,Utilities,Bank Transfer,December bill,expense,INR
+Internet,799,2024-12-15,Utilities,Bank Transfer,Year end plan,expense,INR
+Gas cylinder,950,2024-12-22,Utilities,Cash,LPG,expense,INR
+Electricity bill,1100,2025-01-07,Utilities,Bank Transfer,January bill,expense,INR
+Internet,799,2025-02-15,Utilities,Bank Transfer,February plan,expense,INR
+Netflix subscription,649,2024-01-08,Entertainment,Card,Monthly plan,expense,INR
+Movie tickets,400,2024-01-13,Entertainment,Card,Weekend movie,expense,INR
+Spotify premium,119,2024-01-20,Entertainment,Card,Music streaming,expense,INR
+Amazon Prime annual,1499,2024-01-27,Entertainment,Card,Annual subscription,expense,INR
+Movie tickets,500,2024-02-10,Entertainment,Card,Friday night movie,expense,INR
+Netflix,649,2024-02-08,Entertainment,Card,February Netflix,expense,INR
+Live concert,2000,2024-02-16,Entertainment,Card,Live concert,expense,INR
+Spotify,119,2024-02-20,Entertainment,Card,Music plan,expense,INR
+Netflix,649,2024-03-08,Entertainment,Card,Monthly Netflix,expense,INR
+Movie Saturday,350,2024-03-15,Entertainment,Card,Saturday show,expense,INR
+Disney+ Hotstar,299,2024-03-22,Entertainment,Card,Streaming,expense,INR
+Spotify,119,2024-03-29,Entertainment,Card,Monthly music,expense,INR
+Netflix,649,2024-04-08,Entertainment,Card,April Netflix,expense,INR
+IPL match tickets,3500,2024-04-15,Entertainment,Card,Cricket match,expense,INR
+Movie new release,400,2024-04-22,Entertainment,Card,New release,expense,INR
+Spotify,119,2024-04-29,Entertainment,Card,Premium,expense,INR
+Netflix,649,2024-05-08,Entertainment,Card,May plan,expense,INR
+Xbox Game Pass,499,2024-05-15,Entertainment,Card,Xbox Game Pass,expense,INR
+Movie Avengers,450,2024-05-22,Entertainment,Card,Blockbuster movie,expense,INR
+Hotstar,299,2024-05-29,Entertainment,Card,May streaming,expense,INR
+Netflix,649,2024-06-08,Entertainment,Card,June Netflix,expense,INR
+Stand up comedy show,1500,2024-06-14,Entertainment,Card,Stand up show,expense,INR
+Spotify,119,2024-06-21,Entertainment,Card,Music,expense,INR
+Weekend movie,380,2024-06-28,Entertainment,Card,Weekend film,expense,INR
+Netflix,649,2024-07-08,Entertainment,Card,July plan,expense,INR
+Summer blockbuster,500,2024-07-15,Entertainment,Card,Summer blockbuster,expense,INR
+Disney+ Hotstar,299,2024-07-22,Entertainment,Card,Streaming,expense,INR
+Spotify,119,2024-07-29,Entertainment,Card,Monthly,expense,INR
+Netflix,649,2024-08-08,Entertainment,Card,August Netflix,expense,INR
+Friday movie,420,2024-08-14,Entertainment,Card,Friday movie,expense,INR
+Mobile gaming,399,2024-08-21,Entertainment,Card,Mobile game,expense,INR
+Music festival,2500,2024-08-28,Entertainment,Card,Music festival,expense,INR
+Netflix,649,2024-09-08,Entertainment,Card,September Netflix,expense,INR
+Hotstar cricket,299,2024-09-15,Entertainment,Card,Cricket season,expense,INR
+Navratri movie,480,2024-09-22,Entertainment,Card,Navratri special,expense,INR
+Spotify,119,2024-09-29,Entertainment,Card,Monthly plan,expense,INR
+Netflix,649,2024-10-08,Entertainment,Card,October Netflix,expense,INR
+Diwali release movie,550,2024-10-15,Entertainment,Card,Diwali release,expense,INR
+Game subscription,499,2024-10-22,Entertainment,Card,Game subscription,expense,INR
+Comedy night,2000,2024-10-29,Entertainment,Card,Stand up comedy,expense,INR
+Netflix,649,2024-11-08,Entertainment,Card,November plan,expense,INR
+Movie weekend,400,2024-11-15,Entertainment,Card,Weekend movie,expense,INR
+Spotify,119,2024-11-22,Entertainment,Card,Music monthly,expense,INR
+Hotstar November,299,2024-11-29,Entertainment,Card,November stream,expense,INR
+Netflix,649,2024-12-08,Entertainment,Card,December Netflix,expense,INR
+New Year eve party,5000,2024-12-28,Entertainment,Card,NYE party,expense,INR
+January movie,350,2025-01-12,Entertainment,Card,January movie,expense,INR
+Netflix,649,2025-02-08,Entertainment,Card,February plan,expense,INR
+Live concert tickets,3000,2025-02-22,Entertainment,Card,Live music,expense,INR
+Weekend movie,500,2025-03-15,Entertainment,Card,Weekend movie,expense,INR
+Doctor consultation,500,2024-01-09,Health,Card,General physician,expense,INR
+Medicine,350,2024-01-16,Health,Cash,Pharmacy,expense,INR
+Gym membership,1200,2024-01-22,Health,Card,Monthly gym,expense,INR
+Blood test,800,2024-01-29,Health,Card,Health checkup,expense,INR
+Doctor visit,600,2024-02-07,Health,Card,Follow up,expense,INR
+Medicine,280,2024-02-14,Health,Cash,Prescription,expense,INR
+Dental cleaning,1500,2024-02-21,Health,Card,Dental cleaning,expense,INR
+Gym membership,1200,2024-02-28,Health,Card,February gym,expense,INR
+Eye checkup,800,2024-03-07,Health,Card,Vision test,expense,INR
+Medicine,420,2024-03-14,Health,Cash,Monthly meds,expense,INR
+Gym membership,1200,2024-03-21,Health,Card,March gym,expense,INR
+Dermatologist,1200,2024-03-28,Health,Card,Dermatologist,expense,INR
+Pharmacy,650,2024-04-07,Health,UPI,Medicines,expense,INR
+Gym membership,1200,2024-04-14,Health,Card,April gym,expense,INR
+Complete blood count,1500,2024-04-21,Health,Card,Complete blood count,expense,INR
+ENT specialist,700,2024-04-28,Health,Card,ENT specialist,expense,INR
+Gym membership,1200,2024-05-07,Health,Card,May gym,expense,INR
+Medicine,380,2024-05-14,Health,Cash,Pharmacy run,expense,INR
+Physiotherapy,2000,2024-05-21,Health,Card,Back pain session,expense,INR
+Doctor checkup,500,2024-05-28,Health,Card,Regular checkup,expense,INR
+Gym membership,1200,2024-06-07,Health,Card,June gym,expense,INR
+Vitamins,300,2024-06-14,Health,Cash,Vitamins,expense,INR
+Dental filling,3500,2024-06-21,Health,Card,Tooth filling,expense,INR
+Doctor summer,600,2024-06-28,Health,Card,Summer illness,expense,INR
+Gym membership,1200,2024-07-07,Health,Card,July gym,expense,INR
+Blood sugar test,900,2024-07-14,Health,Card,Blood sugar test,expense,INR
+Medicine,450,2024-07-21,Health,Cash,Monthly meds,expense,INR
+Doctor monsoon,700,2024-07-28,Health,Card,Monsoon illness,expense,INR
+Gym membership,1200,2024-08-07,Health,Card,August gym,expense,INR
+Pharmacy,550,2024-08-14,Health,Cash,Medicines,expense,INR
+Full body checkup,5000,2024-08-21,Health,Card,Full body checkup,expense,INR
+Doctor follow up,500,2024-08-28,Health,Card,Follow up,expense,INR
+Gym membership,1200,2024-09-07,Health,Card,September gym,expense,INR
+Prescription meds,400,2024-09-14,Health,Cash,Prescription meds,expense,INR
+Orthopedic consult,1500,2024-09-21,Health,Card,Orthopedic,expense,INR
+Dental root canal,2000,2024-09-28,Health,Card,Root canal prep,expense,INR
+Gym membership,1200,2024-10-07,Health,Card,October gym,expense,INR
+Cold medicine,320,2024-10-14,Health,Cash,Cold meds,expense,INR
+Doctor winter,600,2024-10-21,Health,Card,Winter illness,expense,INR
+Thyroid test,1200,2024-10-28,Health,Card,Thyroid test,expense,INR
+Gym membership,1200,2024-11-07,Health,Card,November gym,expense,INR
+Monthly pharmacy,480,2024-11-14,Health,Cash,Monthly pharmacy,expense,INR
+Physiotherapy,2000,2024-11-21,Health,Card,Therapy session,expense,INR
+Year end checkup,550,2024-11-28,Health,Card,Year end checkup,expense,INR
+Gym membership,1200,2024-12-07,Health,Card,December gym,expense,INR
+Winter medicine,360,2024-12-14,Health,Cash,Winter meds,expense,INR
+Dental year end,1000,2024-12-21,Health,Card,Year end dental,expense,INR
+Gym membership,1200,2025-01-07,Health,Card,New year gym,expense,INR
+Doctor general,700,2025-02-10,Health,Card,General checkup,expense,INR
+Annual blood work,1500,2025-03-08,Health,Card,Annual blood work,expense,INR
+Udemy web dev course,1299,2024-01-06,Education,Card,Web development,expense,INR
+Programming books,850,2024-01-13,Education,Card,Programming books,expense,INR
+Coursera monthly,499,2024-01-20,Education,Card,Coursera monthly,expense,INR
+Tech workshop,2500,2024-01-27,Education,Card,Tech workshop,expense,INR
+Design books,650,2024-02-04,Education,Card,Design books,expense,INR
+Udemy Python course,999,2024-02-11,Education,Card,Python course,expense,INR
+Coaching class,3000,2024-02-18,Education,Bank Transfer,Monthly class,expense,INR
+Study material books,750,2024-02-25,Education,Card,Study material,expense,INR
+LinkedIn Learning,1299,2024-03-04,Education,Card,Professional dev,expense,INR
+Technical books,920,2024-03-11,Education,Card,Technical books,expense,INR
+Coaching class,3000,2024-03-18,Education,Bank Transfer,March class,expense,INR
+Udemy data science,1499,2024-03-25,Education,Card,Data science,expense,INR
+Finance books,680,2024-04-02,Education,Card,Finance books,expense,INR
+Coursera quarterly,2499,2024-04-09,Education,Card,3 month subscription,expense,INR
+Coaching class,3000,2024-04-16,Education,Bank Transfer,April coaching,expense,INR
+Design sprint workshop,3500,2024-04-23,Education,Card,Design sprint,expense,INR
+Management books,780,2024-05-07,Education,Card,Management books,expense,INR
+Coaching class,3000,2024-05-14,Education,Bank Transfer,May coaching,expense,INR
+Udemy React course,799,2024-05-21,Education,Card,React course,expense,INR
+Novel set,550,2024-05-28,Education,Card,Novel set,expense,INR
+AWS certification prep,1999,2024-06-04,Education,Card,AWS certification,expense,INR
+Coaching class,3000,2024-06-11,Education,Bank Transfer,June class,expense,INR
+Exam prep books,820,2024-06-18,Education,Card,Exam prep books,expense,INR
+Leadership workshop,2000,2024-06-25,Education,Card,Leadership workshop,expense,INR
+Coaching class,3000,2024-07-02,Education,Bank Transfer,July coaching,expense,INR
+Udemy JavaScript,1199,2024-07-09,Education,Card,JavaScript course,expense,INR
+Industry books,650,2024-07-16,Education,Card,Industry reading,expense,INR
+LinkedIn Learning,1299,2024-07-23,Education,Card,Monthly plan,expense,INR
+Coaching class,3000,2024-08-06,Education,Bank Transfer,August coaching,expense,INR
+Google Cloud cert,5000,2024-08-13,Education,Card,Google Cloud cert,expense,INR
+Books purchase,900,2024-08-20,Education,Card,Books purchase,expense,INR
+Udemy Flutter,1099,2024-08-27,Education,Card,Flutter course,expense,INR
+Coaching class,3000,2024-09-03,Education,Bank Transfer,September class,expense,INR
+Reading material,720,2024-09-10,Education,Card,Reading material,expense,INR
+Product mgmt workshop,4000,2024-09-17,Education,Card,Product management,expense,INR
+ML online course,2499,2024-09-24,Education,Card,Machine learning,expense,INR
+Coaching class,3000,2024-10-01,Education,Bank Transfer,October coaching,expense,INR
+Books October,580,2024-10-08,Education,Card,Books,expense,INR
+Udemy DevOps,899,2024-10-15,Education,Card,DevOps course,expense,INR
+LinkedIn Learning,1299,2024-10-22,Education,Card,Monthly sub,expense,INR
+Coaching class,3000,2024-11-05,Education,Bank Transfer,November class,expense,INR
+Technical reading,850,2024-11-12,Education,Card,Technical reading,expense,INR
+Azure certification,7500,2024-11-19,Education,Card,Azure certification,expense,INR
+Agile workshop,2500,2024-11-26,Education,Card,Agile workshop,expense,INR
+Coaching class,3000,2024-12-03,Education,Bank Transfer,December class,expense,INR
+Year end books,650,2024-12-10,Education,Card,Year end books,expense,INR
+Udemy new course,1499,2024-12-17,Education,Card,New skill course,expense,INR
+Coaching class January,3000,2025-01-07,Education,Bank Transfer,January coaching,expense,INR
+February books,800,2025-02-12,Education,Card,February reading,expense,INR
+Spring online course,2000,2025-03-18,Education,Card,Spring course,expense,INR
+Monthly rent,18000,2024-01-01,Rent,Bank Transfer,January rent,expense,INR
+Society maintenance,2500,2024-01-10,Rent,Bank Transfer,Monthly maintenance,expense,INR
+Parking charges,800,2024-01-15,Rent,Bank Transfer,Monthly parking,expense,INR
+Monthly rent,18000,2024-02-01,Rent,Bank Transfer,February rent,expense,INR
+Society maintenance,2500,2024-02-10,Rent,Bank Transfer,February maintenance,expense,INR
+Security deposit adjust,5000,2024-02-15,Rent,Bank Transfer,Security deposit,expense,INR
+Monthly rent,18000,2024-03-01,Rent,Bank Transfer,March rent,expense,INR
+Society maintenance,2500,2024-03-10,Rent,Bank Transfer,March maintenance,expense,INR
+Parking charges,800,2024-03-15,Rent,Bank Transfer,Parking,expense,INR
+Monthly rent,18000,2024-04-01,Rent,Bank Transfer,April rent,expense,INR
+Society maintenance,2500,2024-04-10,Rent,Bank Transfer,April maintenance,expense,INR
+Plumbing charges,600,2024-04-15,Rent,Cash,Plumbing fix,expense,INR
+Monthly rent,18000,2024-05-01,Rent,Bank Transfer,May rent,expense,INR
+Society maintenance,2500,2024-05-10,Rent,Bank Transfer,May maintenance,expense,INR
+Monthly parking,800,2024-05-15,Rent,Bank Transfer,Monthly parking,expense,INR
+Monthly rent,18000,2024-06-01,Rent,Bank Transfer,June rent,expense,INR
+Society maintenance,2500,2024-06-10,Rent,Bank Transfer,June maintenance,expense,INR
+Electrician charges,1200,2024-06-15,Rent,Cash,Wiring fix,expense,INR
+Monthly rent,18000,2024-07-01,Rent,Bank Transfer,July rent,expense,INR
+Society maintenance,2500,2024-07-10,Rent,Bank Transfer,July maintenance,expense,INR
+Parking,800,2024-07-15,Rent,Bank Transfer,Parking charges,expense,INR
+Monthly rent,18000,2024-08-01,Rent,Bank Transfer,August rent,expense,INR
+Society maintenance,2500,2024-08-10,Rent,Bank Transfer,August maintenance,expense,INR
+Room repainting,8000,2024-08-15,Rent,Cash,Room repainting,expense,INR
+Monthly rent,18000,2024-09-01,Rent,Bank Transfer,September rent,expense,INR
+Society maintenance,2500,2024-09-10,Rent,Bank Transfer,September maintenance,expense,INR
+Parking,800,2024-09-15,Rent,Bank Transfer,Monthly parking,expense,INR
+Monthly rent,18000,2024-10-01,Rent,Bank Transfer,October rent,expense,INR
+Society maintenance,2500,2024-10-10,Rent,Bank Transfer,October maintenance,expense,INR
+Plumber maintenance,700,2024-10-15,Rent,Cash,Plumbing maintenance,expense,INR
+Monthly rent,18000,2024-11-01,Rent,Bank Transfer,November rent,expense,INR
+Society maintenance,2500,2024-11-10,Rent,Bank Transfer,November maintenance,expense,INR
+Parking,800,2024-11-15,Rent,Bank Transfer,November parking,expense,INR
+Monthly rent,18000,2024-12-01,Rent,Bank Transfer,December rent,expense,INR
+Society maintenance,2500,2024-12-10,Rent,Bank Transfer,December maintenance,expense,INR
+Annual deposit,3000,2024-12-15,Rent,Bank Transfer,Annual deposit,expense,INR
+Monthly rent,18000,2025-01-01,Rent,Bank Transfer,January 2025 rent,expense,INR
+Society maintenance,2500,2025-01-10,Rent,Bank Transfer,January maintenance,expense,INR
+Parking,800,2025-01-15,Rent,Bank Transfer,Parking,expense,INR
+Monthly rent,18000,2025-02-01,Rent,Bank Transfer,February 2025 rent,expense,INR
+Society maintenance,2500,2025-02-10,Rent,Bank Transfer,February maintenance,expense,INR
+Touch up painting,5000,2025-02-15,Rent,Cash,Touch up painting,expense,INR
+Monthly rent,18000,2025-03-01,Rent,Bank Transfer,March 2025 rent,expense,INR
+Society maintenance,2500,2025-03-10,Rent,Bank Transfer,March maintenance,expense,INR
+Parking,800,2025-03-15,Rent,Bank Transfer,March parking,expense,INR
+Revised rent,19000,2025-04-01,Rent,Bank Transfer,Revised rent April,expense,INR
+Society maintenance,2500,2025-04-10,Rent,Bank Transfer,April 2025 maintenance,expense,INR
+Monthly rent,19000,2025-05-01,Rent,Bank Transfer,May 2025 rent,expense,INR
+Society maintenance,2500,2025-05-10,Rent,Bank Transfer,May 2025 maintenance,expense,INR
+Parking,800,2025-05-15,Rent,Bank Transfer,May parking,expense,INR
+Vegetables,350,2024-01-04,Groceries,Cash,Weekly veggies,expense,INR
+Fruits basket,280,2024-01-11,Groceries,UPI,Fruit basket,expense,INR
+BigBasket order,1800,2024-01-18,Groceries,Card,Weekly grocery,expense,INR
+Milk & dairy,400,2024-01-25,Groceries,UPI,Monthly dairy,expense,INR
+Market vegetables,300,2024-02-05,Groceries,Cash,Market veggies,expense,INR
+BigBasket,2200,2024-02-12,Groceries,Card,Groceries order,expense,INR
+Fresh fruits,250,2024-02-19,Groceries,UPI,Fresh fruits,expense,INR
+Blinkit quick delivery,1200,2024-02-26,Groceries,UPI,Quick delivery,expense,INR
+Weekly vegetables,380,2024-03-04,Groceries,Cash,Weekly vegetables,expense,INR
+BigBasket monthly,1900,2024-03-11,Groceries,Card,Monthly groceries,expense,INR
+Seasonal fruits,320,2024-03-18,Groceries,UPI,Seasonal fruits,expense,INR
+Dairy products,450,2024-03-25,Groceries,UPI,Milk curd paneer,expense,INR
+Vegetables,350,2024-04-04,Groceries,Cash,Veggies,expense,INR
+Zepto order,1500,2024-04-11,Groceries,UPI,Quick groceries,expense,INR
+BigBasket weekly,2100,2024-04-18,Groceries,Card,Weekly order,expense,INR
+Market fruits,300,2024-04-25,Groceries,Cash,Market fruits,expense,INR
+Weekly veggies,360,2024-05-04,Groceries,Cash,Weekly veggies,expense,INR
+BigBasket,1750,2024-05-11,Groceries,Card,Groceries,expense,INR
+D-Mart shopping,2800,2024-05-18,Groceries,Card,D-Mart shopping,expense,INR
+Milk & eggs,400,2024-05-25,Groceries,UPI,Milk & eggs,expense,INR
+Monsoon vegetables,400,2024-06-04,Groceries,Cash,Monsoon veggies,expense,INR
+BigBasket monthly,2000,2024-06-11,Groceries,Card,Monthly groceries,expense,INR
+Mango season fruits,350,2024-06-18,Groceries,UPI,Mango season,expense,INR
+Zepto quick order,1300,2024-06-25,Groceries,UPI,Quick order,expense,INR
+Market fresh veggies,420,2024-07-04,Groceries,Cash,Market fresh,expense,INR
+BigBasket July,2100,2024-07-11,Groceries,Card,July groceries,expense,INR
+Milk products,450,2024-07-18,Groceries,UPI,Milk products,expense,INR
+D-Mart bulk buy,3200,2024-07-25,Groceries,Card,D-Mart bulk buy,expense,INR
+Weekly vegetables,380,2024-08-04,Groceries,Cash,Weekly veggies,expense,INR
+BigBasket August,1950,2024-08-11,Groceries,Card,August grocery,expense,INR
+Fresh fruits,300,2024-08-18,Groceries,UPI,Fresh fruits,expense,INR
+Blinkit fast delivery,1100,2024-08-25,Groceries,UPI,Fast delivery,expense,INR
+Navratri vegetables,350,2024-09-04,Groceries,Cash,Navratri veggies,expense,INR
+BigBasket September,2200,2024-09-11,Groceries,Card,September order,expense,INR
+Dairy products,480,2024-09-18,Groceries,UPI,Dairy products,expense,INR
+Fruits,280,2024-09-25,Groceries,Cash,Fruits,expense,INR
+Festival vegetables,360,2024-10-04,Groceries,Cash,Festival veggies,expense,INR
+BigBasket October,1800,2024-10-11,Groceries,Card,October groceries,expense,INR
+Festive supermarket,2500,2024-10-18,Groceries,Card,Festive shopping,expense,INR
+Diwali fruits,320,2024-10-25,Groceries,UPI,Diwali fruits,expense,INR
+Weekly vegetables,350,2024-11-04,Groceries,Cash,Weekly veggies,expense,INR
+BigBasket November,1900,2024-11-11,Groceries,Card,November order,expense,INR
+Milk & curd,400,2024-11-18,Groceries,UPI,Milk & curd,expense,INR
+Zepto delivery,1200,2024-11-25,Groceries,UPI,Quick delivery,expense,INR
+December vegetables,380,2024-12-04,Groceries,Cash,December veggies,expense,INR
+BigBasket year end,2300,2024-12-11,Groceries,Card,Year end stock up,expense,INR
+Christmas groceries,3500,2024-12-18,Groceries,Card,Christmas groceries,expense,INR
+Christmas fruits,350,2024-12-25,Groceries,Cash,Christmas fruits,expense,INR
+BigBasket January,2000,2025-01-10,Groceries,Card,January groceries,expense,INR
+February vegetables,380,2025-02-08,Groceries,Cash,February veggies,expense,INR
+Weekend train trip,1200,2024-01-08,Travel,Card,Weekend trip tickets,expense,INR
+Hotel weekend stay,3500,2024-01-09,Travel,Card,Weekend hotel,expense,INR
+Mumbai Delhi flight,5500,2024-02-10,Travel,Card,Business flight,expense,INR
+Airport cab,650,2024-02-11,Travel,UPI,Airport cab,expense,INR
+Business hotel,6000,2024-02-12,Travel,Card,Business trip hotel,expense,INR
+Pune train tickets,800,2024-03-08,Travel,Card,Pune trip tickets,expense,INR
+Pune hotel,4000,2024-03-09,Travel,Card,Pune hotel,expense,INR
+Pune sightseeing,1200,2024-03-10,Travel,Cash,Pune sightseeing,expense,INR
+Bangalore Goa flight,8500,2024-04-10,Travel,Card,Holiday flight,expense,INR
+Goa resort,12000,2024-04-11,Travel,Card,Goa resort,expense,INR
+Goa water sports,3000,2024-04-12,Travel,Cash,Goa activities,expense,INR
+Goa dining,1800,2024-04-13,Travel,Card,Goa food expenses,expense,INR
+Summer vacation train,1500,2024-05-10,Travel,Card,Summer vacation,expense,INR
+Vacation hotel,5000,2024-05-11,Travel,Card,Vacation hotel,expense,INR
+Day tour sightseeing,2500,2024-05-12,Travel,Cash,Day tour,expense,INR
+Domestic flight,7500,2024-06-15,Travel,Card,Domestic flight,expense,INR
+Airport cab transfer,700,2024-06-15,Travel,UPI,Cab transfer,expense,INR
+3-star hotel,8000,2024-06-16,Travel,Card,3-star hotel,expense,INR
+Monsoon train trip,1200,2024-07-04,Travel,Card,Monsoon trip,expense,INR
+Weekend getaway hotel,4500,2024-07-05,Travel,Card,Weekend getaway,expense,INR
+Tourist sightseeing,2000,2024-07-06,Travel,Cash,Sightseeing,expense,INR
+Holiday flight,9500,2024-08-10,Travel,Card,Holiday flight,expense,INR
+Independence day hotel,10000,2024-08-11,Travel,Card,Independence day trip,expense,INR
+Trip food expenses,3500,2024-08-12,Travel,Card,Travel food,expense,INR
+Local autos cabs,800,2024-08-13,Travel,Cash,Autos & cabs,expense,INR
+State bus ticket,450,2024-09-06,Travel,Card,State transport,expense,INR
+Budget hotel,3500,2024-09-07,Travel,Card,Budget hotel,expense,INR
+Festival train travel,1600,2024-10-05,Travel,Card,Festival travel,expense,INR
+Dussehra trip hotel,5500,2024-10-06,Travel,Card,Dussehra trip,expense,INR
+Local tour,1500,2024-10-07,Travel,Cash,Local tour,expense,INR
+Diwali vacation flight,12000,2024-11-08,Travel,Card,Diwali vacation,expense,INR
+Diwali holiday hotel,15000,2024-11-09,Travel,Card,Diwali holiday hotel,expense,INR
+Holiday dining,4500,2024-11-10,Travel,Card,Holiday dining,expense,INR
+Tourist spots,3000,2024-11-11,Travel,Cash,Tourist spots,expense,INR
+December train trip,900,2024-12-07,Travel,Card,December trip,expense,INR
+December hotel stay,4000,2024-12-08,Travel,Card,Weekend stay,expense,INR
+Christmas vacation flight,18000,2024-12-20,Travel,Card,Christmas vacation,expense,INR
+Holiday resort,20000,2024-12-21,Travel,Card,Holiday resort,expense,INR
+Holiday activities,5000,2024-12-22,Travel,Cash,Holiday activities,expense,INR
+Christmas dining,6000,2024-12-23,Travel,Card,Christmas dining,expense,INR
+Getting around,1200,2024-12-24,Travel,Cash,Local transport,expense,INR
+New year flight,7500,2025-01-10,Travel,Card,New year trip,expense,INR
+Vacation hotel Jan,8500,2025-01-11,Travel,Card,Vacation hotel,expense,INR
+Tourist activities Jan,2000,2025-01-12,Travel,Cash,Tourist activities,expense,INR
+Long weekend train,1800,2025-02-08,Travel,Card,Long weekend,expense,INR
+Valentines trip hotel,6000,2025-02-09,Travel,Card,Valentine trip,expense,INR
+Trip meals,3000,2025-02-10,Travel,Card,Trip meals,expense,INR
+Holi vacation flight,9000,2025-03-08,Travel,Card,Holi vacation,expense,INR
+Holi trip hotel,8000,2025-03-09,Travel,Card,Holi trip hotel,expense,INR
+Festival activities,3500,2025-03-10,Travel,Cash,Festival activities,expense,INR

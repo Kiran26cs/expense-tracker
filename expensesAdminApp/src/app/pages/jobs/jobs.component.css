@@ -1,0 +1,135 @@
+.action-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.action-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.action-left h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.action-left p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+  max-width: 500px;
+}
+
+.card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.credit-icon { background: #fef9c3; color: #ca8a04; }
+
+.btn-warning {
+  background: #f59e0b;
+  color: #fff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-warning:hover:not(:disabled) { background: #d97706; }
+.btn-warning:disabled { opacity: .55; cursor: not-allowed; }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 24px 0 10px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.filter-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-row select {
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.file-name { font-weight: 500; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mono { font-family: 'Courier New', monospace; font-size: 12px; }
+.muted { color: #64748b; font-size: 12px; }
+.count-ok { color: #16a34a; font-weight: 500; }
+.count-err { color: #dc2626; font-weight: 500; }
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.status-done   { background: #dcfce7; color: #15803d; }
+.status-failed { background: #fee2e2; color: #b91c1c; }
+.status-warn   { background: #fef3c7; color: #92400e; }
+.status-active { background: #dbeafe; color: #1d4ed8; }
+.status-queued { background: #f1f5f9; color: #475569; }
+
+.retry-msg {
+  font-size: 11px;
+  color: #6366f1;
+  margin-left: 6px;
+}
+
+.result-ok {
+  padding: 10px 14px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  color: #15803d;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.result-err {
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.mb-16 { margin-bottom: 16px; }
+
+.empty-state {
+  padding: 48px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+}

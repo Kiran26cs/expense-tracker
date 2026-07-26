@@ -1,0 +1,189 @@
+<div class="page-header">
+  <h2>Credits</h2>
+  <p>View and grant AI credits for any expense book</p>
+</div>
+
+<!-- User selector card -->
+<div class="card">
+  <div class="card-title">Select User</div>
+
+  <!-- Trigger button -->
+  @if (!panelOpen()) {
+    <button class="select-trigger" (click)="openPanel()">
+      @if (selectedUser()) {
+        <span class="trigger-selected">
+          <span class="trigger-email">{{ selectedUser()!.email }}</span>
+          <span class="trigger-meta">{{ selectedUser()!.name }} · {{ selectedUser()!.plan }}</span>
+        </span>
+        <span class="trigger-actions">
+          <span class="trigger-change">Change</span>
+          <span class="trigger-clear" (click)="$event.stopPropagation(); clearUser()">✕</span>
+        </span>
+      } @else {
+        <span class="trigger-placeholder">Select a user…</span>
+        <span class="trigger-caret">▾</span>
+      }
+    </button>
+  }
+
+  <!-- Inline search panel -->
+  @if (panelOpen()) {
+    <div class="user-panel">
+      <div class="panel-search-row">
+        <input #panelSearchInput type="text" placeholder="Search by email or name…"
+          [value]="userQuery()"
+          (input)="onQueryInput($any($event.target).value)"
+          (keydown.escape)="closePanel()" />
+        <button class="panel-close-btn" (click)="closePanel()">✕</button>
+      </div>
+
+      <div class="panel-list">
+        @if (userSearching()) {
+          <div class="panel-state">Searching…</div>
+        } @else if (dropdownUsers().length === 0) {
+          <div class="panel-state">
+            {{ userQuery().trim() ? 'No users found' : 'No users available' }}
+          </div>
+        } @else {
+          @for (user of dropdownUsers(); track user.id) {
+            <div class="panel-user-item" (click)="selectUser(user)">
+              <div class="pui-email">{{ user.email }}</div>
+              <div class="pui-meta">{{ user.name }} · {{ user.plan }} · {{ user.bookCount }} book{{ user.bookCount !== 1 ? 's' : '' }}</div>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Books grid -->
+@if (selectedUser() && !panelOpen()) {
+  <div class="card" style="margin-top:16px;">
+    @if (booksLoading()) {
+      <div class="state-msg">Loading books…</div>
+    } @else {
+      <div class="section-header">
+        <h3>{{ selectedUser()?.name || selectedUser()?.email }}</h3>
+        <span>{{ booksTotal() }} book{{ booksTotal() !== 1 ? 's' : '' }}</span>
+      </div>
+
+      @if (books().length === 0) {
+        <div class="state-msg">This user has no expense books.</div>
+      } @else {
+        <div class="book-grid">
+          @for (book of books(); track book.id) {
+            <div class="book-card" (click)="openModal(book)">
+              <div class="book-card-name" [title]="book.name">{{ book.name }}</div>
+              <div class="book-card-meta">
+                <span>{{ book.expenseCount }} expenses</span>
+                @if (book.memberCount > 1) { <span>{{ book.memberCount }} members</span> }
+                @if (book.aiChatEnabled) { <span class="ai-tag">AI</span> }
+              </div>
+              <div class="book-card-action">View Credits →</div>
+            </div>
+          }
+        </div>
+
+        @if (totalPages() > 1) {
+          <div class="pagination">
+            <button (click)="loadBooks(booksPage() - 1)" [disabled]="booksPage() === 1">← Prev</button>
+            <span class="page-info">Page {{ booksPage() }} of {{ totalPages() }}</span>
+            <button (click)="loadBooks(booksPage() + 1)" [disabled]="booksPage() === totalPages()">Next →</button>
+          </div>
+        }
+      }
+    }
+  </div>
+}
+
+<!-- Credits modal -->
+@if (modalBook()) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+
+      <div class="modal-header">
+        <div>
+          <h3>{{ modalBook()?.name }}</h3>
+          <p class="modal-subtitle">{{ selectedUser()?.email }}</p>
+        </div>
+        <button class="modal-close" (click)="closeModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        @if (balanceLoading()) {
+          <div class="state-msg">Loading credits…</div>
+        }
+
+        @if (balance()) {
+          @let b = balance();
+
+          <div class="meta-row">
+            <span class="badge" [class]="'badge-' + b?.plan?.toLowerCase()">{{ b?.plan }}</span>
+            <span class="meta-reset">Last reset: {{ b?.lastResetDate | date:'dd MMM yyyy' }}</span>
+          </div>
+
+          <div class="credit-grid">
+            <div class="credit-stat">
+              <div class="cs-label">Free Credits Left</div>
+              <div class="cs-value" [class.zero]="(b?.freeCreditsLeft ?? 0) === 0">{{ b?.freeCreditsLeft }}</div>
+              <div class="cs-sub">of {{ b?.freeCreditsLimit }}</div>
+            </div>
+            <div class="credit-stat">
+              <div class="cs-label">Paid Credits Left</div>
+              <div class="cs-value" [class.zero]="(b?.paidCreditsLeft ?? 0) === 0">{{ b?.paidCreditsLeft }}</div>
+            </div>
+            <div class="credit-stat">
+              <div class="cs-label">Total Available</div>
+              <div class="cs-value">{{ (b?.freeCreditsLeft ?? 0) + (b?.paidCreditsLeft ?? 0) }}</div>
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <p class="modal-section-title">Grant Credits</p>
+          <div class="grant-form">
+            <div class="form-field">
+              <label>Amount</label>
+              <input type="number" min="1"
+                [value]="grantAmount()" (input)="grantAmount.set(+$any($event.target).value)" />
+            </div>
+            <div class="form-field">
+              <label>Note (optional)</label>
+              <input type="text" placeholder="e.g. promotional grant"
+                [value]="grantNote()" (input)="grantNote.set($any($event.target).value)" />
+            </div>
+            <button class="btn btn-primary" (click)="grant()" [disabled]="granting() || grantAmount() <= 0">
+              {{ granting() ? 'Granting…' : 'Grant Credits' }}
+            </button>
+          </div>
+          @if (grantSuccess()) {
+            <div class="success-msg" style="margin-top:10px;">✓ {{ grantSuccess() }}</div>
+          }
+
+          @if (transactions().length > 0) {
+            <hr class="divider">
+            <p class="modal-section-title">Transaction History</p>
+            <table class="data-table">
+              <thead>
+                <tr><th>Time</th><th>Reason</th><th>Amount</th><th>Tools</th></tr>
+              </thead>
+              <tbody>
+                @for (tx of transactions(); track tx.id) {
+                  <tr>
+                    <td>{{ tx.timestamp | date:'dd MMM, HH:mm' }}</td>
+                    <td>{{ tx.reason }}</td>
+                    <td [class.credit]="tx.amount > 0" [class.debit]="tx.amount < 0">
+                      {{ tx.amount > 0 ? '+' : '' }}{{ tx.amount }}
+                    </td>
+                    <td class="muted">{{ tx.toolsUsed.join(', ') || '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+      </div>
+    </div>
+  </div>
+}
