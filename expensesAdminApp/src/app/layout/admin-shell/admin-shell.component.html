@@ -1,0 +1,156 @@
+@if (isMobile()) {
+
+  <!-- ══════════════════════════════════════
+       Mobile PWA layout — native app feel
+  ══════════════════════════════════════ -->
+  <div class="mobile-shell">
+
+    <!-- Top app bar -->
+    <header class="app-bar">
+      <div class="app-bar-brand">
+        <span class="app-bar-logo">N</span>
+      </div>
+      <h1 class="app-bar-title">{{ currentTitle() }}</h1>
+      <div class="app-bar-avatar" [title]="auth.currentAdmin()?.email ?? ''">
+        {{ auth.currentAdmin()?.name?.charAt(0) | uppercase }}
+      </div>
+    </header>
+
+    <!-- Status banners -->
+    @if (!pwa.isOnline()) {
+      <div class="banner banner-offline">
+        <span>You are offline</span>
+      </div>
+    }
+    @if (pwa.updateAvailable()) {
+      <div class="banner banner-update">
+        <span>Update available</span>
+        <button class="banner-action" (click)="pwa.reload()">Reload</button>
+      </div>
+    }
+
+    <!-- Page content -->
+    <main class="mobile-content">
+      <router-outlet />
+    </main>
+
+    <!-- Bottom tab bar -->
+    <nav class="bottom-nav">
+      @for (item of primaryNavItems; track item.route) {
+        <a class="tab-item" [routerLink]="item.route" routerLinkActive="tab-active">
+          <span class="tab-icon">{{ item.icon }}</span>
+          <span class="tab-label">{{ item.label }}</span>
+        </a>
+      }
+      <button class="tab-item" [class.tab-active]="moreOpen()" (click)="toggleMore()">
+        <span class="tab-icon">⋯</span>
+        <span class="tab-label">More</span>
+      </button>
+    </nav>
+
+    <!-- "More" bottom sheet -->
+    @if (moreOpen()) {
+      <div class="sheet-backdrop" (click)="toggleMore()"></div>
+      <div class="bottom-sheet" role="dialog" aria-modal="true">
+        <div class="sheet-handle"></div>
+
+        @if (moreNavItems.length > 0) {
+          <div class="sheet-section-label">Navigation</div>
+          @for (item of moreNavItems; track item.route) {
+            <a class="sheet-item" [routerLink]="item.route" routerLinkActive="sheet-item-active" (click)="toggleMore()">
+              <span class="sheet-item-icon">{{ item.icon }}</span>
+              <span class="sheet-item-label">{{ item.label }}</span>
+              <span class="sheet-item-chevron">›</span>
+            </a>
+          }
+        }
+
+        @if (pwa.installable()) {
+          <div class="sheet-section-label">App</div>
+          <button class="sheet-item" (click)="pwa.install(); toggleMore()">
+            <span class="sheet-item-icon">⬇</span>
+            <span class="sheet-item-label">Install App</span>
+            <span class="sheet-item-chevron">›</span>
+          </button>
+        }
+
+        <div class="sheet-divider"></div>
+
+        <div class="sheet-admin-row">
+          <div class="sheet-admin-avatar">{{ auth.currentAdmin()?.name?.charAt(0) | uppercase }}</div>
+          <div class="sheet-admin-info">
+            <div class="sheet-admin-name">{{ auth.currentAdmin()?.name }}</div>
+            <div class="sheet-admin-email">{{ auth.currentAdmin()?.email }}</div>
+          </div>
+        </div>
+
+        <button class="sheet-signout" (click)="auth.logout()">Sign out</button>
+      </div>
+    }
+
+  </div>
+
+} @else {
+
+  <!-- ══════════════════════════════════════
+       Desktop sidebar layout
+  ══════════════════════════════════════ -->
+  <div class="shell" [class.sidebar-collapsed]="!sidebarOpen()">
+
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="brand-logo">N</span>
+        <span class="brand-name">Nidhiwise Admin</span>
+      </div>
+
+      <nav class="sidebar-nav" (click)="onNavClick()">
+        @for (item of navItems; track item.route) {
+          <a class="nav-item" [routerLink]="item.route" routerLinkActive="active">
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-label">{{ item.label }}</span>
+          </a>
+        }
+      </nav>
+
+      <div class="sidebar-footer">
+        @if (pwa.installable()) {
+          <button class="install-btn" (click)="pwa.install()">
+            <span class="install-icon">⬇</span>
+            <span class="install-label">Install App</span>
+          </button>
+        }
+        <div class="admin-info">
+          <div class="admin-avatar">{{ auth.currentAdmin()?.name?.charAt(0) | uppercase }}</div>
+          <div class="admin-meta">
+            <div class="admin-name">{{ auth.currentAdmin()?.name }}</div>
+            <div class="admin-email">{{ auth.currentAdmin()?.email }}</div>
+          </div>
+        </div>
+        <button class="logout-btn" (click)="auth.logout()">Logout</button>
+      </div>
+    </aside>
+
+    <div class="main">
+      @if (!pwa.isOnline()) {
+        <div class="banner banner-offline">
+          <span>You are offline — some features may not be available.</span>
+        </div>
+      }
+      @if (pwa.updateAvailable()) {
+        <div class="banner banner-update">
+          <span>A new version is available.</span>
+          <button class="banner-action" (click)="pwa.reload()">Reload</button>
+        </div>
+      }
+      <header class="topbar">
+        <button class="menu-toggle" (click)="toggleSidebar()" aria-label="Toggle sidebar">☰</button>
+        <span class="topbar-title">Platform Administration</span>
+      </header>
+      <main class="content">
+        <router-outlet />
+      </main>
+    </div>
+
+  </div>
+
+}

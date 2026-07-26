@@ -1,9 +1,11 @@
 using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Domain.Entities;
 using ExpensesBackend.API.Infrastructure.Data;
+using ExpensesBackend.API.Services.Interfaces;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System.Threading.Channels;
+using ExpensesBackend.API.Services.AI;
 
 namespace ExpensesBackend.API.Services;
 
@@ -12,6 +14,8 @@ public class ImportProcessorService : BackgroundService
     private readonly Channel<ImportJobPayload> _channel;
     private readonly MongoDbContext _context;
     private readonly ILogger<ImportProcessorService> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly AiBankTransactionCategorizer _categorizer;
 
     private static readonly HashSet<string> ValidPaymentMethods = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -23,11 +27,15 @@ public class ImportProcessorService : BackgroundService
     public ImportProcessorService(
         Channel<ImportJobPayload> channel,
         MongoDbContext context,
-        ILogger<ImportProcessorService> logger)
+        ILogger<ImportProcessorService> logger,
+        IServiceScopeFactory scopeFactory,
+        AiBankTransactionCategorizer categorizer)
     {
-        _channel = channel;
-        _context = context;
-        _logger  = logger;
+        _channel      = channel;
+        _context      = context;
+        _logger       = logger;
+        _scopeFactory = scopeFactory;
+        _categorizer  = categorizer;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -57,7 +65,29 @@ public class ImportProcessorService : BackgroundService
                 u => u.Set(s => s.Status, ImportStatus.Processing), ct);
         }
 
-        var categoryMap = await BuildCategoryMapAsync(job.ExpenseBookId);
+        var (categoryMap, categoryDisplayNames) = await BuildCategoryMapAsync(job.ExpenseBookId);
+
+        // For bank sync imports, AI-classify every transaction description into a book category.
+        // This runs as a single batched call before the row loop, so it's one API round-trip
+        // per ~50 transactions rather than one per row.
+        if (!string.IsNullOrEmpty(job.BankSyncSessionId))
+        {
+            var inputs = job.Rows
+                .Select(r => (r.RowNumber, r.Description))
+                .ToList();
+
+            var assignments = await _categorizer.ClassifyAsync(inputs, categoryDisplayNames);
+
+            foreach (var row in job.Rows)
+            {
+                if (assignments.TryGetValue(row.RowNumber, out var cat))
+                    row.Category = cat;
+            }
+
+            _logger.LogInformation(
+                "AI categorized {Count} bank sync rows for import {ImportId}",
+                assignments.Count, job.ImportSessionId);
+        }
 
         // Build a mutable set of allowed IDs for quick O(1) lookup
         // Empty list = no restriction (owners get the full list already populated by MemberService)
@@ -119,6 +149,76 @@ public class ImportProcessorService : BackgroundService
         _logger.LogInformation(
             "Finished import {ImportId}: {Ok} ok, {Fail} failed, status={Status}",
             job.ImportSessionId, finalSession.SuccessCount, finalSession.FailedCount, finalStatus);
+
+        // Send push notification when the import came from a bank sync
+        if (!string.IsNullOrEmpty(job.BankSyncSessionId))
+            await SendBankSyncNotificationAsync(job, finalSession, ct);
+    }
+
+    private async Task SendBankSyncNotificationAsync(
+        ImportJobPayload job, ImportSession session, CancellationToken ct)
+    {
+        try
+        {
+            var bankName = job.BankName ?? "Bank";
+
+            string title, body;
+            if (session.SuccessCount > 0 && session.FailedCount == 0)
+            {
+                title = $"{bankName} Sync Complete";
+                body  = $"{session.SuccessCount} transaction{(session.SuccessCount == 1 ? "" : "s")} imported successfully.";
+            }
+            else if (session.SuccessCount > 0)
+            {
+                title = $"{bankName} Sync Complete";
+                body  = $"{session.SuccessCount} imported, {session.FailedCount} failed. Check import history for details.";
+            }
+            else
+            {
+                title = $"{bankName} Sync Failed";
+                body  = "No transactions could be imported. Check import history for details.";
+            }
+
+            var subscriptions = await _context.PushSubscriptions
+                .Find(s => s.UserId == job.UserId)
+                .ToListAsync(ct);
+
+            if (subscriptions.Count == 0) return;
+
+            using var scope = _scopeFactory.CreateScope();
+            var pushService = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
+
+            var staleIds = new List<string>();
+
+            foreach (var sub in subscriptions)
+            {
+                try
+                {
+                    await pushService.SendAsync(sub.Endpoint, sub.P256dh, sub.Auth, title, body, "/bank-sync");
+                }
+                catch (WebPush.WebPushException ex) when (
+                    ex.StatusCode == System.Net.HttpStatusCode.Gone ||
+                    ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    staleIds.Add(sub.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Push notification failed for subscription {SubId}", sub.Id);
+                }
+            }
+
+            // Clean up expired subscriptions
+            if (staleIds.Count > 0)
+            {
+                var staleFilter = Builders<PushSubscription>.Filter.In(s => s.Id, staleIds);
+                await _context.PushSubscriptions.DeleteManyAsync(staleFilter, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Bank sync push notification failed for import {ImportId}", job.ImportSessionId);
+        }
     }
 
     private async Task<(Expense? expense, string? error)> MapRowToExpenseAsync(
@@ -177,17 +277,18 @@ public class ImportProcessorService : BackgroundService
 
         return (new Expense
         {
-            UserId        = userId,
-            ExpenseBookId = expenseBookId,
-            Type          = type,
-            Amount        = row.Amount,
-            Date          = date.ToUniversalTime(),
-            Category      = categoryId,
-            PaymentMethod = pm,
-            Description   = row.Description.Trim(),
-            Notes         = string.IsNullOrWhiteSpace(row.Notes) ? null : row.Notes.Trim(),
-            CreatedAt     = DateTime.UtcNow,
-            UpdatedAt     = DateTime.UtcNow
+            UserId          = userId,
+            ExpenseBookId   = expenseBookId,
+            Type            = type,
+            Amount          = row.Amount,
+            Date            = date.ToUniversalTime(),
+            Category        = row.Category.Trim(),
+            PaymentMethod   = pm,
+            Description     = row.Description.Trim(),
+            Notes           = string.IsNullOrWhiteSpace(row.Notes) ? null : row.Notes.Trim(),
+            ExternalTxnRef  = string.IsNullOrWhiteSpace(row.ExternalTxnRef) ? null : row.ExternalTxnRef,
+            CreatedAt       = DateTime.UtcNow,
+            UpdatedAt       = DateTime.UtcNow
         }, null);
     }
 
@@ -234,13 +335,18 @@ public class ImportProcessorService : BackgroundService
             .Set(s => s.CompletedAt, DateTime.UtcNow), ct);
     }
 
-    private async Task<Dictionary<string, string>> BuildCategoryMapAsync(string expenseBookId)
+    private async Task<(Dictionary<string, string> nameToId, List<string> displayNames)> BuildCategoryMapAsync(string expenseBookId)
     {
         var filter     = Builders<Category>.Filter.Eq(c => c.ExpenseBookId, expenseBookId);
         var categories = await _context.Categories.Find(filter).ToListAsync();
-        return categories.ToDictionary(
+
+        var nameToId = categories.ToDictionary(
             c => c.Name.ToLowerInvariant(),
             c => c.Id,
             StringComparer.OrdinalIgnoreCase);
+
+        var displayNames = categories.Select(c => c.Name).ToList();
+
+        return (nameToId, displayNames);
     }
 }

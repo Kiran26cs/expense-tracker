@@ -52,7 +52,8 @@ export const routes: Routes = [
       { path: 'budget', loadComponent: () => import('./pages/budget/budget.component').then(m => m.BudgetComponent) },
       { path: 'finance-tools', loadComponent: () => import('./pages/insights/insights.component').then(m => m.InsightsComponent) },
       { path: 'settings', loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent) },
-      { path: 'members', loadComponent: () => import('./pages/members/members.component').then(m => m.MembersComponent) },
+      { path: 'members',    loadComponent: () => import('./pages/members/members.component').then(m => m.MembersComponent) },
+      { path: 'bank-sync',  loadComponent: () => import('./pages/bank-sync/bank-sync.component').then(m => m.BankSyncComponent) },
     ]
   },
   { path: '**', redirectTo: '' }

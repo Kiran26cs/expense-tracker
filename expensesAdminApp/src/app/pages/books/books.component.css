@@ -1,0 +1,26 @@
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll .data-table { min-width: 700px; }
+
+.filter-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+.filter-bar input { flex: 1; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; }
+.filter-bar input:focus { border-color: #6366f1; }
+.filter-bar select { padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; }
+
+.book-name { font-weight: 500; color: #0f172a; }
+.muted { color: #64748b; font-size: 12px; }
+
+.toggle-btn { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; border: none; cursor: pointer; }
+.toggle-btn.on { background: #dcfce7; color: #16a34a; }
+.toggle-btn:not(.on) { background: #f1f5f9; color: #94a3b8; }
+
+.pagination { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 16px; border-top: 1px solid #f1f5f9; font-size: 13px; color: #64748b; }
+
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; }
+.confirm-modal {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: #fff; border-radius: 16px; padding: 32px; width: 400px;
+  z-index: 201; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.confirm-modal h3 { margin: 0 0 12px; font-size: 18px; color: #0f172a; }
+.confirm-modal p { margin: 0 0 24px; font-size: 13px; color: #64748b; line-height: 1.6; }
+.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }

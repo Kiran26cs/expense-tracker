@@ -4,6 +4,9 @@ public class StartImportRequest
 {
     public string FileName { get; set; } = string.Empty;
     public List<CsvExpenseRow> Rows { get; set; } = [];
+    // Set by bank sync flow — used to send a push notification on completion
+    public string? BankSyncSessionId { get; set; }
+    public string? BankName { get; set; }
 }
 
 public class CsvExpenseRow
@@ -17,6 +20,8 @@ public class CsvExpenseRow
     public string Notes { get; set; } = string.Empty;
     public string Type { get; set; } = "expense";
     public string Currency { get; set; } = string.Empty;
+    // Set by bank sync — stored as Expense.ExternalTxnRef for future duplicate detection
+    public string? ExternalTxnRef { get; set; }
 }
 
 public class ImportSessionDto
@@ -67,6 +72,9 @@ public class ImportJobPayload
     public List<CsvExpenseRow> Rows { get; set; } = [];
     public List<string> AllowedCategoryIds { get; set; } = [];
     public bool IsRetry { get; set; } = false;
+    // Populated for bank sync jobs — triggers a push notification on completion
+    public string? BankSyncSessionId { get; set; }
+    public string? BankName { get; set; }
 }
 
 public class RetryImportRequest

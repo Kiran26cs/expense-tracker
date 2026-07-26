@@ -61,7 +61,6 @@
               <th class="th-sortable text-right" (click)="toggleSort('amount')">
                 Amount <i [class]="sortIcon('amount')" [class.sort-active]="isSortedBy('amount')"></i>
               </th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -69,10 +68,35 @@
               <td>
                 <div class="expense-desc">
                   <div class="expense-icon" [style.background]="getCategoryColor(getStr(e.category))"><i [class]="getCategoryIcon(getStr(e.category))"></i></div>
-                  <span>{{ e.description }}</span>
+                  <span class="desc-text" [title]="e.description">{{ e.description }}</span>
                 </div>
               </td>
-              <td><span class="badge">{{ getCategoryName(getStr(e.category)) }}</span></td>
+              <td>
+                <ng-container *ngIf="editingCategoryExpenseId() !== e.id; else catEditTpl">
+                  <span class="badge cat-badge-editable" (click)="startCategoryEdit(e.id)" title="Click to change category">
+                    {{ getCategoryName(getStr(e.category)) }}
+                  </span>
+                </ng-container>
+                <ng-template #catEditTpl>
+                  <div class="cat-search-dropdown">
+                    <input class="cat-search-input"
+                      [value]="catSearchQuery()"
+                      (input)="catSearchQuery.set($any($event.target).value)"
+                      placeholder="Search category..."
+                      (blur)="closeCategoryEdit()"
+                      (keydown.escape)="closeCategoryEdit()"
+                      autocomplete="off">
+                    <div class="cat-search-list" (mousedown)="$event.preventDefault()">
+                      <div *ngFor="let c of catFilteredCategories()"
+                        class="cat-search-item"
+                        (click)="saveCategoryEdit(e, c.id)">
+                        {{ c.name }}
+                      </div>
+                      <div *ngIf="catFilteredCategories().length === 0" class="cat-search-empty">No match</div>
+                    </div>
+                  </div>
+                </ng-template>
+              </td>
               <td>{{ formatDate(e.date) }}</td>
               <td><span class="badge badge-secondary">{{ getPaymentMethodName(getStr(e.paymentMethod)) }}</span></td>
               <td><span class="badge" [class.income-badge]="e.type === 'income'" [class.expense-badge]="e.type === 'expense'">{{ e.type }}</span></td>
@@ -83,12 +107,14 @@
                 </span>
               </td>
               <td class="actions-cell">
-                <button *ngIf="bookAccess.canWriteExpenses()" class="txn-icon-btn" (click)="openEditModal(e.id)" title="Edit">
-                  <i class="fa-solid fa-pen"></i>
-                </button>
-                <button *ngIf="bookAccess.canDeleteExpenses()" class="txn-icon-btn txn-icon-btn--danger" (click)="openDeleteConfirm(e)" title="Delete">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
+                <div class="row-actions">
+                  <button *ngIf="bookAccess.canWriteExpenses()" class="txn-icon-btn" (click)="openEditModal(e.id)" title="Edit">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  <button *ngIf="bookAccess.canDeleteExpenses()" class="txn-icon-btn txn-icon-btn--danger" (click)="openDeleteConfirm(e)" title="Delete">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>

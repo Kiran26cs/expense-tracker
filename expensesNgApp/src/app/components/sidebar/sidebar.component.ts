@@ -22,6 +22,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'budget',    label: 'Budget',    icon: 'fa-solid fa-bullseye',    path: 'budget',    requirePermission: 'canViewBudgets' },
   { id: 'finance-tools',  label: 'Finance Tools',  icon: 'fa-solid fa-calculator',  path: 'finance-tools',  requirePermission: 'canViewInsights' },
   { id: 'settings',  label: 'Settings',  icon: 'fa-solid fa-gear',        path: 'settings',  requirePermission: 'canViewSettings' },
+  { id: 'bank-sync', label: 'Bank Sync',  icon: 'fa-solid fa-building-columns', path: 'bank-sync', requirePermission: 'canViewSettings' },
   { id: 'members',   label: 'Members',   icon: 'fa-solid fa-users',       path: 'members',   requirePermission: 'canManageMembers' },
 ];
 

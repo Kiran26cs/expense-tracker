@@ -133,6 +133,15 @@ export class ExpenseListComponent implements OnInit {
   editOriginalCurrency = signal<string | null>(null);
   editFxRate = signal<number | null>(null);
 
+  // Inline category editing
+  editingCategoryExpenseId = signal<string | null>(null);
+  catSearchQuery = signal('');
+  catFilteredCategories = computed(() => {
+    const q = this.catSearchQuery().toLowerCase().trim();
+    if (!q) return this.categories();
+    return this.categories().filter(c => c.name.toLowerCase().includes(q));
+  });
+
   // Add Category Sub-modal
   showAddCategoryModal = signal(false);
   newCatName = signal('');
@@ -322,6 +331,58 @@ export class ExpenseListComponent implements OnInit {
   getCategoryName(idOrName: string): string {
     const cat = this.categories().find(c => c.id === idOrName || c.name === idOrName);
     return cat?.name || idOrName || '—';
+  }
+
+  startCategoryEdit(expenseId: string) {
+    this.catSearchQuery.set('');
+    this.editingCategoryExpenseId.set(expenseId);
+    setTimeout(() => {
+      (document.querySelector('.cat-search-input') as HTMLInputElement | null)?.focus();
+    }, 0);
+  }
+
+  closeCategoryEdit() {
+    this.editingCategoryExpenseId.set(null);
+    this.catSearchQuery.set('');
+  }
+
+  getCurrentCategoryId(expense: Expense): string {
+    const str = this.getStr(expense.category);
+    const cat = this.categories().find(c => c.id === str || c.name === str);
+    return cat?.id ?? '';
+  }
+
+  async saveCategoryEdit(expense: Expense, categoryId: string) {
+    this.editingCategoryExpenseId.set(null);
+    this.catSearchQuery.set('');
+    if (!categoryId) return;
+
+    const cat = this.categories().find(c => c.id === categoryId);
+    if (!cat) return;
+
+    const prevCategory = expense.category;
+    this.expenses.update(list =>
+      list.map(e => e.id === expense.id ? { ...e, category: cat.name } : e)
+    );
+
+    try {
+      const res = await this.expenseService.updateExpense(this.bookId, expense.id, {
+        ...expense,
+        category: cat.name,
+        expenseBookId: this.bookId
+      });
+      if (!res.success) {
+        this.expenses.update(list =>
+          list.map(e => e.id === expense.id ? { ...e, category: prevCategory } : e)
+        );
+        this.toast.error(res.error || 'Failed to update category');
+      }
+    } catch {
+      this.expenses.update(list =>
+        list.map(e => e.id === expense.id ? { ...e, category: prevCategory } : e)
+      );
+      this.toast.error('Failed to update category');
+    }
   }
   getCategoryColor(idOrName: string): string {
     const cat = this.categories().find(c => c.id === idOrName || c.name === idOrName);

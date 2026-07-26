@@ -1,0 +1,288 @@
+<div class="bank-sync-page">
+
+  <!-- ══ CONNECTIONS LIST ══════════════════════════════════════════════════ -->
+  <ng-container *ngIf="step() === 'connections'">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Bank Sync</h1>
+        <p class="page-subtitle">Connect your bank account to import transactions automatically</p>
+      </div>
+      <app-button (clicked)="openAddModal()">
+        <i class="fa-solid fa-plus"></i> Add Bank
+      </app-button>
+    </div>
+
+    <app-loading *ngIf="loading()" text="Loading connections…"></app-loading>
+
+    <ng-container *ngIf="!loading()">
+      <!-- Empty state -->
+      <div *ngIf="connections().length === 0" class="empty-state">
+        <i class="fa-solid fa-building-columns empty-icon"></i>
+        <p class="empty-title">No bank connections yet</p>
+        <p class="empty-desc">Add your bank account to start uploading statements and importing transactions.</p>
+        <app-button (clicked)="openAddModal()">
+          <i class="fa-solid fa-plus"></i> Add Your First Bank
+        </app-button>
+      </div>
+
+      <!-- Connection cards -->
+      <div *ngIf="connections().length > 0" class="connections-grid">
+        <div *ngFor="let conn of connections()" class="connection-card">
+          <div class="conn-icon">
+            <i [class]="bankIcon(conn.bankName)"></i>
+          </div>
+          <div class="conn-info">
+            <p class="conn-name">{{ conn.displayName }}</p>
+            <p class="conn-bank">{{ conn.bankName }} Bank</p>
+            <p class="conn-sync">
+              <i class="fa-regular fa-clock"></i> {{ sinceLabel(conn.lastSyncedAt) }}
+            </p>
+          </div>
+          <div class="conn-actions">
+            <app-button size="sm" (clicked)="startUpload(conn)">
+              <i class="fa-solid fa-upload"></i> Upload Statement
+            </app-button>
+            <button class="conn-delete-btn" (click)="promptDelete(conn)" title="Remove connection">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info box -->
+      <div class="info-box">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+          <p class="info-title">Supported formats</p>
+          <p class="info-text">Upload CSV, Excel (.xlsx/.xls), or PDF statements from HDFC, ICICI, SBI, Axis, Kotak, or any other bank. Duplicate transactions are automatically detected and skipped.</p>
+        </div>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <!-- ══ UPLOAD STEP ═══════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="step() === 'upload'">
+    <div class="page-header">
+      <div>
+        <button class="back-btn" (click)="backToConnections()">
+          <i class="fa-solid fa-arrow-left"></i> Back to connections
+        </button>
+        <h1 class="page-title" style="margin-top:0.5rem">
+          Upload Statement — {{ activeConnection()?.displayName }}
+        </h1>
+        <p class="page-subtitle">{{ activeConnection()?.bankName }} Bank</p>
+      </div>
+    </div>
+
+    <div class="upload-card">
+      <!-- Drop zone -->
+      <label class="drop-zone" [class.has-file]="selectedFile()">
+        <input type="file" accept=".csv,.xls,.xlsx,.pdf" (change)="onFileSelected($event)" style="display:none" />
+        <ng-container *ngIf="!selectedFile()">
+          <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+          <p class="drop-title">Click to browse or drag &amp; drop</p>
+          <p class="drop-hint">CSV, Excel, or PDF · max 15 MB</p>
+        </ng-container>
+        <ng-container *ngIf="selectedFile()">
+          <i class="fa-solid fa-file-lines drop-icon file-selected-icon"></i>
+          <p class="drop-title file-selected-name">{{ selectedFile()!.name }}</p>
+          <p class="drop-hint">Click to change file</p>
+        </ng-container>
+      </label>
+
+      <!-- Password field (PDF + Excel) -->
+      <div *ngIf="showPasswordField" class="pdf-password-row">
+        <label class="field-label">
+          <i class="fa-solid fa-lock"></i>
+          {{ isPdf ? 'PDF Password' : 'File Password' }} (if protected)
+        </label>
+        <input
+          type="password"
+          class="text-input"
+          [(ngModel)]="pdfPassword"
+          placeholder="Leave blank if not password-protected"
+          autocomplete="off"
+        />
+        <p class="field-hint">
+          <ng-container *ngIf="isPdf">For SBI/HDFC PDFs: usually your date of birth (DDMMYYYY)</ng-container>
+          <ng-container *ngIf="!isPdf">For IndusInd/ICICI Excel files: usually your date of birth (DDMMYYYY) or a custom password</ng-container>
+        </p>
+      </div>
+
+      <div *ngIf="uploadError()" class="alert alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ uploadError() }}
+      </div>
+
+      <div class="upload-actions">
+        <app-button variant="ghost" (clicked)="backToConnections()">Cancel</app-button>
+        <app-button [loading]="uploadLoading()" [disabled]="!selectedFile()" (clicked)="handleUpload()">
+          <i class="fa-solid fa-magnifying-glass"></i> Parse Statement
+        </app-button>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- ══ PREVIEW STEP ══════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="step() === 'preview'">
+    <div class="page-header">
+      <div>
+        <button class="back-btn" (click)="step.set('upload')">
+          <i class="fa-solid fa-arrow-left"></i> Back to upload
+        </button>
+        <h1 class="page-title" style="margin-top:0.5rem">Review Transactions</h1>
+        <p class="page-subtitle">
+          {{ preview()?.totalCount }} transactions found
+          in <strong>{{ preview()?.detectedFormat }}</strong> format
+        </p>
+      </div>
+    </div>
+
+    <!-- Controls row -->
+    <div class="preview-controls">
+      <div class="preview-stats">
+        <span class="stat-chip stat-included">
+          <i class="fa-solid fa-circle-check"></i> {{ includedCount }} to import
+        </span>
+        <span class="stat-chip stat-excluded" *ngIf="excludedRows().size > 0">
+          <i class="fa-solid fa-ban"></i> {{ excludedRows().size }} excluded
+        </span>
+      </div>
+      <div class="preview-ctrl-right">
+        <div class="payment-method-row">
+          <label class="field-label">Default payment method</label>
+          <select class="text-input payment-select" [(ngModel)]="defaultPayment">
+            <option *ngFor="let pm of paymentMethods" [value]="pm">{{ pm }}</option>
+          </select>
+        </div>
+        <div class="select-btns">
+          <button class="link-btn" (click)="selectAll()">Select all</button>
+          <span class="link-sep">·</span>
+          <button class="link-btn" (click)="deselectAll()">Deselect all</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transaction table -->
+    <div class="txn-table-wrap">
+      <table class="txn-table">
+        <thead>
+          <tr>
+            <th class="col-check"></th>
+            <th class="col-date">Date</th>
+            <th class="col-desc">Description</th>
+            <th class="col-amount">Amount</th>
+            <th class="col-type">Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let txn of preview()?.transactions"
+            [class.row-excluded]="isExcluded(txn.rowNumber)"
+            (click)="toggleRow(txn.rowNumber)"
+            class="txn-row"
+          >
+            <td class="col-check">
+              <input
+                type="checkbox"
+                [checked]="!isExcluded(txn.rowNumber)"
+                (click)="$event.stopPropagation()"
+                (change)="toggleRow(txn.rowNumber)"
+              />
+            </td>
+            <td class="col-date">{{ formatDate(txn.date) }}</td>
+            <td class="col-desc">{{ txn.description }}</td>
+            <td class="col-amount" [class.amount-income]="txn.type === 'income'" [class.amount-expense]="txn.type === 'expense'">
+              {{ formatAmount(txn.amount, txn.type) }}
+            </td>
+            <td class="col-type">
+              <span class="type-badge" [class.badge-income]="txn.type === 'income'" [class.badge-expense]="txn.type === 'expense'">
+                {{ txn.type }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="confirmError()" class="alert alert-error" style="margin-top:1rem">
+      <i class="fa-solid fa-circle-exclamation"></i> {{ confirmError() }}
+    </div>
+
+    <div class="preview-footer">
+      <app-button variant="ghost" (clicked)="backToConnections()">Cancel</app-button>
+      <app-button
+        [loading]="confirmLoading()"
+        [disabled]="includedCount === 0"
+        (clicked)="handleConfirm()"
+      >
+        <i class="fa-solid fa-file-import"></i> Import {{ includedCount }} Transaction{{ includedCount === 1 ? '' : 's' }}
+      </app-button>
+    </div>
+  </ng-container>
+
+  <!-- ══ DONE STEP ═════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="step() === 'done'">
+    <div class="done-state">
+      <div class="done-icon-wrap">
+        <i class="fa-solid fa-circle-check done-icon"></i>
+      </div>
+      <h2 class="done-title">Sync Complete</h2>
+      <p class="done-desc">
+        <strong>{{ importedCount() }}</strong> transaction{{ importedCount() === 1 ? '' : 's' }} queued for import.
+        <ng-container *ngIf="duplicatesCount() > 0">
+          {{ duplicatesCount() }} duplicate{{ duplicatesCount() === 1 ? '' : 's' }} skipped.
+        </ng-container>
+      </p>
+      <p class="done-hint">
+        <i class="fa-solid fa-circle-info"></i>
+        Categories are auto-assigned by AI. Check Import History in the expense list for status.
+      </p>
+      <div class="done-actions">
+        <app-button (clicked)="backToConnections()">Upload Another Statement</app-button>
+      </div>
+    </div>
+  </ng-container>
+
+</div>
+
+<!-- ══ ADD CONNECTION MODAL ═══════════════════════════════════════════════ -->
+<app-modal [isOpen]="showAddModal()" title="Add Bank Connection" (closed)="showAddModal.set(false)">
+  <div class="modal-form">
+    <div class="field-group">
+      <label class="field-label">Display Name</label>
+      <input
+        type="text"
+        class="text-input"
+        [(ngModel)]="newDisplayName"
+        placeholder="e.g. My HDFC Salary Account"
+        (keyup.enter)="handleAddConnection()"
+      />
+    </div>
+    <div class="field-group">
+      <label class="field-label">Bank</label>
+      <select class="text-input" [(ngModel)]="newBankName">
+        <option *ngFor="let b of bankNames" [value]="b">{{ b }}</option>
+      </select>
+    </div>
+    <div *ngIf="addError()" class="alert alert-error">
+      <i class="fa-solid fa-circle-exclamation"></i> {{ addError() }}
+    </div>
+    <div class="modal-actions">
+      <app-button variant="ghost" (clicked)="showAddModal.set(false)">Cancel</app-button>
+      <app-button [loading]="addLoading()" (clicked)="handleAddConnection()">Add Connection</app-button>
+    </div>
+  </div>
+</app-modal>
+
+<!-- ══ DELETE CONFIRM MODAL ══════════════════════════════════════════════ -->
+<app-modal [isOpen]="showDeleteConfirm()" title="Remove Connection" (closed)="showDeleteConfirm.set(false)">
+  <div class="modal-form">
+    <p class="modal-body-text">
+      Remove <strong>{{ connToDelete()?.displayName }}</strong>? This won't delete any imported expenses.
+    </p>
+    <div class="modal-actions">
+      <app-button variant="ghost" (clicked)="showDeleteConfirm.set(false)">Cancel</app-button>
+      <app-button variant="danger" [loading]="deleteLoading()" (clicked)="confirmDelete()">Remove</app-button>
+    </div>
+  </div>
+</app-modal>

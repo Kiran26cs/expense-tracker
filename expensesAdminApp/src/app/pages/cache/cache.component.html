@@ -1,0 +1,70 @@
+<div class="page-header">
+  <h2>Cache Invalidation</h2>
+  <p>Flush Redis cache entries for a user or expense book.</p>
+</div>
+
+<div class="cache-grid">
+  <!-- Invalidate by User -->
+  <div class="card cache-card">
+    <div class="card-icon user-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    </div>
+    <h3>Invalidate User Cache</h3>
+    <p>Clears all cached data for the given user (profile, books list, settings).</p>
+    <div class="input-row">
+      <input
+        type="text"
+        placeholder="User ID…"
+        [value]="userId()"
+        (input)="userId.set($any($event.target).value)"
+        (keydown.enter)="invalidateUser()"
+      />
+      <button class="btn btn-primary" [disabled]="!userId().trim() || userLoading()" (click)="invalidateUser()">
+        @if (userLoading()) { Clearing… } @else { Clear Cache }
+      </button>
+    </div>
+    @if (userResult()) {
+      <div class="result-ok">{{ userResult() }}</div>
+    }
+    @if (userError()) {
+      <div class="result-err">{{ userError() }}</div>
+    }
+  </div>
+
+  <!-- Invalidate by Book -->
+  <div class="card cache-card">
+    <div class="card-icon book-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+    </div>
+    <h3>Invalidate Book Cache</h3>
+    <p>Clears all cached data for the given expense book (expenses, categories, budgets).</p>
+    <div class="input-row">
+      <input
+        type="text"
+        placeholder="Book ID…"
+        [value]="bookId()"
+        (input)="bookId.set($any($event.target).value)"
+        (keydown.enter)="invalidateBook()"
+      />
+      <button class="btn btn-primary" [disabled]="!bookId().trim() || bookLoading()" (click)="invalidateBook()">
+        @if (bookLoading()) { Clearing… } @else { Clear Cache }
+      </button>
+    </div>
+    @if (bookResult()) {
+      <div class="result-ok">{{ bookResult() }}</div>
+    }
+    @if (bookError()) {
+      <div class="result-err">{{ bookError() }}</div>
+    }
+  </div>
+</div>
+
+<div class="info-box">
+  <strong>Note:</strong> Cache entries expire automatically after 10 minutes. Use manual invalidation only when you need changes reflected immediately — e.g. after a manual DB fix or plan change.
+</div>

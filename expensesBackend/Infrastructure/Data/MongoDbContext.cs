@@ -57,11 +57,27 @@ public class MongoDbContext
     public IMongoCollection<NotificationLog> NotificationLogs =>
         _database.GetCollection<NotificationLog>("notificationLogs");
 
+    public IMongoCollection<PlatformAdmin> PlatformAdmins =>
+        _database.GetCollection<PlatformAdmin>("platformAdmins");
+
+    public IMongoCollection<AdminAuditLog> AdminAuditLogs =>
+        _database.GetCollection<AdminAuditLog>("adminAuditLogs");
+
+    public IMongoCollection<BankConnection> BankConnections =>
+        _database.GetCollection<BankConnection>("bankConnections");
+
+    public IMongoCollection<BankSyncSession> BankSyncSessions =>
+        _database.GetCollection<BankSyncSession>("bankSyncSessions");
+
     private void CreateIndexes()
     {
         // User indexes
         var userIndexKeys = Builders<User>.IndexKeys.Ascending(u => u.Email);
         Users.Indexes.CreateOne(new CreateIndexModel<User>(userIndexKeys));
+
+        Users.Indexes.CreateOne(new CreateIndexModel<User>(
+            Builders<User>.IndexKeys.Descending(u => u.CreatedAt),
+            new CreateIndexOptions { Name = "idx_user_createdat" }));
 
         // ExpenseBook indexes
         var expenseBookIndexKeys = Builders<ExpenseBook>.IndexKeys
@@ -308,6 +324,82 @@ public class MongoDbContext
         NotificationLogs.Indexes.CreateOne(new CreateIndexModel<NotificationLog>(
             Builders<NotificationLog>.IndexKeys.Ascending(l => l.SentAt),
             new CreateIndexOptions { Name = "idx_notiflog_ttl", ExpireAfter = TimeSpan.FromDays(45) }));
+
+        // PlatformAdmin unique email index.
+        // GetAdminsAsync sorts in memory so no grantedAt index is needed.
+        try
+        {
+            try { PlatformAdmins.Indexes.DropOne("idx_platformadmin_email"); } catch { }
+            PlatformAdmins.Indexes.CreateOne(new CreateIndexModel<PlatformAdmin>(
+                Builders<PlatformAdmin>.IndexKeys.Ascending(a => a.Email),
+                new CreateIndexOptions { Name = "idx_platformadmin_email", Unique = true, Sparse = true }));
+        }
+        catch { /* uniqueness also enforced in AdminPlatformAdminService.CreateAdminAsync */ }
+
+        // AdminAuditLog indexes — recent actions feed and per-target lookups
+        AdminAuditLogs.Indexes.CreateOne(new CreateIndexModel<AdminAuditLog>(
+            Builders<AdminAuditLog>.IndexKeys.Descending(l => l.Timestamp),
+            new CreateIndexOptions { Name = "idx_auditlog_timestamp" }));
+
+        AdminAuditLogs.Indexes.CreateOne(new CreateIndexModel<AdminAuditLog>(
+            Builders<AdminAuditLog>.IndexKeys
+                .Ascending(l => l.TargetType)
+                .Ascending(l => l.TargetId)
+                .Descending(l => l.Timestamp),
+            new CreateIndexOptions { Name = "idx_auditlog_target" }));
+
+        // BankConnection indexes
+        BankConnections.Indexes.CreateOne(new CreateIndexModel<BankConnection>(
+            Builders<BankConnection>.IndexKeys
+                .Ascending(c => c.UserId)
+                .Ascending(c => c.IsActive)
+                .Descending(c => c.CreatedAt),
+            new CreateIndexOptions { Name = "idx_bankconn_user_active_created" }));
+
+        // BankSyncSession indexes — TTL 2h after expiresAt; lookup by userId
+        BankSyncSessions.Indexes.CreateOne(new CreateIndexModel<BankSyncSession>(
+            Builders<BankSyncSession>.IndexKeys.Ascending(s => s.ExpiresAt),
+            new CreateIndexOptions
+            {
+                Name        = "idx_banksyncsession_ttl",
+                ExpireAfter = TimeSpan.Zero
+            }));
+
+        BankSyncSessions.Indexes.CreateOne(new CreateIndexModel<BankSyncSession>(
+            Builders<BankSyncSession>.IndexKeys
+                .Ascending(s => s.UserId)
+                .Descending(s => s.CreatedAt),
+            new CreateIndexOptions { Name = "idx_banksyncsession_user_created" }));
+
+        // Expenses — unique partial index for duplicate detection via externalTxnRef.
+        // PartialFilterExpression (Type == String) replaces Sparse=true because Cosmos DB
+        // does not honour sparse unique indexes correctly — it still indexes null/missing
+        // values and fails when the collection already has documents.
+        // Only rows with a non-null externalTxnRef (i.e. bank-sync imports) are indexed.
+        // Primary dedup is enforced in BankSyncService.GetExistingRefsAsync; this index
+        // is a safety net against races and direct inserts.
+        try
+        {
+            try { Expenses.Indexes.DropOne("idx_expense_book_external_txn_ref"); } catch { }
+
+            var extRefFilter = Builders<Expense>.Filter
+                .Type(e => e.ExternalTxnRef, MongoDB.Bson.BsonType.String);
+
+            Expenses.Indexes.CreateOne(new CreateIndexModel<Expense>(
+                Builders<Expense>.IndexKeys
+                    .Ascending(e => e.ExpenseBookId)
+                    .Ascending(e => e.ExternalTxnRef),
+                new CreateIndexOptions<Expense>
+                {
+                    Name                    = "idx_expense_book_external_txn_ref",
+                    Unique                  = true,
+                    PartialFilterExpression = extRefFilter
+                }));
+        }
+        catch
+        {
+            // Non-fatal: dedup is enforced in BankSyncService.GetExistingRefsAsync
+        }
 
     }
 }
