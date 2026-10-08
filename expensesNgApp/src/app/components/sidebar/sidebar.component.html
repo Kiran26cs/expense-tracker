@@ -8,10 +8,10 @@
     </div>
   </a>
 
-  <!-- Nav items -->
+  <!-- Nav items (desktop: full list; mobile: primary items + More overflow) -->
   <nav class="sidebar-nav">
     <a
-      *ngFor="let item of navItems()"
+      *ngFor="let item of (isMobile ? primaryNavItems() : navItems())"
       [routerLink]="'/' + bookId + '/' + item.path"
       class="nav-item"
       [class.active]="isActive(item.path)"
@@ -19,6 +19,32 @@
       <span class="nav-icon" [attr.aria-label]="item.label"><i [class]="item.icon"></i></span>
       <span class="nav-label" *ngIf="!isCollapsed || isMobile">{{ item.label }}</span>
     </a>
+
+    <div class="nav-item-more-wrap" *ngIf="isMobile && moreNavItems().length">
+      <button
+        type="button"
+        class="nav-item nav-item-more"
+        [class.active]="isMoreActive()"
+        (click)="toggleMoreMenu()"
+      >
+        <span class="nav-icon" aria-label="More"><i class="fa-solid fa-ellipsis"></i></span>
+        <span class="nav-label">More</span>
+      </button>
+
+      <div class="more-menu-backdrop" *ngIf="isMoreMenuOpen" (click)="closeMoreMenu()"></div>
+      <div class="more-menu-popover" *ngIf="isMoreMenuOpen">
+        <a
+          *ngFor="let item of moreNavItems()"
+          [routerLink]="'/' + bookId + '/' + item.path"
+          class="more-menu-item"
+          [class.active]="isActive(item.path)"
+          (click)="closeMoreMenu()"
+        >
+          <i [class]="item.icon"></i>
+          <span>{{ item.label }}</span>
+        </a>
+      </div>
+    </div>
   </nav>
 
   <!-- Upgrade CTA (desktop only, hidden for Pro) -->

@@ -38,6 +38,12 @@ public class ImportSession
     [BsonElement("failedCount")]
     public int FailedCount { get; set; }
 
+    // Bank-sync only: how many imported rows still ended up "Uncategorized" after payee-memory
+    // and AI suggestion plus the user's own review on the preview screen. A non-zero count here
+    // means those specific rows need a manual look — check the Records list for which ones.
+    [BsonElement("categorizedUncategorized")]
+    public int CategorizedUncategorized { get; set; }
+
     [BsonElement("records")]
     public List<ImportRecord> Records { get; set; } = [];
 

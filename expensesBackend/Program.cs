@@ -29,6 +29,21 @@ if (args.Length > 0 && args[0] == "migrate")
     return;
 }
 
+if (args.Length > 0 && args[0] == "migrate-categories")
+{
+    Console.WriteLine("Running Expense Category Backfill Migration...");
+    var config = new ConfigurationBuilder()
+        .SetBasePath(Directory.GetCurrentDirectory())
+        .AddJsonFile("appsettings.json", optional: false)
+        .Build();
+
+    var connectionString = config["MongoDB:ConnectionString"] ?? "mongodb://localhost:27017";
+    var databaseName = config["MongoDB:DatabaseName"] ?? "expensesDb";
+
+    await ExpensesBackend.API.MigrateExpenseCategoryIds.RunMigration(connectionString, databaseName);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Azure App Configuration — connection string for local dev, endpoint + managed identity for production
@@ -62,11 +77,14 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddHttpContextAccessor();
+
 // MongoDB
 builder.Services.AddSingleton<MongoDbContext>();
 
 // Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IExpenseBookService, ExpenseBookService>();
 builder.Services.AddScoped<IExpenseBookDependencyService, ExpenseBookDependencyService>();
@@ -83,6 +101,7 @@ builder.Services.AddSingleton<AiBankTransactionCategorizer>();
 builder.Services.AddScoped<PdfBankStatementParser>();
 builder.Services.AddScoped<BankStatementPdfExtractor>();
 builder.Services.AddScoped<BankStatementParserFactory>();
+builder.Services.AddSingleton<IPayeeCategoryMemoryService, PayeeCategoryMemoryService>();
 builder.Services.AddHttpClient<ICurrencyConversionService, FrankfurterCurrencyService>();
 builder.Services.AddScoped<ITemplateBookService, TemplateBookService>();
 builder.Services.AddSingleton<ITemplateBlobService, TemplateBlobService>();
@@ -146,7 +165,8 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
 // JWT Authentication
-var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "your-super-secret-key-min-32-chars-long";
+var jwtSecret = builder.Configuration["Jwt:Secret"]
+    ?? throw new InvalidOperationException("Jwt:Secret must be configured — refusing to start with a default signing key.");
 var key = Encoding.UTF8.GetBytes(jwtSecret);
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "ExpensesBackend";
 

@@ -65,6 +65,17 @@
       </div>
     </div>
 
+    <app-confirm-dialog
+      [isOpen]="!!linkPreview()"
+      [title]="linkDialogTitle()"
+      [message]="linkDialogMessage()"
+      icon="🔗"
+      confirmLabel="Link Account"
+      [loading]="linking()"
+      (confirmed)="confirmLink()"
+      (cancelled)="cancelLink()">
+    </app-confirm-dialog>
+
     <!-- Right: Graphic -->
     <div class="auth-graphic">
       <div class="graphic-content">

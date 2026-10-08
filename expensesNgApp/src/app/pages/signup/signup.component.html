@@ -45,6 +45,17 @@
         <p class="auth-link">Already have an account? <a routerLink="/login">Sign in</a></p>
       </div>
     </div>
+
+    <app-confirm-dialog
+      [isOpen]="!!linkPreview()"
+      title="Link your Google account?"
+      [message]="'An account already exists for ' + linkPreview()?.email + ', created ' + (linkPreview()?.createdAt | date:'dd MMM yyyy') + '. Signing in with Google will link to this existing account and its data.'"
+      icon="🔗"
+      confirmLabel="Link Account"
+      [loading]="linking()"
+      (confirmed)="confirmLink()"
+      (cancelled)="cancelLink()">
+    </app-confirm-dialog>
     <div class="auth-graphic">
       <div class="graphic-content">
         <h2>Join Thousands of Smart Spenders</h2>

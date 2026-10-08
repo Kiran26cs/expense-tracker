@@ -12,11 +12,12 @@ import { ExpenseBookService } from '../../services/expense-book.service';
 import { ToastService } from '../../services/toast.service';
 import { AiChatService } from '../../services/ai-chat.service';
 import { UpgradeModalService } from '../../services/upgrade-modal.service';
+import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, TruncateDirective],
+  imports: [CommonModule, FormsModule, RouterModule, TruncateDirective, ConfirmDialogComponent],
   templateUrl: './topbar.component.html',
   styleUrl: './topbar.component.css'
 })
@@ -39,6 +40,8 @@ export class TopbarComponent {
   isMobileMenuOpen = false;
   isEditingName    = false;
   editName         = '';
+  showLogoutAllConfirm = false;
+  loggingOutAll        = false;
   readonly landingUrl = environment.landingUrl;
 
   @ViewChild('menuWrapper')       menuWrapper!: ElementRef;
@@ -57,6 +60,16 @@ export class TopbarComponent {
 
   toggleMenu()       { this.isMenuOpen = !this.isMenuOpen; }
   toggleMobileMenu() { this.isMobileMenuOpen = !this.isMobileMenuOpen; }
+
+  openLogoutAllConfirm() { this.isMenuOpen = false; this.showLogoutAllConfirm = true; }
+  cancelLogoutAll()      { this.showLogoutAllConfirm = false; }
+
+  async confirmLogoutAll() {
+    this.loggingOutAll = true;
+    await this.authState.logoutAll();
+    this.loggingOutAll = false;
+    this.showLogoutAllConfirm = false;
+  }
 
   openImportDrawer() {
     const bookId = this.currentBook.book()?.id;

@@ -5,13 +5,14 @@ using System.Text.Json.Nodes;
 
 namespace ExpensesBackend.API.Services.AI;
 
-public class AiBankTransactionCategorizer : IBankTransactionCategorizer
+public class AiBankTransactionCategorizer
 {
     private readonly HttpClient _http;
     private readonly IConfiguration _config;
     private readonly ILogger<AiBankTransactionCategorizer> _logger;
 
     private const int BatchSize = 50;
+    private const int MaxAttempts = 3;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -82,12 +83,18 @@ public class AiBankTransactionCategorizer : IBankTransactionCategorizer
 
         var prompt =
             $"You are categorizing bank transactions for a personal finance app.\n" +
-            $"Available categories: {catList}\n\n" +
-            $"For each transaction description below, pick the single best matching category from the list above.\n" +
+            $"The book already has these categories: {catList}\n\n" +
+            $"For each transaction description below, pick the single best matching category.\n" +
             $"Rules:\n" +
+            $"- Prefer an existing category from the list above whenever one reasonably fits.\n" +
+            $"- Descriptions are raw bank narrations (UPI/NEFT/RTGS/IMPS) — they're often just a " +
+            $"payee's name with no business context. Use whatever signal is in the name (a business " +
+            $"name, a well-known brand, a service word like \"rent\"/\"salary\"/\"insurance\") to decide.\n" +
+            $"- If no existing category fits well, propose a short, sensible NEW category name " +
+            $"(2-3 words, Title Case) instead of forcing a bad match — it will be created automatically.\n" +
+            $"- Only reply \"Uncategorized\" when the description is a bare personal name or account " +
+            $"reference with truly no usable signal (e.g. a P2P transfer to an individual).\n" +
             $"- Reply with ONLY a JSON array of {batch.Count} strings, one per transaction, in the same order.\n" +
-            $"- Each string must be exactly one of the available category names.\n" +
-            $"- If no category fits, use \"Uncategorized\".\n" +
             $"- No explanation, no extra text — only the JSON array.\n\n" +
             $"Transactions:\n{txnLines}";
 
@@ -97,20 +104,13 @@ public class AiBankTransactionCategorizer : IBankTransactionCategorizer
             max_tokens = 1024,
             messages   = new[] { new { role = "user", content = prompt } }
         };
+        var payload = JsonSerializer.Serialize(body, JsonOpts);
 
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post, "https://api.anthropic.com/v1/messages")
+        var response = await SendWithRetryAsync(apiKey, payload);
+        if (response == null || !response.IsSuccessStatusCode)
         {
-            Content = new StringContent(
-                JsonSerializer.Serialize(body, JsonOpts), Encoding.UTF8, "application/json")
-        };
-        request.Headers.Add("x-api-key", apiKey);
-        request.Headers.Add("anthropic-version", "2023-06-01");
-
-        var response = await _http.SendAsync(request);
-        if (!response.IsSuccessStatusCode)
-        {
-            _logger.LogWarning("Claude returned {Status} for batch categorization", response.StatusCode);
+            _logger.LogWarning("Claude returned {Status} for batch categorization",
+                response?.StatusCode.ToString() ?? "no response");
             return batch.ToDictionary(t => t.RowNumber, _ => "Uncategorized");
         }
 
@@ -130,20 +130,65 @@ public class AiBankTransactionCategorizer : IBankTransactionCategorizer
         if (json is not JsonArray arr)
             return batch.ToDictionary(t => t.RowNumber, _ => "Uncategorized");
 
-        // Build a case-insensitive lookup of valid category names
-        var validNames = new HashSet<string>(categoryNames, StringComparer.OrdinalIgnoreCase);
-
         var result = new Dictionary<int, string>();
         for (int i = 0; i < batch.Count; i++)
         {
             var assigned = i < arr.Count ? arr[i]?.GetValue<string>()?.Trim() : null;
 
-            // Only accept the assignment if it's a real category in this book
-            result[batch[i].RowNumber] = (!string.IsNullOrEmpty(assigned) && validNames.Contains(assigned))
-                ? assigned
-                : "Uncategorized";
+            // Accept the AI's answer as long as it's a plausible category name — even one that
+            // isn't in the book yet, since the import pipeline auto-creates unknown categories
+            // the same way manual CSV import already does. This is what actually keeps rows out
+            // of Uncategorized: previously any name not already in the book's list was discarded.
+            result[batch[i].RowNumber] =
+                !string.IsNullOrWhiteSpace(assigned) &&
+                !assigned.Equals("uncategorized", StringComparison.OrdinalIgnoreCase) &&
+                assigned.Length <= 50
+                    ? assigned
+                    : "Uncategorized";
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Sends the batch request, retrying transient failures (429 / 5xx / network errors) with a
+    /// short backoff so one hiccup doesn't dump an entire 50-row batch into Uncategorized.
+    /// </summary>
+    private async Task<HttpResponseMessage?> SendWithRetryAsync(string apiKey, string payload)
+    {
+        HttpResponseMessage? lastResponse = null;
+
+        for (int attempt = 1; attempt <= MaxAttempts; attempt++)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Post, "https://api.anthropic.com/v1/messages")
+                {
+                    Content = new StringContent(payload, Encoding.UTF8, "application/json")
+                };
+                request.Headers.Add("x-api-key", apiKey);
+                request.Headers.Add("anthropic-version", "2023-06-01");
+
+                var response = await _http.SendAsync(request);
+                if (response.IsSuccessStatusCode) return response;
+
+                var retryable = response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ||
+                                 (int)response.StatusCode >= 500;
+
+                lastResponse?.Dispose();
+                lastResponse = response;
+
+                if (!retryable || attempt == MaxAttempts) return response;
+            }
+            catch (Exception ex) when (attempt < MaxAttempts)
+            {
+                _logger.LogWarning(ex, "Categorization request attempt {Attempt} failed, retrying", attempt);
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(400 * attempt));
+        }
+
+        return lastResponse;
     }
 }

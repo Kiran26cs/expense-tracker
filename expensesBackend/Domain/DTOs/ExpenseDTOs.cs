@@ -80,6 +80,10 @@ public class ExpenseDto
     public string? ReceiptNumber { get; set; }
     public bool IsReceiptItem { get; set; }
     public decimal? TaxAmount { get; set; }
+    // Set only on an update response, when the category change was retroactively applied to
+    // other expenses from the same bank-sync payee. 0/absent for creates, gets, and edits that
+    // didn't touch category or had no matching payee.
+    public int PayeeBulkUpdateCount { get; set; }
 }
 
 public class RecurringConfig

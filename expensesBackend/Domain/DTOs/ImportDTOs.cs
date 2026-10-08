@@ -22,6 +22,9 @@ public class CsvExpenseRow
     public string Currency { get; set; } = string.Empty;
     // Set by bank sync — stored as Expense.ExternalTxnRef for future duplicate detection
     public string? ExternalTxnRef { get; set; }
+    // Set by bank sync — stable payee identifier, stored on Expense.PayeeKey so future
+    // imports and manual corrections can teach the categorizer this payee's category
+    public string? PayeeKey { get; set; }
 }
 
 public class ImportSessionDto
@@ -34,6 +37,8 @@ public class ImportSessionDto
     public int ProcessedCount { get; set; }
     public int SuccessCount { get; set; }
     public int FailedCount { get; set; }
+    // Bank-sync only: how many imported rows still ended up "Uncategorized" after suggestion + review.
+    public int CategorizedUncategorized { get; set; }
     public List<ImportRecordDto> Records { get; set; } = [];
     public DateTime CreatedAt { get; set; }
     public DateTime? CompletedAt { get; set; }

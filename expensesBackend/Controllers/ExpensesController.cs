@@ -98,9 +98,8 @@ public class ExpensesController : ControllerBase
         {
             var userId = GetUserId();
 
-            if (!string.IsNullOrEmpty(expenseBookId))
-                await _memberService.EnsureHasAccessAsync(expenseBookId, userId, "expenses:view");
-
+            // Authorization is resolved from the expense's own ExpenseBookId inside the service —
+            // expenseBookId here is accepted for backward compatibility but is never trusted for access control.
             var expense = await _expenseService.GetExpenseByIdAsync(userId, id);
             return Ok(ApiResponse<ExpenseDto>.SuccessResponse(expense));
         }
@@ -190,22 +189,9 @@ public class ExpensesController : ControllerBase
         {
             var userId = GetUserId();
 
-            if (!string.IsNullOrEmpty(expenseBookId))
-            {
-                var perms = await _memberService.GetResolvedPermissionsAsync(expenseBookId, userId);
-                if (perms.Expenses != "write")
-                    return StatusCode(403, ApiResponse<ExpenseDto>.ErrorResponse("You do not have write access to expenses in this book."));
-
-                // Validate updated category is within allowed list (owners bypass this check)
-                if (!perms.IsOwner
-                    && perms.AllowedCategoryIds.Count > 0
-                    && !string.IsNullOrEmpty(request.Category)
-                    && !perms.AllowedCategoryIds.Contains(request.Category))
-                {
-                    return StatusCode(403, ApiResponse<ExpenseDto>.ErrorResponse("You are not allowed to use this category."));
-                }
-            }
-
+            // Authorization (write access + category restriction) is resolved from the expense's own
+            // ExpenseBookId inside the service — expenseBookId here is accepted for backward
+            // compatibility but is never trusted for access control.
             var expense = await _expenseService.UpdateExpenseAsync(userId, id, request);
             return Ok(ApiResponse<ExpenseDto>.SuccessResponse(expense));
         }
@@ -230,15 +216,9 @@ public class ExpensesController : ControllerBase
         {
             var userId = GetUserId();
 
-            if (!string.IsNullOrEmpty(expenseBookId))
-            {
-                var perms = await _memberService.GetResolvedPermissionsAsync(expenseBookId, userId);
-                if (perms.Role == "none")
-                    return StatusCode(403, ApiResponse<bool>.ErrorResponse("You do not have access to this book."));
-                if (!perms.CanDeleteExpenses)
-                    return StatusCode(403, ApiResponse<bool>.ErrorResponse("You do not have permission to delete expenses in this book."));
-            }
-
+            // Authorization (CanDeleteExpenses) is resolved from the expense's own ExpenseBookId
+            // inside the service — expenseBookId here is accepted for backward compatibility but
+            // is never trusted for access control.
             var result = await _expenseService.DeleteExpenseAsync(userId, id);
             if (!result)
                 return NotFound(ApiResponse<bool>.ErrorResponse("Expense not found"));

@@ -1,17 +1,19 @@
-import { Component, inject, signal, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent } from '../../components/input/input.component';
+import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-dialog.component';
 import { isValidEmail } from '../../utils/helpers';
 import { environment } from '../../../environments/environment';
+import { AccountLinkPreview } from '../../models/user.model';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, InputComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, InputComponent, ConfirmDialogComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.css'
 })
@@ -23,6 +25,24 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   loading = signal(false);
   resendTimer = signal(0);
   otpDigits = ['', '', '', '', '', ''];
+
+  linkPreview = signal<AccountLinkPreview | null>(null);
+  linkKind = signal<'google' | 'otp' | null>(null);
+  linking = signal(false);
+  private pendingGoogleCredential = '';
+  private pendingOtp = '';
+
+  linkDialogTitle = computed(() =>
+    this.linkKind() === 'google' ? 'Link your Google account?' : 'Link your email sign-in?');
+
+  linkDialogMessage = computed(() => {
+    const preview = this.linkPreview();
+    if (!preview) return '';
+    const created = new Date(preview.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return this.linkKind() === 'google'
+      ? `An account already exists for ${preview.email}, created ${created} with email sign-in. Signing in with Google will link to this existing account and its data.`
+      : `The account for ${preview.email} was created ${created} with Google sign-in. Signing in with your email code will link to this existing account and its data.`;
+  });
 
   private auth = inject(AuthStateService);
   private router = inject(Router);
@@ -67,17 +87,54 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loading.set(true);
     this.error.set('');
     try {
-      await this.auth.googleLogin(res.credential);
-      const pendingToken = sessionStorage.getItem('pendingInviteToken');
-      if (pendingToken) {
-        this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
-      } else {
-        this.router.navigate(['/app']);
+      const outcome = await this.auth.googleLogin(res.credential);
+      if (outcome.requiresLinking) {
+        this.pendingGoogleCredential = res.credential;
+        this.linkKind.set('google');
+        this.linkPreview.set(outcome.preview);
+        return;
       }
+      this.navigateAfterAuth();
     } catch (e: any) {
       this.error.set(e.message || 'Google login failed');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  cancelLink() {
+    this.linkPreview.set(null);
+    this.linkKind.set(null);
+    this.pendingGoogleCredential = '';
+    this.pendingOtp = '';
+  }
+
+  async confirmLink() {
+    this.linking.set(true);
+    try {
+      if (this.linkKind() === 'google') {
+        await this.auth.confirmGoogleLink(this.pendingGoogleCredential);
+      } else {
+        await this.auth.confirmOtpLink(this.emailOrPhone(), this.pendingOtp);
+      }
+      this.linkPreview.set(null);
+      this.linkKind.set(null);
+      this.navigateAfterAuth();
+    } catch (e: any) {
+      this.linkPreview.set(null);
+      this.linkKind.set(null);
+      this.error.set(e.message || 'Account linking failed');
+    } finally {
+      this.linking.set(false);
+    }
+  }
+
+  private navigateAfterAuth() {
+    const pendingToken = sessionStorage.getItem('pendingInviteToken');
+    if (pendingToken) {
+      this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
+    } else {
+      this.router.navigate(['/app']);
     }
   }
 
@@ -173,13 +230,14 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       const verify = await this.auth.verifyOTP(this.emailOrPhone(), this.otp);
       if (!verify.success) { this.error.set('Invalid verification code'); return; }
-      await this.auth.login(this.emailOrPhone(), this.otp);
-      const pendingToken = sessionStorage.getItem('pendingInviteToken');
-      if (pendingToken) {
-        this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
-      } else {
-        this.router.navigate(['/app']);
+      const outcome = await this.auth.login(this.emailOrPhone(), this.otp);
+      if (outcome.requiresLinking) {
+        this.pendingOtp = this.otp;
+        this.linkKind.set('otp');
+        this.linkPreview.set(outcome.preview);
+        return;
       }
+      this.navigateAfterAuth();
     } catch (e: any) {
       this.error.set(e.message || 'Login failed');
     } finally {

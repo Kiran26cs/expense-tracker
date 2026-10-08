@@ -99,6 +99,7 @@
 .stat-chip { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.75rem; border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
 .stat-included { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); }
 .stat-excluded { background: color-mix(in srgb, var(--color-text-tertiary) 12%, transparent); color: var(--color-text-secondary); }
+.stat-uncategorized { background: color-mix(in srgb, #f59e0b 15%, transparent); color: #b45309; }
 .preview-ctrl-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
 .payment-method-row { display: flex; align-items: center; gap: 0.75rem; }
 .payment-select { width: auto; }
@@ -126,6 +127,9 @@
 .col-check { width: 36px; }
 .col-date { white-space: nowrap; min-width: 100px; }
 .col-desc { max-width: 260px; }
+.col-category { min-width: 160px; }
+.category-select { padding: 0.35rem 0.5rem; font-size: var(--font-size-xs); }
+.category-select.category-unset { border-color: #f59e0b; color: #b45309; }
 .col-amount { white-space: nowrap; font-weight: var(--font-weight-semibold); text-align: right; }
 .col-type { white-space: nowrap; width: 80px; text-align: center; }
 .amount-income { color: var(--color-success); }

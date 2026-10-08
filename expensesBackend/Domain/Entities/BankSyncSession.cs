@@ -53,6 +53,24 @@ public class ParsedBankTransaction
     [BsonElement("description")]
     public string Description { get; set; } = string.Empty;
 
+    // The untouched bank narration before BankNarrationParser cleaned Description down to
+    // just a payee name. Kept for duplicate-fingerprinting (it carries the bank's own unique
+    // transaction ref, which the cleaned name doesn't) and for payment-method detection.
+    [BsonElement("rawDescription")]
+    [BsonIgnoreIfNull]
+    public string? RawDescription { get; set; }
+
+    // Stable payee identifier (UPI VPA or NEFT/RTGS/IMPS beneficiary name) extracted from
+    // RawDescription — null when the narration didn't match a recognized bank format.
+    [BsonElement("payeeKey")]
+    [BsonIgnoreIfNull]
+    public string? PayeeKey { get; set; }
+
+    // Suggested category (from payee memory or AI), shown in the preview step for the user to
+    // review/edit before confirming. "Uncategorized" if nothing could be suggested.
+    [BsonElement("category")]
+    public string Category { get; set; } = "Uncategorized";
+
     [BsonElement("amount")]
     public decimal Amount { get; set; }
 
@@ -60,7 +78,7 @@ public class ParsedBankTransaction
     [BsonElement("type")]
     public string Type { get; set; } = "expense";
 
-    // SHA256(bookId+date+amount+description) — set at confirm time when bookId is known
+    // SHA256(bookId+date+amount+rawDescription) — set at confirm time when bookId is known
     [BsonElement("externalTxnRef")]
     public string ExternalTxnRef { get; set; } = string.Empty;
 }

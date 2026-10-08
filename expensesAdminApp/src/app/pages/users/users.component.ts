@@ -18,6 +18,10 @@ interface UserDetail {
   credits?: { totalFreeLeft: number; totalPaidLeft: number };
 }
 
+interface UserSession {
+  id: string; deviceLabel: string; createdAt: string; lastUsedAt: string; isCurrent: boolean;
+}
+
 @Component({
   selector: 'admin-users',
   standalone: true,
@@ -40,6 +44,10 @@ export class UsersComponent implements OnInit {
 
   planChanging = signal(false);
   newPlan      = signal('');
+
+  sessions        = signal<UserSession[]>([]);
+  sessionsLoading = signal(false);
+  sessionsBusy    = signal(false);
 
   ngOnInit() { this.load(); }
 
@@ -71,9 +79,38 @@ export class UsersComponent implements OnInit {
       next: r => { this.selectedUser.set(r.data ?? null); this.newPlan.set(r.data?.plan ?? ''); this.detailLoading.set(false); },
       error: () => this.detailLoading.set(false),
     });
+    this.loadSessions(userId);
   }
 
-  closeDetail() { this.selectedUser.set(null); }
+  closeDetail() { this.selectedUser.set(null); this.sessions.set([]); }
+
+  loadSessions(userId: string) {
+    this.sessionsLoading.set(true);
+    this.api.get<ApiResponse<UserSession[]>>(`/admin/users/${userId}/sessions`).subscribe({
+      next: r => { this.sessions.set(r.data ?? []); this.sessionsLoading.set(false); },
+      error: () => this.sessionsLoading.set(false),
+    });
+  }
+
+  revokeSession(sessionId: string) {
+    const user = this.selectedUser();
+    if (!user) return;
+    this.sessionsBusy.set(true);
+    this.api.post<ApiResponse<boolean>>(`/admin/users/${user.id}/sessions/${sessionId}/revoke`).subscribe({
+      next: () => { this.loadSessions(user.id); this.sessionsBusy.set(false); },
+      error: () => this.sessionsBusy.set(false),
+    });
+  }
+
+  revokeAllSessions() {
+    const user = this.selectedUser();
+    if (!user) return;
+    this.sessionsBusy.set(true);
+    this.api.post<ApiResponse<boolean>>(`/admin/users/${user.id}/sessions/revoke-all`).subscribe({
+      next: () => { this.loadSessions(user.id); this.sessionsBusy.set(false); },
+      error: () => this.sessionsBusy.set(false),
+    });
+  }
 
   changePlan() {
     const user = this.selectedUser();

@@ -16,12 +16,47 @@ public class ExpenseService : IExpenseService
     private readonly MongoDbContext _context;
     private readonly ICacheService _cache;
     private readonly ICurrencyConversionService _fx;
+    private readonly IMemberService _members;
+    private readonly IPayeeCategoryMemoryService _payeeMemory;
 
-    public ExpenseService(MongoDbContext context, ICacheService cache, ICurrencyConversionService fx)
+    public ExpenseService(
+        MongoDbContext context, ICacheService cache, ICurrencyConversionService fx,
+        IMemberService members, IPayeeCategoryMemoryService payeeMemory)
     {
-        _context = context;
-        _cache   = cache;
-        _fx      = fx;
+        _context     = context;
+        _cache       = cache;
+        _fx          = fx;
+        _members     = members;
+        _payeeMemory = payeeMemory;
+    }
+
+    /// <summary>
+    /// Authorizes access to an existing expense. Expenses are not user-specific — multiple
+    /// members of a shared expense book can contribute — so ownership is resolved from the
+    /// expense's own ExpenseBookId, never from a client-supplied query parameter. Expenses
+    /// with no ExpenseBookId (personal, ungrouped) fall back to a strict owner check.
+    /// </summary>
+    private async Task EnsureExpenseAccessAsync(Expense expense, string userId, string requiredLevel)
+    {
+        if (!string.IsNullOrEmpty(expense.ExpenseBookId))
+        {
+            if (requiredLevel == "delete")
+            {
+                var perms = await _members.GetResolvedPermissionsAsync(expense.ExpenseBookId, userId);
+                if (perms.Role == "none")
+                    throw new UnauthorizedAccessException("You do not have access to this expense book.");
+                if (!perms.CanDeleteExpenses)
+                    throw new UnauthorizedAccessException("You do not have permission to delete expenses in this book.");
+            }
+            else
+            {
+                await _members.EnsureHasAccessAsync(expense.ExpenseBookId, userId, $"expenses:{requiredLevel}");
+            }
+        }
+        else if (expense.UserId != userId)
+        {
+            throw new UnauthorizedAccessException("You do not have access to this expense.");
+        }
     }
 
     public async Task<List<ExpenseDto>> GetExpensesAsync(string userId, string? expenseBookId, DateTime? startDate, DateTime? endDate, string? category)
@@ -236,6 +271,8 @@ public class ExpenseService : IExpenseService
         if (expense == null)
             throw new KeyNotFoundException("Expense not found");
 
+        await EnsureExpenseAccessAsync(expense, userId, "view");
+
         return MapToExpenseDto(expense);
     }
 
@@ -322,6 +359,12 @@ public class ExpenseService : IExpenseService
             }
         }
 
+        // Add-Transaction's category dropdown submits a category id, not a name — resolve it the
+        // same way UpdateExpenseAsync/CreateExpenseBatchAsync already do, so Category always ends
+        // up storing the name. Previously this stored the raw id unresolved, which silently broke
+        // category-based filtering and budget matching for every manually-added expense.
+        var resolvedCategoryName = await ResolveCategoryNameAsync(request.Category, request.ExpenseBookId);
+
         var expense = new Expense
         {
             UserId           = userId,
@@ -332,10 +375,10 @@ public class ExpenseService : IExpenseService
             OriginalCurrency = originalCurrency,
             FxRate           = fxRate,
             Date             = request.Date,
-            Category         = request.Category,
+            Category         = resolvedCategoryName,
             PaymentMethod    = request.PaymentMethod,
             Description      = string.IsNullOrWhiteSpace(request.Description)
-                                   ? await ResolveCategoryNameAsync(request.Category, request.ExpenseBookId)
+                                   ? resolvedCategoryName
                                    : request.Description,
             Notes            = request.Notes,
             IsRecurring      = false,
@@ -448,16 +491,43 @@ public class ExpenseService : IExpenseService
         if (expense == null)
             throw new KeyNotFoundException("Expense not found");
 
+        await EnsureExpenseAccessAsync(expense, userId, "write");
+
+        // Non-owner members are restricted to their allowed category list, if one is set.
+        if (!string.IsNullOrEmpty(expense.ExpenseBookId) && !string.IsNullOrEmpty(request.Category))
+        {
+            var perms = await _members.GetResolvedPermissionsAsync(expense.ExpenseBookId, userId);
+            if (!perms.IsOwner && perms.AllowedCategoryIds.Count > 0 && !perms.AllowedCategoryIds.Contains(request.Category))
+                throw new UnauthorizedAccessException("You are not allowed to use this category.");
+        }
+
         var oldAmount = expense.Amount;
         var oldDate = expense.Date;
         var oldCategory = expense.Category;
+        int payeeBulkUpdateCount = 0;
 
         if (request.Amount.HasValue)
             expense.Amount = request.Amount.Value;
         if (request.Date.HasValue)
             expense.Date = request.Date.Value;
         if (!string.IsNullOrEmpty(request.Category))
-            expense.Category = await ResolveCategoryNameAsync(request.Category, expense.ExpenseBookId);
+        {
+            var resolved = await ResolveCategoryAsync(request.Category, expense.ExpenseBookId);
+            expense.Category = resolved.Name;
+
+            // Learn from this manual correction: the next bank-sync import from the same payee
+            // should reuse whatever category the user just picked, instead of asking the AI again.
+            // Also retroactively apply it to every other existing expense from the same payee,
+            // so the correction isn't just forward-looking.
+            if (!string.IsNullOrEmpty(expense.PayeeKey) && !string.IsNullOrEmpty(expense.ExpenseBookId) &&
+                !string.IsNullOrEmpty(resolved.Id) &&
+                !string.Equals(resolved.Name, "Uncategorized", StringComparison.OrdinalIgnoreCase))
+            {
+                await _payeeMemory.RememberAsync(expense.ExpenseBookId, expense.PayeeKey, resolved.Id, resolved.Name);
+                payeeBulkUpdateCount = await ApplyCategoryToPayeeExpensesAsync(
+                    expense.ExpenseBookId, expense.PayeeKey, expenseId, resolved.Name);
+            }
+        }
         if (!string.IsNullOrEmpty(request.PaymentMethod))
             expense.PaymentMethod = request.PaymentMethod;
         if (request.Description != null)
@@ -491,7 +561,48 @@ public class ExpenseService : IExpenseService
             invalidations.Add(_cache.RemoveAsync(CacheKeys.UserBudgets(userId, expense.ExpenseBookId, CacheKeys.MonthKey(oldDate))));
         await Task.WhenAll(invalidations);
 
-        return MapToExpenseDto(expense);
+        var dto = MapToExpenseDto(expense);
+        dto.PayeeBulkUpdateCount = payeeBulkUpdateCount;
+        return dto;
+    }
+
+    /// <summary>
+    /// Retroactively applies a category to every other existing expense in the book that shares
+    /// the same payee key (e.g. the same UPI VPA), keeping daily summaries and budget caches for
+    /// each affected expense's own owner in sync. Called when the user manually corrects a
+    /// bank-sync-derived expense's category — the fix shouldn't be a one-off.
+    /// </summary>
+    private async Task<int> ApplyCategoryToPayeeExpensesAsync(
+        string expenseBookId, string payeeKey, string excludeExpenseId, string newCategory)
+    {
+        var filter = Builders<Expense>.Filter.And(
+            Builders<Expense>.Filter.Eq(e => e.ExpenseBookId, expenseBookId),
+            Builders<Expense>.Filter.Eq(e => e.PayeeKey, payeeKey),
+            Builders<Expense>.Filter.Ne(e => e.Id, excludeExpenseId),
+            Builders<Expense>.Filter.Ne(e => e.Category, newCategory));
+
+        var matches = await _context.Expenses.Find(filter).ToListAsync();
+        if (matches.Count == 0) return 0;
+
+        var invalidatedCacheKeys = new HashSet<string>();
+
+        foreach (var m in matches)
+        {
+            var oldCategory = m.Category;
+            m.Category  = newCategory;
+            m.UpdatedAt = DateTime.UtcNow;
+            await _context.Expenses.ReplaceOneAsync(e => e.Id == m.Id, m);
+
+            // Keep each expense's own owner's daily summary in sync
+            await UpdateDailyExpenseSummaryAsync(m.UserId, expenseBookId, m.Date, oldCategory, m.Amount, isAdd: false);
+            await UpdateDailyExpenseSummaryAsync(m.UserId, expenseBookId, m.Date, newCategory, m.Amount, isAdd: true);
+
+            invalidatedCacheKeys.Add(CacheKeys.UserBudgets(m.UserId, expenseBookId, CacheKeys.MonthKey(m.Date)));
+        }
+
+        await Task.WhenAll(invalidatedCacheKeys.Select(k => _cache.RemoveAsync(k)));
+
+        return matches.Count;
     }
 
     public async Task<bool> DeleteExpenseAsync(string userId, string expenseId)
@@ -502,6 +613,8 @@ public class ExpenseService : IExpenseService
 
         if (expense == null)
             return false;
+
+        await EnsureExpenseAccessAsync(expense, userId, "delete");
 
         // Update daily expense summary before deleting
         await UpdateDailyExpenseSummaryAsync(userId, expense.ExpenseBookId, expense.Date, expense.Category, expense.Amount, isAdd: false);
@@ -518,11 +631,13 @@ public class ExpenseService : IExpenseService
     public async Task<string> UploadReceiptAsync(string userId, string expenseId, Stream fileStream, string fileName)
     {
         var expense = await _context.Expenses
-            .Find(e => e.Id == expenseId && e.UserId == userId)
+            .Find(e => e.Id == expenseId)
             .FirstOrDefaultAsync();
 
         if (expense == null)
             throw new KeyNotFoundException("Expense not found");
+
+        await EnsureExpenseAccessAsync(expense, userId, "write");
 
         // TODO: Implement actual file upload to cloud storage (Azure Blob, AWS S3, etc.)
         var receiptUrl = $"/uploads/receipts/{expenseId}_{fileName}";
@@ -536,13 +651,16 @@ public class ExpenseService : IExpenseService
     }
 
     private async Task<string> ResolveCategoryNameAsync(string categoryIdOrName, string? expenseBookId)
+        => (await ResolveCategoryAsync(categoryIdOrName, expenseBookId)).Name;
+
+    private async Task<(string? Id, string Name)> ResolveCategoryAsync(string categoryIdOrName, string? expenseBookId)
     {
-        if (string.IsNullOrWhiteSpace(categoryIdOrName)) return string.Empty;
+        if (string.IsNullOrWhiteSpace(categoryIdOrName)) return (null, string.Empty);
         var cat = await _context.Categories
             .Find(c => (c.Id == categoryIdOrName || c.Name == categoryIdOrName)
                     && (string.IsNullOrEmpty(expenseBookId) || c.ExpenseBookId == expenseBookId))
             .FirstOrDefaultAsync();
-        return cat?.Name ?? categoryIdOrName;
+        return (cat?.Id, cat?.Name ?? categoryIdOrName);
     }
 
     private DateTime CalculateNextOccurrence(DateTime startDate, string frequency)

@@ -119,6 +119,30 @@
           }
         </div>
 
+        <!-- Sessions -->
+        <div class="detail-section">
+          <div class="section-label">Sessions</div>
+          @if (sessionsLoading()) {
+            <div class="muted">Loading…</div>
+          } @else if (sessions().length === 0) {
+            <div class="muted">No active sessions.</div>
+          } @else {
+            @for (s of sessions(); track s.id) {
+              <div class="detail-row">
+                <span>
+                  {{ s.deviceLabel }}
+                  @if (s.isCurrent) { <span class="badge badge-active">Current</span> }
+                  <div class="muted">Last used {{ s.lastUsedAt | date:'dd MMM yyyy, HH:mm' }}</div>
+                </span>
+                <button class="btn btn-sm btn-danger" [disabled]="sessionsBusy()" (click)="revokeSession(s.id)">Revoke</button>
+              </div>
+            }
+            <div class="action-row">
+              <button class="btn btn-danger btn-sm" [disabled]="sessionsBusy()" (click)="revokeAllSessions()">Revoke All Sessions</button>
+            </div>
+          }
+        </div>
+
         <!-- Actions -->
         <div class="detail-section">
           <div class="section-label">Account Actions</div>

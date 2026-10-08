@@ -16,6 +16,7 @@ public class SettingsController : ControllerBase
 {
     private readonly ICategoryService _categoryService;
     private readonly IExpenseBookService _expenseBookService;
+    private readonly IMemberService _memberService;
     private readonly MongoDbContext _context;
     private readonly ICacheService _cache;
     private readonly ICreditService _credits;
@@ -24,12 +25,14 @@ public class SettingsController : ControllerBase
     public SettingsController(
         ICategoryService categoryService,
         IExpenseBookService expenseBookService,
+        IMemberService memberService,
         MongoDbContext context,
         ICacheService cache,
         ICreditService credits)
     {
         _categoryService = categoryService;
         _expenseBookService = expenseBookService;
+        _memberService = memberService;
         _context = context;
         _cache = cache;
         _credits = credits;
@@ -37,11 +40,13 @@ public class SettingsController : ControllerBase
 
     private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
 
+    // Category/settings management is gated on the book's "Settings" permission, not mere
+    // membership — a viewer/member without settings access must not be able to create, rename,
+    // delete, import, or bulk-classify categories, or change book currency/savings goal.
+    // EnsureHasAccessAsync throws UnauthorizedAccessException (mapped to 403 by callers below)
+    // when the caller lacks write access, and when they aren't a member of the book at all.
     private async Task VerifyBookOwnershipAsync(string userId, string expenseBookId)
-    {
-        // Throws KeyNotFoundException if not found or not owned by this user
-        await _expenseBookService.GetExpenseBookByIdAsync(userId, expenseBookId);
-    }
+        => await _memberService.EnsureHasAccessAsync(expenseBookId, userId, "settings:write");
 
     // GET api/settings?expenseBookId=...
     [HttpGet("")]
@@ -51,6 +56,10 @@ public class SettingsController : ControllerBase
 
         if (!string.IsNullOrEmpty(expenseBookId))
         {
+            var perms = await _memberService.GetResolvedPermissionsAsync(expenseBookId, userId);
+            if (perms.Role == "none")
+                return StatusCode(403, ApiResponse<UserSettingsDto>.ErrorResponse("You do not have access to this expense book."));
+
             var cacheKey = CacheKeys.BookSettings(expenseBookId);
             var cached = await _cache.GetAsync<UserSettingsDto>(cacheKey);
             if (cached is not null)
@@ -97,6 +106,10 @@ public class SettingsController : ControllerBase
 
         if (!string.IsNullOrEmpty(request.ExpenseBookId))
         {
+            var perms = await _memberService.GetResolvedPermissionsAsync(request.ExpenseBookId, userId);
+            if (perms.Settings != "write")
+                return StatusCode(403, ApiResponse<UserSettingsDto>.ErrorResponse("You do not have write access to settings in this book."));
+
             var book = await _context.ExpenseBooks.Find(b => b.Id == request.ExpenseBookId).FirstOrDefaultAsync();
             if (book == null)
                 return NotFound(ApiResponse<UserSettingsDto>.ErrorResponse("Expense book not found"));
@@ -200,6 +213,10 @@ public class SettingsController : ControllerBase
         {
             return Forbid();
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<List<CategoryDto>>.ErrorResponse(ex.Message));
+        }
         catch (Exception ex)
         {
             return BadRequest(ApiResponse<List<CategoryDto>>.ErrorResponse(ex.Message));
@@ -224,6 +241,10 @@ public class SettingsController : ControllerBase
         catch (KeyNotFoundException)
         {
             return NotFound(ApiResponse<CategoryDto>.ErrorResponse("Category not found"));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<CategoryDto>.ErrorResponse(ex.Message));
         }
         catch (Exception ex)
         {
@@ -250,6 +271,10 @@ public class SettingsController : ControllerBase
         catch (KeyNotFoundException)
         {
             return Forbid();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<List<CategoryDto>>.ErrorResponse(ex.Message));
         }
         catch (ArgumentException ex)
         {
@@ -280,6 +305,10 @@ public class SettingsController : ControllerBase
         {
             return NotFound(ApiResponse<CategoryDto>.ErrorResponse("Category not found"));
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<CategoryDto>.ErrorResponse(ex.Message));
+        }
         catch (ArgumentException ex)
         {
             return BadRequest(ApiResponse<CategoryDto>.ErrorResponse(ex.Message));
@@ -308,6 +337,10 @@ public class SettingsController : ControllerBase
         catch (KeyNotFoundException)
         {
             return NotFound(ApiResponse<bool>.ErrorResponse("Category not found"));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<bool>.ErrorResponse(ex.Message));
         }
         catch (InvalidOperationException ex)
         {
@@ -349,6 +382,10 @@ public class SettingsController : ControllerBase
         catch (KeyNotFoundException)
         {
             return Forbid();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<AutoClassifyResult>.ErrorResponse(ex.Message));
         }
         catch (Exception ex)
         {
@@ -443,6 +480,10 @@ public class SettingsController : ControllerBase
         catch (KeyNotFoundException)
         {
             return Forbid();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<ImportCategoriesResponse>.ErrorResponse(ex.Message));
         }
         catch (Exception ex)
         {

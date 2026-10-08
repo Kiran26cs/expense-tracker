@@ -21,6 +21,11 @@ public class PlatformAdminAuthService : IPlatformAdminAuthService
     private const int MAX_OTP_ATTEMPTS   = 3;
     private const string ADMIN_JWT_AUDIENCE = "platform-admin-v1";
 
+    // Namespaces admin OTPs against AuthService's regular-user OTPs ("user"), which share the
+    // same email and the same OtpRecords collection — without this a regular user could clear
+    // a platform admin's pending OTP (or vice versa) by requesting one for the same email.
+    private const string OtpPurpose = "platform-admin";
+
     public PlatformAdminAuthService(
         MongoDbContext context,
         IConfiguration config,
@@ -47,9 +52,11 @@ public class PlatformAdminAuthService : IPlatformAdminAuthService
         var otp       = GenerateOtp();
         var expiresAt = DateTime.UtcNow.AddMinutes(OTP_EXPIRY_MINUTES);
 
-        // Reuse the same OtpRecord collection — email is namespaced naturally
+        // Reuse the same OtpRecord collection as the regular-user auth flow, scoped by Purpose so
+        // the two flows can never clear/consume each other's OTPs for a shared email.
         await _context.OtpRecords.DeleteManyAsync(
-            Builders<OtpRecord>.Filter.Eq(o => o.Email, email.ToLowerInvariant()));
+            Builders<OtpRecord>.Filter.Eq(o => o.Email, email.ToLowerInvariant())
+            & Builders<OtpRecord>.Filter.Eq(o => o.Purpose, OtpPurpose));
 
         await _context.OtpRecords.InsertOneAsync(new OtpRecord
         {
@@ -58,6 +65,7 @@ public class PlatformAdminAuthService : IPlatformAdminAuthService
             ExpiresAt = expiresAt,
             Attempts  = 0,
             Verified  = false,
+            Purpose   = OtpPurpose,
         });
 
         Console.WriteLine($"[Admin OTP] {otp}");
@@ -124,6 +132,7 @@ public class PlatformAdminAuthService : IPlatformAdminAuthService
     private async Task<bool> VerifyOtpAsync(string email, string otp)
     {
         var filter = Builders<OtpRecord>.Filter.Eq(o => o.Email, email)
+                   & Builders<OtpRecord>.Filter.Eq(o => o.Purpose, OtpPurpose)
                    & Builders<OtpRecord>.Filter.Gt(o => o.ExpiresAt, DateTime.UtcNow);
 
         var record = await _context.OtpRecords.Find(filter).FirstOrDefaultAsync();

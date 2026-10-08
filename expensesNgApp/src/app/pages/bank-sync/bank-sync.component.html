@@ -146,6 +146,9 @@
         <span class="stat-chip stat-excluded" *ngIf="excludedRows().size > 0">
           <i class="fa-solid fa-ban"></i> {{ excludedRows().size }} excluded
         </span>
+        <span class="stat-chip stat-uncategorized" *ngIf="uncategorizedCount > 0">
+          <i class="fa-solid fa-triangle-exclamation"></i> {{ uncategorizedCount }} need a category
+        </span>
       </div>
       <div class="preview-ctrl-right">
         <div class="payment-method-row">
@@ -170,6 +173,7 @@
             <th class="col-check"></th>
             <th class="col-date">Date</th>
             <th class="col-desc">Description</th>
+            <th class="col-category">Category</th>
             <th class="col-amount">Amount</th>
             <th class="col-type">Type</th>
           </tr>
@@ -178,10 +182,9 @@
           <tr
             *ngFor="let txn of preview()?.transactions"
             [class.row-excluded]="isExcluded(txn.rowNumber)"
-            (click)="toggleRow(txn.rowNumber)"
             class="txn-row"
           >
-            <td class="col-check">
+            <td class="col-check" (click)="toggleRow(txn.rowNumber)">
               <input
                 type="checkbox"
                 [checked]="!isExcluded(txn.rowNumber)"
@@ -189,12 +192,24 @@
                 (change)="toggleRow(txn.rowNumber)"
               />
             </td>
-            <td class="col-date">{{ formatDate(txn.date) }}</td>
-            <td class="col-desc">{{ txn.description }}</td>
-            <td class="col-amount" [class.amount-income]="txn.type === 'income'" [class.amount-expense]="txn.type === 'expense'">
+            <td class="col-date" (click)="toggleRow(txn.rowNumber)">{{ formatDate(txn.date) }}</td>
+            <td class="col-desc" (click)="toggleRow(txn.rowNumber)">{{ txn.description }}</td>
+            <td class="col-category">
+              <select
+                class="text-input category-select"
+                [class.category-unset]="txn.category === 'Uncategorized'"
+                [(ngModel)]="txn.category"
+                (ngModelChange)="onCategoryChange(txn)"
+                (click)="$event.stopPropagation()"
+              >
+                <option value="Uncategorized">Uncategorized</option>
+                <option *ngFor="let name of categoryOptionsFor(txn)" [value]="name">{{ name }}</option>
+              </select>
+            </td>
+            <td class="col-amount" (click)="toggleRow(txn.rowNumber)" [class.amount-income]="txn.type === 'income'" [class.amount-expense]="txn.type === 'expense'">
               {{ formatAmount(txn.amount, txn.type) }}
             </td>
-            <td class="col-type">
+            <td class="col-type" (click)="toggleRow(txn.rowNumber)">
               <span class="type-badge" [class.badge-income]="txn.type === 'income'" [class.badge-expense]="txn.type === 'expense'">
                 {{ txn.type }}
               </span>
@@ -235,7 +250,7 @@
       </p>
       <p class="done-hint">
         <i class="fa-solid fa-circle-info"></i>
-        Categories are auto-assigned by AI. Check Import History in the expense list for status.
+        Categories were applied as reviewed. Check Import History in the expense list for status.
       </p>
       <div class="done-actions">
         <app-button (clicked)="backToConnections()">Upload Another Statement</app-button>

@@ -38,6 +38,9 @@ export interface Expense {
   expenseBookId?: string;
   createdAt?: string;
   updatedAt?: string;
+  // Present on update responses only — count of other same-payee expenses that were
+  // retroactively re-categorized along with this one.
+  payeeBulkUpdateCount?: number;
 }
 
 export interface RecurringExpense {

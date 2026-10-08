@@ -124,7 +124,22 @@
         <button class="dropdown-item logout-item" (click)="authState.logout()">
           <i class="fa-solid fa-sign-out-alt"></i> Sign Out
         </button>
+        <button class="dropdown-item logout-item" (click)="openLogoutAllConfirm()">
+          <i class="fa-solid fa-right-from-bracket"></i> Sign Out All Devices
+        </button>
       </div>
     </div>
   </div>
+
+  <app-confirm-dialog
+    [isOpen]="showLogoutAllConfirm"
+    title="Sign out all devices?"
+    message="This will end every active session for your account, including this one. You'll need to sign in again everywhere."
+    icon="⚠️"
+    confirmLabel="Sign Out Everywhere"
+    [danger]="true"
+    [loading]="loggingOutAll"
+    (confirmed)="confirmLogoutAll()"
+    (cancelled)="cancelLogoutAll()">
+  </app-confirm-dialog>
 </header>

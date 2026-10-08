@@ -1,9 +1,14 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { throwError, catchError, EMPTY } from 'rxjs';
+import { throwError, catchError, switchMap, EMPTY } from 'rxjs';
 import { ToastService } from '../services/toast.service';
 import { SessionBus } from '../services/session-bus.service';
+import { AuthStateService } from '../services/auth-state.service';
+
+// Auth-bootstrap endpoints: a 401 here means bad credentials, not an expired session —
+// there's no access token/session to refresh yet, so don't attempt silent refresh.
+const AUTH_BOOTSTRAP_PATHS = ['/Auth/refresh', '/Auth/login', '/Auth/signup', '/Auth/google', '/Auth/send-otp', '/Auth/verify-otp'];
 
 const STATUS_MESSAGES: Record<number, string> = {
   400: 'Invalid request. Please check your input.',
@@ -33,19 +38,30 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router     = inject(Router);
   const toast      = inject(ToastService);
   const sessionBus = inject(SessionBus);
+  const authState  = inject(AuthStateService);
   const token      = localStorage.getItem('authToken');
 
   const authReq = token
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
     : req;
 
+  const canSilentlyRefresh = !AUTH_BOOTSTRAP_PATHS.some(path => req.url.includes(path));
+
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 401) {
-        sessionBus.notifyExpired();
-        return EMPTY;
+      if (error.status === 401 && canSilentlyRefresh) {
+        return authState.refreshAccessToken().pipe(
+          switchMap(newToken => next(req.clone({ setHeaders: { Authorization: `Bearer ${newToken}` } }))),
+          catchError(() => {
+            sessionBus.notifyExpired();
+            return EMPTY;
+          }),
+        );
       }
 
+      // A 401 on an auth-bootstrap endpoint (bad OTP/credential/expired link-confirmation) is
+      // a normal error for the caller to show inline — not a "your session expired" event,
+      // since there's no session to have expired yet.
       const message = friendlyMessage(error);
       return throwError(() => Object.assign(new Error(message), { status: error.status }));
     })

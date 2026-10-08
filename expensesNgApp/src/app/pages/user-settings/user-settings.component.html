@@ -223,6 +223,46 @@
       </app-card-content>
     </app-card>
 
+    <!-- Sessions -->
+    <app-card>
+      <app-card-header>
+        <app-card-title>
+          <i class="fa-solid fa-display" style="margin-right:6px"></i>My Sessions
+        </app-card-title>
+      </app-card-header>
+      <app-card-content>
+        @if (sessionsLoading()) {
+          <p class="setting-desc">Loading…</p>
+        } @else if (sessions().length === 0) {
+          <p class="setting-desc">No active sessions.</p>
+        } @else {
+          @for (s of sessions(); track s.id) {
+            <div class="setting-row">
+              <div class="setting-info">
+                <p class="setting-name">
+                  {{ s.deviceLabel }}
+                  @if (s.isCurrent) { <span class="plan-active-badge">This device</span> }
+                </p>
+                <p class="setting-desc">Last used {{ s.lastUsedAt | date:'dd MMM yyyy, HH:mm' }}</p>
+              </div>
+              @if (!s.isCurrent) {
+                <app-button [loading]="sessionsBusy()" (click)="revokeSession(s.id)">Revoke</app-button>
+              }
+            </div>
+          }
+          @if (sessions().length > 1) {
+            <div class="setting-row">
+              <div class="setting-info">
+                <p class="setting-name">Log out all other devices</p>
+                <p class="setting-desc">Ends every session except this one.</p>
+              </div>
+              <app-button [loading]="sessionsBusy()" (click)="openLogoutAllConfirm()">Log Out Others</app-button>
+            </div>
+          }
+        }
+      </app-card-content>
+    </app-card>
+
     <!-- Preferences -->
     <app-card>
       <app-card-header><app-card-title>Preferences</app-card-title></app-card-header>
@@ -253,6 +293,18 @@
 
   </div>
 </div>
+
+<app-confirm-dialog
+  [isOpen]="showLogoutAllConfirm()"
+  title="Log out all other devices?"
+  message="This will end every session except this one."
+  icon="⚠️"
+  confirmLabel="Log Out Others"
+  [danger]="true"
+  [loading]="sessionsBusy()"
+  (confirmed)="confirmLogoutAll()"
+  (cancelled)="cancelLogoutAll()">
+</app-confirm-dialog>
 
 <nav class="mobile-bottom-nav">
   <a routerLink="/app" class="mobile-nav-item">

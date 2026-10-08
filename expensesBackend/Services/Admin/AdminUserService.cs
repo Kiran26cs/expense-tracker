@@ -11,8 +11,13 @@ namespace ExpensesBackend.API.Services.Admin;
 public class AdminUserService : IAdminUserService
 {
     private readonly MongoDbContext _ctx;
+    private readonly ISessionService _sessions;
 
-    public AdminUserService(MongoDbContext ctx) => _ctx = ctx;
+    public AdminUserService(MongoDbContext ctx, ISessionService sessions)
+    {
+        _ctx = ctx;
+        _sessions = sessions;
+    }
 
     public async Task<AdminUserListDto> GetUsersAsync(string? search, int page, int pageSize)
     {
@@ -164,5 +169,46 @@ public class AdminUserService : IAdminUserService
         });
 
         return (await GetUserDetailAsync(userId))!;
+    }
+
+    public Task<List<SessionDto>> GetSessionsAsync(string userId)
+        => _sessions.ListActiveForUserAsync(userId, currentSessionId: null);
+
+    public async Task RevokeSessionAsync(string userId, string sessionId, string adminId, string adminEmail)
+    {
+        var user = await _ctx.Users.Find(u => u.Id == userId).FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("User not found.");
+
+        await _sessions.RevokeAsync(sessionId, "admin_revoke", requireUserId: userId);
+
+        await _ctx.AdminAuditLogs.InsertOneAsync(new AdminAuditLog
+        {
+            AdminId    = adminId,
+            AdminEmail = adminEmail,
+            Action     = AdminActions.RevokeSession,
+            TargetType = "session",
+            TargetId   = sessionId,
+            Summary    = $"Revoked session {sessionId} for {user.Email}",
+            Timestamp  = DateTime.UtcNow,
+        });
+    }
+
+    public async Task RevokeAllSessionsAsync(string userId, string adminId, string adminEmail)
+    {
+        var user = await _ctx.Users.Find(u => u.Id == userId).FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("User not found.");
+
+        await _sessions.RevokeAllForUserAsync(userId, "admin_revoke");
+
+        await _ctx.AdminAuditLogs.InsertOneAsync(new AdminAuditLog
+        {
+            AdminId    = adminId,
+            AdminEmail = adminEmail,
+            Action     = AdminActions.RevokeAllSessions,
+            TargetType = "user",
+            TargetId   = userId,
+            Summary    = $"Revoked all sessions for {user.Email}",
+            Timestamp  = DateTime.UtcNow,
+        });
     }
 }

@@ -13,6 +13,7 @@ import { CardComponent, CardHeaderComponent, CardTitleComponent, CardContentComp
 import { ButtonComponent } from '../../components/button/button.component';
 import { SelectComponent } from '../../components/input/input.component';
 import { InputComponent } from '../../components/input/input.component';
+import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-dialog.component';
 import { ApiResponse } from '../../models/user.model';
 import { firstValueFrom } from 'rxjs';
 
@@ -25,6 +26,14 @@ interface UsageDto {
   categoriesLimit: number;  // -1 = not applicable for this plan
 }
 
+interface SessionItem {
+  id: string;
+  deviceLabel: string;
+  createdAt: string;
+  lastUsedAt: string;
+  isCurrent: boolean;
+}
+
 @Component({
   selector: 'app-user-settings',
   standalone: true,
@@ -32,6 +41,7 @@ interface UsageDto {
     CommonModule, FormsModule, ReactiveFormsModule, RouterModule,
     TopbarComponent, CardComponent, CardHeaderComponent, CardTitleComponent,
     CardContentComponent, ButtonComponent, SelectComponent, InputComponent,
+    ConfirmDialogComponent,
   ],
   templateUrl: './user-settings.component.html',
   styleUrl: './user-settings.component.css',
@@ -50,6 +60,11 @@ export class UserSettingsComponent implements OnInit {
   usage        = signal<UsageDto | null>(null);
   notifStatus  = signal<NotifStatus>('loading');
   notifBusy    = signal(false);
+
+  sessions             = signal<SessionItem[]>([]);
+  sessionsLoading      = signal(false);
+  sessionsBusy         = signal(false);
+  showLogoutAllConfirm = signal(false);
 
   readonly planLimits: Record<string, { books: string; expenses: string; categories: string; credits: string; autoClassify: string }> = {
     Free:    { books: '3',         expenses: '150 / month',   categories: '20',        credits: '15 (one-time trial)', autoClassify: '5 (lifetime)'    },
@@ -73,7 +88,41 @@ export class UserSettingsComponent implements OnInit {
       });
     }
     this.loadUsage();
+    this.loadSessions();
     this.push.getStatus().then(s => this.notifStatus.set(s));
+  }
+
+  async loadSessions() {
+    this.sessionsLoading.set(true);
+    try {
+      const currentSessionId = this.authState.getSessionId() ?? '';
+      const res = await firstValueFrom(
+        this.api.get<ApiResponse<SessionItem[]>>(`/Auth/sessions?currentSessionId=${encodeURIComponent(currentSessionId)}`)
+      );
+      if (res.success && res.data) this.sessions.set(res.data);
+    } catch {}
+    finally { this.sessionsLoading.set(false); }
+  }
+
+  async revokeSession(sessionId: string) {
+    if (this.sessionsBusy()) return;
+    this.sessionsBusy.set(true);
+    try {
+      await firstValueFrom(this.api.post<ApiResponse<boolean>>('/Auth/logout', { sessionId }));
+      await this.loadSessions();
+    } catch {
+      this.toast.error('Could not revoke that session');
+    } finally {
+      this.sessionsBusy.set(false);
+    }
+  }
+
+  openLogoutAllConfirm()  { this.showLogoutAllConfirm.set(true); }
+  cancelLogoutAll()       { this.showLogoutAllConfirm.set(false); }
+
+  async confirmLogoutAll() {
+    this.sessionsBusy.set(true);
+    await this.authState.logoutAll();
   }
 
   async loadUsage() {

@@ -43,10 +43,13 @@ export class BankConnectionService {
     );
   }
 
-  parseStatement(connectionId: string, file: File, password?: string) {
+  parseStatement(connectionId: string, file: File, password?: string, expenseBookId?: string) {
     const form = new FormData();
     form.append('file', file);
     if (password) form.append('password', password);
+    // Lets the backend suggest categories (payee memory + AI) against this book's categories
+    // for the preview screen — optional, older calls without it just skip suggestions.
+    if (expenseBookId) form.append('expenseBookId', expenseBookId);
     return firstValueFrom(
       this.http.post<ApiResponse<BankStatementPreviewDto>>(
         `${this.base}/bank-sync/${connectionId}/parse`, form

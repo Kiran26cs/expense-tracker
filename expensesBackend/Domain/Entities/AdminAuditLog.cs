@@ -55,4 +55,6 @@ public static class AdminActions
     public const string CreateAdmin       = "create_admin";
     public const string UpdateAdmin       = "update_admin";
     public const string DeactivateAdmin   = "deactivate_admin";
+    public const string RevokeSession     = "revoke_session";
+    public const string RevokeAllSessions = "revoke_all_sessions";
 }

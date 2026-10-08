@@ -6,6 +6,15 @@
       <p class="page-subtitle">{{ totalCount() }} transaction(s)</p>
     </div>
     <div class="header-actions">
+      <button
+        *ngIf="uncategorizedCount() > 0 && filterCategory() !== 'Uncategorized'"
+        class="uncategorized-chip"
+        (click)="showUncategorizedOnly()"
+        title="Filter to Uncategorized transactions"
+      >
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        {{ uncategorizedCount() }} Uncategorized — Review
+      </button>
       <app-button *ngIf="bookAccess.canWriteExpenses()" (clicked)="openAddModal()">+ Add Transaction</app-button>
     </div>
   </div>
@@ -64,7 +73,11 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let e of expenses()">
+            <tr *ngFor="let e of expenses()"
+              [class.row-swiped]="isRowSwiped(e.id)"
+              (touchstart)="onRowTouchStart($event)"
+              (touchmove)="onRowTouchMove($event)"
+              (touchend)="onRowTouchEnd(e.id)">
               <td>
                 <div class="expense-desc">
                   <div class="expense-icon" [style.background]="getCategoryColor(getStr(e.category))"><i [class]="getCategoryIcon(getStr(e.category))"></i></div>
@@ -92,7 +105,14 @@
                         (click)="saveCategoryEdit(e, c.id)">
                         {{ c.name }}
                       </div>
-                      <div *ngIf="catFilteredCategories().length === 0" class="cat-search-empty">No match</div>
+                      <div *ngIf="catFilteredCategories().length === 0 && catSearchQuery().trim() as query"
+                        class="cat-search-item cat-search-create"
+                        [class.cat-search-create-loading]="catCreateLoading()"
+                        (click)="createAndAssignCategory(e)">
+                        <i class="fa-solid" [class.fa-plus]="!catCreateLoading()" [class.fa-spinner]="catCreateLoading()" [class.fa-spin]="catCreateLoading()"></i>
+                        Create "{{ query }}"
+                      </div>
+                      <div *ngIf="catFilteredCategories().length === 0 && !catSearchQuery().trim()" class="cat-search-empty">No categories yet</div>
                     </div>
                   </div>
                 </ng-template>

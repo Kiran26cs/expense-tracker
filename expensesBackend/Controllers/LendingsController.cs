@@ -36,6 +36,10 @@ public class LendingsController : ControllerBase
         {
             return NotFound(ApiResponse<List<LendingDto>>.ErrorResponse(ex.Message));
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<List<LendingDto>>.ErrorResponse(ex.Message));
+        }
         catch (Exception ex)
         {
             return BadRequest(ApiResponse<List<LendingDto>>.ErrorResponse(ex.Message));
@@ -55,6 +59,10 @@ public class LendingsController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<LendingDto>.ErrorResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<LendingDto>.ErrorResponse(ex.Message));
         }
         catch (Exception ex)
         {
@@ -81,6 +89,10 @@ public class LendingsController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<LendingDto>.ErrorResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<LendingDto>.ErrorResponse(ex.Message));
         }
         catch (ArgumentException ex)
         {
@@ -109,6 +121,10 @@ public class LendingsController : ControllerBase
         {
             return NotFound(ApiResponse<LendingDto>.ErrorResponse(ex.Message));
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<LendingDto>.ErrorResponse(ex.Message));
+        }
         catch (Exception ex)
         {
             return BadRequest(ApiResponse<LendingDto>.ErrorResponse(ex.Message));
@@ -129,6 +145,10 @@ public class LendingsController : ControllerBase
         {
             return NotFound(ApiResponse<bool>.ErrorResponse(ex.Message));
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<bool>.ErrorResponse(ex.Message));
+        }
         catch (Exception ex)
         {
             return BadRequest(ApiResponse<bool>.ErrorResponse(ex.Message));
@@ -148,6 +168,10 @@ public class LendingsController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<bool>.ErrorResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<bool>.ErrorResponse(ex.Message));
         }
         catch (Exception ex)
         {
@@ -173,6 +197,10 @@ public class LendingsController : ControllerBase
         {
             return NotFound(ApiResponse<LendingRepaymentsResponse>.ErrorResponse(ex.Message));
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<LendingRepaymentsResponse>.ErrorResponse(ex.Message));
+        }
         catch (Exception ex)
         {
             return BadRequest(ApiResponse<LendingRepaymentsResponse>.ErrorResponse(ex.Message));
@@ -195,6 +223,10 @@ public class LendingsController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<RepaymentDto>.ErrorResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<RepaymentDto>.ErrorResponse(ex.Message));
         }
         catch (InvalidOperationException ex)
         {
@@ -226,6 +258,10 @@ public class LendingsController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<bool>.ErrorResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<bool>.ErrorResponse(ex.Message));
         }
         catch (Exception ex)
         {

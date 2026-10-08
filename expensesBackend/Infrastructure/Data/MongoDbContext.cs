@@ -69,6 +69,12 @@ public class MongoDbContext
     public IMongoCollection<BankSyncSession> BankSyncSessions =>
         _database.GetCollection<BankSyncSession>("bankSyncSessions");
 
+    public IMongoCollection<Session> Sessions =>
+        _database.GetCollection<Session>("sessions");
+
+    public IMongoCollection<PayeeCategoryMemory> PayeeCategoryMemories =>
+        _database.GetCollection<PayeeCategoryMemory>("payeeCategoryMemories");
+
     private void CreateIndexes()
     {
         // User indexes
@@ -370,6 +376,30 @@ public class MongoDbContext
                 .Ascending(s => s.UserId)
                 .Descending(s => s.CreatedAt),
             new CreateIndexOptions { Name = "idx_banksyncsession_user_created" }));
+
+        // Session indexes — lookup of a user's active sessions, sorted by most recently used
+        Sessions.Indexes.CreateOne(new CreateIndexModel<Session>(
+            Builders<Session>.IndexKeys
+                .Ascending(s => s.UserId)
+                .Descending(s => s.LastUsedAt),
+            new CreateIndexOptions { Name = "idx_session_user_lastused" }));
+
+        // TTL: auto-delete a session once it's past its refresh-token expiry (revoked or not)
+        Sessions.Indexes.CreateOne(new CreateIndexModel<Session>(
+            Builders<Session>.IndexKeys.Ascending(s => s.ExpiresAt),
+            new CreateIndexOptions { Name = "idx_session_ttl", ExpireAfter = TimeSpan.Zero }));
+
+        // Reuse-detection: revoke every row in a compromised rotation lineage
+        Sessions.Indexes.CreateOne(new CreateIndexModel<Session>(
+            Builders<Session>.IndexKeys.Ascending(s => s.FamilyId),
+            new CreateIndexOptions { Name = "idx_session_family" }));
+
+        // Payee category memory — one remembered category per (book, payee) pair
+        PayeeCategoryMemories.Indexes.CreateOne(new CreateIndexModel<PayeeCategoryMemory>(
+            Builders<PayeeCategoryMemory>.IndexKeys
+                .Ascending(p => p.ExpenseBookId)
+                .Ascending(p => p.PayeeKey),
+            new CreateIndexOptions { Name = "idx_payeememory_book_payee", Unique = true }));
 
         // Expenses — unique partial index for duplicate detection via externalTxnRef.
         // PartialFilterExpression (Type == String) replaces Sparse=true because Cosmos DB

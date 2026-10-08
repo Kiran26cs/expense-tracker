@@ -4,7 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BankConnectionService } from '../../services/bank-connection.service';
 import { CurrentBookService } from '../../services/current-book.service';
+import { MemberService } from '../../services/member.service';
 import { ToastService } from '../../services/toast.service';
+import { Category } from '../../models/expense.model';
 import {
   BankConnectionDto,
   BankName,
@@ -33,10 +35,13 @@ type Step = 'connections' | 'upload' | 'preview' | 'done';
   styleUrl: './bank-sync.component.css',
 })
 export class BankSyncComponent implements OnInit {
-  private svc   = inject(BankConnectionService);
-  private route = inject(ActivatedRoute);
+  private svc     = inject(BankConnectionService);
+  private route   = inject(ActivatedRoute);
+  private members = inject(MemberService);
   readonly currentBook = inject(CurrentBookService);
   private toast = inject(ToastService);
+
+  categories = signal<Category[]>([]);
 
   readonly bankNames      = BANK_NAMES;
   readonly paymentMethods = PAYMENT_METHODS;
@@ -93,11 +98,36 @@ export class BankSyncComponent implements OnInit {
     return p.transactions.filter(t => !this.excludedRows().has(t.rowNumber)).length;
   }
 
+  get uncategorizedCount(): number {
+    const p = this.preview();
+    if (!p) return 0;
+    return p.transactions.filter(t =>
+      !this.excludedRows().has(t.rowNumber) && t.category === 'Uncategorized'
+    ).length;
+  }
+
   ngOnInit() {
     this.route.parent?.params.subscribe(p => {
       this.bookId = p['bookId'] || '';
       this.loadConnections();
+      this.loadCategories();
     });
+  }
+
+  private async loadCategories() {
+    if (!this.bookId) return;
+    try {
+      const res = await this.members.getAccessibleCategories(this.bookId);
+      if (res.success && res.data) this.categories.set(res.data);
+    } catch { /* silent — dropdown just falls back to the suggested value only */ }
+  }
+
+  /** Category dropdown options for a row — the book's categories, plus the AI/memory-suggested
+   *  value itself if it's a brand-new name the book doesn't have yet (so it isn't silently
+   *  dropped from the select before the user even sees it). */
+  categoryOptionsFor(txn: ParsedBankTransactionDto): string[] {
+    const names = this.categories().map(c => c.name);
+    return names.includes(txn.category) ? names : [txn.category, ...names];
   }
 
   async loadConnections() {
@@ -193,8 +223,9 @@ export class BankSyncComponent implements OnInit {
     this.uploadLoading.set(true);
     this.uploadError.set('');
     try {
-      const res = await this.svc.parseStatement(conn.id, file, this.pdfPassword || undefined);
+      const res = await this.svc.parseStatement(conn.id, file, this.pdfPassword || undefined, this.bookId);
       if (res.success && res.data) {
+        this.propagateCategoriesWithinBatch(res.data.transactions);
         this.preview.set(res.data);
         this.excludedRows.set(new Set());
         this.defaultPayment = 'Bank Transfer';
@@ -211,6 +242,42 @@ export class BankSyncComponent implements OnInit {
   }
 
   // ── Preview step ────────────────────────────────────────────────────────────
+
+  private payeeMatchKey(t: ParsedBankTransactionDto): string {
+    return t.payeeKey || t.description;
+  }
+
+  /** Same payee, multiple rows in this statement, only one got a real suggestion (memory hit
+   *  landed on one occurrence, or the AI batch happened to answer differently per row) — fill
+   *  the rest in automatically. Never overwrites a row that already has a real category. */
+  private propagateCategoriesWithinBatch(transactions: ParsedBankTransactionDto[]) {
+    const knownByPayee = new Map<string, string>();
+    for (const t of transactions) {
+      if (t.category !== 'Uncategorized' && !knownByPayee.has(this.payeeMatchKey(t))) {
+        knownByPayee.set(this.payeeMatchKey(t), t.category);
+      }
+    }
+    for (const t of transactions) {
+      if (t.category === 'Uncategorized') {
+        const known = knownByPayee.get(this.payeeMatchKey(t));
+        if (known) t.category = known;
+      }
+    }
+  }
+
+  /** User picked a category for one row by hand — apply it to every other still-Uncategorized
+   *  row for the same payee in this batch too, so they don't have to repeat the pick. */
+  onCategoryChange(txn: ParsedBankTransactionDto) {
+    const p = this.preview();
+    if (!p || txn.category === 'Uncategorized') return;
+    const key = this.payeeMatchKey(txn);
+    for (const t of p.transactions) {
+      if (t.rowNumber !== txn.rowNumber && t.category === 'Uncategorized' && this.payeeMatchKey(t) === key) {
+        t.category = txn.category;
+      }
+    }
+  }
+
   toggleRow(rowNumber: number) {
     this.excludedRows.update(set => {
       const next = new Set(set);
@@ -243,10 +310,18 @@ export class BankSyncComponent implements OnInit {
     this.confirmLoading.set(true);
     this.confirmError.set('');
     try {
+      // Send the final, user-reviewed category for every included row — whatever's currently
+      // in txn.category, whether that's the original suggestion or an edit made in the table.
+      const categoryOverrides: Record<number, string> = {};
+      for (const t of p.transactions) {
+        if (!this.excludedRows().has(t.rowNumber)) categoryOverrides[t.rowNumber] = t.category;
+      }
+
       const res = await this.svc.confirmSync(p.sessionId, {
         expenseBookId:        this.bookId,
         defaultPaymentMethod: this.defaultPayment,
         excludeRowNumbers:    Array.from(this.excludedRows()),
+        categoryOverrides,
       });
       if (res.success && res.data) {
         this.importedCount.set(res.data.imported);

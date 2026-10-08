@@ -26,6 +26,9 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'members',   label: 'Members',   icon: 'fa-solid fa-users',       path: 'members',   requirePermission: 'canManageMembers' },
 ];
 
+/** Nav item ids that move into the mobile footer's "More" overflow menu */
+const MOBILE_OVERFLOW_IDS = new Set(['settings', 'members']);
+
 @Component({
   selector: 'app-sidebar',
   standalone: true,
@@ -56,6 +59,22 @@ export class SidebarComponent implements OnInit, OnDestroy {
     });
   });
 
+  /** Mobile footer: primary items shown directly */
+  primaryNavItems = computed(() => this.navItems().filter(item => !MOBILE_OVERFLOW_IDS.has(item.id)));
+
+  /** Mobile footer: items tucked under the "More" overflow menu */
+  moreNavItems = computed(() => this.navItems().filter(item => MOBILE_OVERFLOW_IDS.has(item.id)));
+
+  isMoreMenuOpen = false;
+
+  toggleMoreMenu() { this.isMoreMenuOpen = !this.isMoreMenuOpen; }
+
+  closeMoreMenu() { this.isMoreMenuOpen = false; }
+
+  isMoreActive(): boolean {
+    return this.moreNavItems().some(item => this.isActive(item.path));
+  }
+
   bookId = '';
   currentPath = '';
   private sub!: Subscription;
@@ -67,6 +86,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.bookId = this.route.snapshot.paramMap.get('bookId') || '';
     this.sub = this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe((e: any) => {
       this.currentPath = e.url;
+      this.isMoreMenuOpen = false;
     });
     this.sub.add(this.route.params.subscribe(async p => {
       this.bookId = p['bookId'] || '';

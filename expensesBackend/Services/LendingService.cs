@@ -9,41 +9,31 @@ namespace ExpensesBackend.API.Services;
 public class LendingService : ILendingService
 {
     private readonly MongoDbContext _context;
+    private readonly IMemberService _members;
 
-    public LendingService(MongoDbContext context)
+    public LendingService(MongoDbContext context, IMemberService members)
     {
         _context = context;
+        _members = members;
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private async Task<Lending> GetOwnedLendingAsync(string userId, string expenseBookId, string lendingId)
+    private async Task<Lending> GetOwnedLendingAsync(string userId, string expenseBookId, string lendingId, bool requireWrite = false)
     {
         var lending = await _context.Lendings
             .Find(l => l.Id == lendingId && l.ExpenseBookId == expenseBookId && !l.IsDeleted)
             .FirstOrDefaultAsync()
             ?? throw new KeyNotFoundException("Lending not found");
 
-        await VerifyBookOwnershipAsync(userId, expenseBookId);
+        await VerifyBookAccessAsync(userId, expenseBookId, requireWrite);
         return lending;
     }
 
-    private async Task VerifyBookOwnershipAsync(string userId, string expenseBookId)
-    {
-        var book = await _context.ExpenseBooks
-            .Find(b => b.Id == expenseBookId && b.UserId == userId)
-            .FirstOrDefaultAsync();
-
-        if (book is null)
-        {
-            // Check membership (members can view but not modify — owner-only ops checked separately)
-            var member = await _context.ExpenseBookMembers
-                .Find(m => m.ExpenseBookId == expenseBookId && m.UserId == userId && m.InviteStatus == "accepted")
-                .FirstOrDefaultAsync();
-            if (member is null)
-                throw new KeyNotFoundException("Expense book not found or access denied");
-        }
-    }
+    // Lending/repayment records are financial data — members must actually hold write access to
+    // the book (budgets:write) to create/modify/delete them, not merely be an accepted member.
+    private async Task VerifyBookAccessAsync(string userId, string expenseBookId, bool requireWrite)
+        => await _members.EnsureHasAccessAsync(expenseBookId, userId, requireWrite ? "budgets:write" : "budgets:view");
 
     /// <summary>
     /// Calculates accrued simple interest using reducing balance.
@@ -158,7 +148,7 @@ public class LendingService : ILendingService
 
     public async Task<List<LendingDto>> GetLendingsAsync(string userId, string expenseBookId, string? status = null)
     {
-        await VerifyBookOwnershipAsync(userId, expenseBookId);
+        await VerifyBookAccessAsync(userId, expenseBookId, requireWrite: false);
 
         var filter = Builders<Lending>.Filter.And(
             Builders<Lending>.Filter.Eq(l => l.ExpenseBookId, expenseBookId),
@@ -206,7 +196,7 @@ public class LendingService : ILendingService
 
     public async Task<LendingDto> CreateLendingAsync(string userId, CreateLendingRequest request)
     {
-        await VerifyBookOwnershipAsync(userId, request.ExpenseBookId);
+        await VerifyBookAccessAsync(userId, request.ExpenseBookId, requireWrite: true);
 
         var lending = new Lending
         {
@@ -228,7 +218,7 @@ public class LendingService : ILendingService
 
     public async Task<LendingDto> UpdateLendingAsync(string userId, string expenseBookId, string lendingId, UpdateLendingRequest request)
     {
-        var lending = await GetOwnedLendingAsync(userId, expenseBookId, lendingId);
+        var lending = await GetOwnedLendingAsync(userId, expenseBookId, lendingId, requireWrite: true);
 
         var update = Builders<Lending>.Update.Set(l => l.UpdatedAt, DateTime.UtcNow);
 
@@ -250,7 +240,7 @@ public class LendingService : ILendingService
 
     public async Task DeleteLendingAsync(string userId, string expenseBookId, string lendingId)
     {
-        await GetOwnedLendingAsync(userId, expenseBookId, lendingId);
+        await GetOwnedLendingAsync(userId, expenseBookId, lendingId, requireWrite: true);
 
         var now = DateTime.UtcNow;
         await _context.Lendings.UpdateOneAsync(
@@ -312,7 +302,7 @@ public class LendingService : ILendingService
 
     public async Task<RepaymentDto> AddRepaymentAsync(string userId, string expenseBookId, string lendingId, CreateRepaymentRequest request)
     {
-        var lending = await GetOwnedLendingAsync(userId, expenseBookId, lendingId);
+        var lending = await GetOwnedLendingAsync(userId, expenseBookId, lendingId, requireWrite: true);
 
         if (lending.Status == "settled")
             throw new InvalidOperationException("Cannot add repayment to a settled lending");
@@ -340,7 +330,7 @@ public class LendingService : ILendingService
 
     public async Task DeleteRepaymentAsync(string userId, string expenseBookId, string lendingId, string repaymentId)
     {
-        await GetOwnedLendingAsync(userId, expenseBookId, lendingId);
+        await GetOwnedLendingAsync(userId, expenseBookId, lendingId, requireWrite: true);
 
         var repayment = await _context.LendingRepayments
             .Find(r => r.Id == repaymentId && r.LendingId == lendingId && !r.IsDeleted)
@@ -367,7 +357,7 @@ public class LendingService : ILendingService
 
     public async Task SettleLendingAsync(string userId, string expenseBookId, string lendingId, decimal? interestCollected, DateTime? settlementDate, string? notes)
     {
-        var lending = await GetOwnedLendingAsync(userId, expenseBookId, lendingId);
+        var lending = await GetOwnedLendingAsync(userId, expenseBookId, lendingId, requireWrite: true);
 
         // Record the interest collection as a repayment before settling
         if (interestCollected.HasValue && interestCollected.Value > 0)

@@ -1,9 +1,3 @@
-# Frontend
-webapps/node_modules/
-webapps/dist/
-webapps/.env.local
-webapps/.env.*.local
-
 # Backend
 expensesBackend/bin/
 expensesBackend/obj/
@@ -27,3 +21,24 @@ Thumbs.db
 *.o
 *.a
 *.so
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+dist/
+.angular/
+**/bin/
+**/obj/
+expensesBackend/publish-linux/
+
+# Deploy artifacts
+*.zip
+deploy-log.txt
+
+# Test output
+test-results/
+playwright-report/

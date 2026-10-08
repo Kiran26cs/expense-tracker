@@ -8,4 +8,7 @@ public interface IAdminUserService
     Task<AdminUserDetailDto?> GetUserDetailAsync(string userId);
     Task<AdminUserDetailDto> ChangePlanAsync(string userId, string plan, string adminId, string adminEmail);
     Task<AdminUserDetailDto> SetActiveAsync(string userId, bool isActive, string adminId, string adminEmail);
+    Task<List<SessionDto>> GetSessionsAsync(string userId);
+    Task RevokeSessionAsync(string userId, string sessionId, string adminId, string adminEmail);
+    Task RevokeAllSessionsAsync(string userId, string adminId, string adminEmail);
 }

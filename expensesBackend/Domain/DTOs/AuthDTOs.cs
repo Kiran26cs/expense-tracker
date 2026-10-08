@@ -24,7 +24,28 @@ public class AuthResponse
 {
     public string Token { get; set; } = string.Empty;
     public string RefreshToken { get; set; } = string.Empty;
+    public string SessionId { get; set; } = string.Empty;
     public UserDto User { get; set; } = new();
+}
+
+public class RefreshRequest
+{
+    public string SessionId { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
+}
+
+public class LogoutRequest
+{
+    public string SessionId { get; set; } = string.Empty;
+}
+
+public class SessionDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string DeviceLabel { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime LastUsedAt { get; set; }
+    public bool IsCurrent { get; set; }
 }
 
 public class UserDto
@@ -48,4 +69,20 @@ public class UpdateProfileRequest
 public class GoogleAuthRequest
 {
     public string Credential { get; set; } = string.Empty;
+}
+
+public class AccountLinkPreviewDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
+// Shared by both GoogleLoginAsync and LoginAsync — either flow can discover an existing
+// account that was created via the other method and needs one-time link confirmation.
+public class LoginLinkResult
+{
+    public bool RequiresLinking { get; set; }
+    public AccountLinkPreviewDto? Preview { get; set; }
+    public AuthResponse? Auth { get; set; }
 }

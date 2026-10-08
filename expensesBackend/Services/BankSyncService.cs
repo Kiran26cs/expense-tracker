@@ -1,5 +1,6 @@
 using ExpensesBackend.API.Domain.DTOs;
 using ExpensesBackend.API.Domain.Entities;
+using ExpensesBackend.API.Services.AI;
 using ExpensesBackend.API.Services.BankSync;
 using ExpensesBackend.API.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
@@ -14,19 +15,26 @@ public class BankSyncService : IBankSyncService
     private readonly MongoDbContext _context;
     private readonly BankStatementParserFactory _parserFactory;
     private readonly IImportService _importService;
+    private readonly IPayeeCategoryMemoryService _payeeMemory;
+    private readonly AiBankTransactionCategorizer _categorizer;
 
     public BankSyncService(
         MongoDbContext context,
         BankStatementParserFactory parserFactory,
-        IImportService importService)
+        IImportService importService,
+        IPayeeCategoryMemoryService payeeMemory,
+        AiBankTransactionCategorizer categorizer)
     {
         _context       = context;
         _parserFactory = parserFactory;
         _importService = importService;
+        _payeeMemory   = payeeMemory;
+        _categorizer   = categorizer;
     }
 
     public async Task<BankStatementPreviewDto> ParseStatementAsync(
-        string connectionId, string userId, IFormFile file, string? password = null)
+        string connectionId, string userId, IFormFile file, string? password = null,
+        string? expenseBookId = null)
     {
         var connection = await LoadConnectionAsync(connectionId, userId)
             ?? throw new KeyNotFoundException("Bank connection not found");
@@ -44,6 +52,25 @@ public class BankSyncService : IBankSyncService
             throw new InvalidOperationException(
                 "No transactions were found in this file. " +
                 "Please check that you have exported the correct date range.");
+
+        // Clean up raw bank narrations ("UPI/AZHAGAPPAN/aka639439-1@ok/UPI/INDUSINDB/...")
+        // down to just the payee name, while keeping the original text around (RawDescription)
+        // for duplicate fingerprinting and payment-method detection. PayeeKey lets the
+        // categorizer recognize this same payee again in future imports.
+        foreach (var t in transactions)
+        {
+            var (clean, payeeKey) = BankNarrationParser.Parse(t.Description);
+            t.RawDescription = t.Description;
+            t.Description    = clean;
+            t.PayeeKey       = payeeKey;
+        }
+
+        // Suggest a category per transaction — payee memory first, then AI for the rest — so the
+        // user reviews/edits real suggestions on the preview screen instead of everything starting
+        // out as "Uncategorized". Only possible once we know which book's categories to match
+        // against; older callers that don't pass expenseBookId just get the Uncategorized default.
+        if (!string.IsNullOrWhiteSpace(expenseBookId))
+            await SuggestCategoriesAsync(expenseBookId, transactions);
 
         // Store session (TTL 2h) for the confirm step
         var session = new BankSyncSession
@@ -72,9 +99,51 @@ public class BankSyncService : IBankSyncService
                 Date        = t.Date.ToString("yyyy-MM-dd"),
                 Description = t.Description,
                 Amount      = t.Amount,
-                Type        = t.Type
+                Type        = t.Type,
+                Category    = t.Category,
+                PayeeKey    = t.PayeeKey
             }).ToList()
         };
+    }
+
+    /// <summary>
+    /// Fills in ParsedBankTransaction.Category for the preview screen: a remembered payee gets
+    /// its known category instantly (free, no AI call); everything else goes through the AI
+    /// classifier in one batched call. Left as "Uncategorized" only when neither has an answer.
+    /// </summary>
+    private async Task SuggestCategoriesAsync(string expenseBookId, List<ParsedBankTransaction> transactions)
+    {
+        var payeeKeys = transactions
+            .Where(t => !string.IsNullOrEmpty(t.PayeeKey))
+            .Select(t => t.PayeeKey!)
+            .Distinct()
+            .ToList();
+        var memory = await _payeeMemory.GetMemoryAsync(expenseBookId, payeeKeys);
+
+        var remaining = new List<ParsedBankTransaction>();
+        foreach (var t in transactions)
+        {
+            if (!string.IsNullOrEmpty(t.PayeeKey) && memory.TryGetValue(t.PayeeKey, out var known))
+                t.Category = known.CategoryName;
+            else
+                remaining.Add(t);
+        }
+
+        if (remaining.Count == 0) return;
+
+        var categoryNames = await _context.Categories
+            .Find(c => c.ExpenseBookId == expenseBookId)
+            .Project(c => c.Name)
+            .ToListAsync();
+
+        var inputs = remaining.Select(t => (t.RowNumber, t.Description)).ToList();
+        var assignments = await _categorizer.ClassifyAsync(inputs, categoryNames);
+
+        foreach (var t in remaining)
+        {
+            if (assignments.TryGetValue(t.RowNumber, out var cat))
+                t.Category = cat;
+        }
     }
 
     public async Task<BankSyncConfirmResultDto> ConfirmSyncAsync(
@@ -115,16 +184,26 @@ public class BankSyncService : IBankSyncService
                 continue;
             }
 
+            // The user reviews/edits categories on the preview screen before confirming — trust
+            // that final choice (CategoryOverrides) over whatever was merely suggested at parse
+            // time, falling back to the suggestion for any row the frontend didn't resubmit.
+            var category = request.CategoryOverrides != null &&
+                            request.CategoryOverrides.TryGetValue(t.RowNumber, out var chosen) &&
+                            !string.IsNullOrWhiteSpace(chosen)
+                ? chosen.Trim()
+                : (string.IsNullOrWhiteSpace(t.Category) ? "Uncategorized" : t.Category);
+
             newRows.Add(new CsvExpenseRow
             {
                 RowNumber      = t.RowNumber,
                 Description    = t.Description,
                 Amount         = t.Amount,
                 Date           = t.Date.ToString("yyyy-MM-dd"),
-                Category       = "Uncategorized",
-                PaymentMethod  = DetectPaymentMethod(t.Description, request.DefaultPaymentMethod),
+                Category       = category,
+                PaymentMethod  = DetectPaymentMethod(t.RawDescription ?? t.Description, request.DefaultPaymentMethod),
                 Type           = t.Type,
-                ExternalTxnRef = t.ExternalTxnRef
+                ExternalTxnRef = t.ExternalTxnRef,
+                PayeeKey       = t.PayeeKey
             });
         }
 
@@ -217,7 +296,11 @@ public class BankSyncService : IBankSyncService
 
     private static string ComputeFingerprint(string expenseBookId, ParsedBankTransaction t)
     {
-        var raw = $"{expenseBookId}|{t.Date:yyyy-MM-dd}|{Math.Abs(t.Amount):F2}|{t.Description.ToLowerInvariant().Trim()}";
+        // Fingerprint off the raw narration, not the cleaned payee name — the raw text carries
+        // the bank's own unique transaction ref, so two different payments to the same payee on
+        // the same day for the same amount don't collide and get dropped as "duplicates".
+        var descForHash = (t.RawDescription ?? t.Description).ToLowerInvariant().Trim();
+        var raw = $"{expenseBookId}|{t.Date:yyyy-MM-dd}|{Math.Abs(t.Amount):F2}|{descForHash}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
         return Convert.ToHexString(hash).ToLowerInvariant();
     }

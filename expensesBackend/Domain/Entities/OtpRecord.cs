@@ -12,6 +12,12 @@ public class OtpRecord
     [BsonElement("email")]
     public string Email { get; set; } = string.Empty;
 
+    // Namespaces this OTP to its auth flow ("user" or "platform-admin") so the public user-facing
+    // send-otp endpoint can never clear/consume an OTP that belongs to the admin login flow (or
+    // vice versa), even when both flows share an email address.
+    [BsonElement("purpose")]
+    public string Purpose { get; set; } = "user";
+
     [BsonElement("otp")]
     public string Otp { get; set; } = string.Empty;
 

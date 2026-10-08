@@ -5,13 +5,15 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ButtonComponent } from '../../components/button/button.component';
 import { InputComponent } from '../../components/input/input.component';
+import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-dialog.component';
 import { isValidEmail } from '../../utils/helpers';
 import { environment } from '../../../environments/environment';
+import { AccountLinkPreview } from '../../models/user.model';
 
 @Component({
   selector: 'app-signup',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, InputComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ButtonComponent, InputComponent, ConfirmDialogComponent],
   templateUrl: './signup.component.html',
   styleUrl: './signup.component.css'
 })
@@ -24,6 +26,10 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
   loading = signal(false);
   resendTimer = signal(0);
   otpDigits = ['', '', '', '', '', ''];
+
+  linkPreview = signal<AccountLinkPreview | null>(null);
+  linking = signal(false);
+  private pendingGoogleCredential = '';
 
   private auth = inject(AuthStateService);
   private router = inject(Router);
@@ -68,17 +74,45 @@ export class SignupComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loading.set(true);
     this.error.set('');
     try {
-      await this.auth.googleLogin(res.credential);
-      const pendingToken = sessionStorage.getItem('pendingInviteToken');
-      if (pendingToken) {
-        this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
-      } else {
-        this.router.navigate(['/app']);
+      const outcome = await this.auth.googleLogin(res.credential);
+      if (outcome.requiresLinking) {
+        this.pendingGoogleCredential = res.credential;
+        this.linkPreview.set(outcome.preview);
+        return;
       }
+      this.navigateAfterAuth();
     } catch (e: any) {
       this.error.set(e.message || 'Google sign-up failed');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  cancelLink() {
+    this.linkPreview.set(null);
+    this.pendingGoogleCredential = '';
+  }
+
+  async confirmLink() {
+    this.linking.set(true);
+    try {
+      await this.auth.confirmGoogleLink(this.pendingGoogleCredential);
+      this.linkPreview.set(null);
+      this.navigateAfterAuth();
+    } catch (e: any) {
+      this.linkPreview.set(null);
+      this.error.set(e.message || 'Account linking failed');
+    } finally {
+      this.linking.set(false);
+    }
+  }
+
+  private navigateAfterAuth() {
+    const pendingToken = sessionStorage.getItem('pendingInviteToken');
+    if (pendingToken) {
+      this.router.navigate(['/accept-invite'], { queryParams: { token: pendingToken } });
+    } else {
+      this.router.navigate(['/app']);
     }
   }
 

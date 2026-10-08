@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, DestroyRef, HostListener } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
@@ -51,9 +51,11 @@ export class ExpenseListComponent implements OnInit {
   categories = signal<any[]>([]);
   paymentMethods = signal<any[]>([]);
 
+  // Filter value is the category NAME, not id — Expense.category is stored (and filtered
+  // server-side, see ExpenseService.GetExpensesPagedAsync) by name, never by id.
   categoryOptions = computed(() => [
     { value: '', label: 'All Categories' },
-    ...this.categories().map(c => ({ value: c.id, label: c.name }))
+    ...this.categories().map(c => ({ value: c.name, label: c.name }))
   ]);
   paymentMethodOptions = computed(() => [
     { value: '', label: 'All Payment Methods' },
@@ -94,6 +96,9 @@ export class ExpenseListComponent implements OnInit {
   sortField = signal<'date' | 'amount'>('date');
   sortDir = signal<'asc' | 'desc'>('desc');
 
+  // Quick "Uncategorized" shortcut — refreshed alongside the main list so the count stays live
+  uncategorizedCount = signal(0);
+
   // Mobile filter panel
   showFilterPanel = signal(false);
   activeFilterCount = computed(() =>
@@ -108,6 +113,51 @@ export class ExpenseListComponent implements OnInit {
   expenseToDelete = signal<Expense | null>(null);
   deleteLoading = false;
   bookId = '';
+
+  // ── Touch: swipe-left-to-reveal row actions (no hover on mobile/PWA) ────────
+  swipedExpenseId = signal<string | null>(null);
+  private touchStartX = 0;
+  private touchStartY = 0;
+  private touchCurrentX = 0;
+  private touchSwiping = false;
+
+  isRowSwiped(id: string): boolean { return this.swipedExpenseId() === id; }
+
+  onRowTouchStart(e: TouchEvent) {
+    const t = e.touches[0];
+    this.touchStartX = this.touchCurrentX = t.clientX;
+    this.touchStartY = t.clientY;
+    this.touchSwiping = false;
+  }
+
+  onRowTouchMove(e: TouchEvent) {
+    const t = e.touches[0];
+    const dx = t.clientX - this.touchStartX;
+    const dy = t.clientY - this.touchStartY;
+    if (!this.touchSwiping) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      if (Math.abs(dx) <= Math.abs(dy)) return; // vertical scroll — let the page scroll
+      this.touchSwiping = true;
+    }
+    this.touchCurrentX = t.clientX;
+    e.preventDefault(); // suppress vertical scroll while horizontally swiping
+  }
+
+  onRowTouchEnd(id: string) {
+    if (this.touchSwiping) {
+      const dx = this.touchCurrentX - this.touchStartX;
+      if (dx < -40) this.swipedExpenseId.set(id);
+      else if (dx > 40 && this.swipedExpenseId() === id) this.swipedExpenseId.set(null);
+    }
+    this.touchSwiping = false;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClickCloseSwipe(e: MouseEvent) {
+    if (this.swipedExpenseId() === null) return;
+    const target = e.target as HTMLElement;
+    if (!target.closest('tr.row-swiped')) this.swipedExpenseId.set(null);
+  }
 
   // Add Expense Modal
   showAddModal = signal(false);
@@ -141,6 +191,7 @@ export class ExpenseListComponent implements OnInit {
     if (!q) return this.categories();
     return this.categories().filter(c => c.name.toLowerCase().includes(q));
   });
+  catCreateLoading = signal(false);
 
   // Add Category Sub-modal
   showAddCategoryModal = signal(false);
@@ -376,12 +427,47 @@ export class ExpenseListComponent implements OnInit {
           list.map(e => e.id === expense.id ? { ...e, category: prevCategory } : e)
         );
         this.toast.error(res.error || 'Failed to update category');
+      } else {
+        const bulkCount = res.data?.payeeBulkUpdateCount ?? 0;
+        if (bulkCount > 0) {
+          this.toast.success(
+            `Category updated — also applied to ${bulkCount} other transaction${bulkCount === 1 ? '' : 's'} from this payee`
+          );
+          this.loadExpenses(); // refresh so the other re-categorized rows show correctly too
+        }
       }
     } catch {
       this.expenses.update(list =>
         list.map(e => e.id === expense.id ? { ...e, category: prevCategory } : e)
       );
       this.toast.error('Failed to update category');
+    }
+  }
+
+  /** No existing category matches the inline search — create one from the typed text and
+   *  apply it to this expense in one step, instead of sending the user off to Settings first. */
+  async createAndAssignCategory(expense: Expense) {
+    const name = this.catSearchQuery().trim();
+    if (!name || this.catCreateLoading()) return;
+
+    this.catCreateLoading.set(true);
+    try {
+      const res = await this.settingsService.createCategory(this.bookId, {
+        name,
+        icon: 'fa fa-tag',
+        color: '#6366f1',
+      });
+      if (res.success && res.data) {
+        this.categories.update(cats => [...cats, res.data]);
+        await this.saveCategoryEdit(expense, res.data.id); // closes the dropdown itself on success
+        this.toast.success(`Category "${name}" created and applied`);
+      } else {
+        this.toast.error((res as any).error || 'Failed to create category');
+      }
+    } catch (e: any) {
+      this.toast.error(e?.error?.error ?? 'Failed to create category');
+    } finally {
+      this.catCreateLoading.set(false);
     }
   }
   getCategoryColor(idOrName: string): string {
@@ -465,6 +551,23 @@ export class ExpenseListComponent implements OnInit {
       }
     } catch (e: any) { this.toast.error(e.message || 'Failed to load expenses'); }
     finally { this.loading.set(false); }
+    this.loadUncategorizedCount();
+  }
+
+  /** Cheap pageSize:1 query just to read `total` — powers the "Uncategorized" quick-filter chip. */
+  private async loadUncategorizedCount() {
+    try {
+      const res = await this.expenseService.getExpenses(this.bookId, {
+        category: 'Uncategorized',
+        pageSize: 1,
+      });
+      if (res.success && res.data) this.uncategorizedCount.set(res.data.total ?? 0);
+    } catch { /* non-critical — chip just stays hidden/stale */ }
+  }
+
+  showUncategorizedOnly() {
+    this.filterCategory.set('Uncategorized');
+    this.onFilterChange();
   }
 
   onSearch(val: string) {
@@ -729,6 +832,7 @@ export class ExpenseListComponent implements OnInit {
   }
 
   async openEditModal(id: string) {
+    this.swipedExpenseId.set(null);
     this.editExpenseId.set(id);
     this.editError.set('');
     this.editOriginalAmount.set(null);
@@ -797,7 +901,11 @@ export class ExpenseListComponent implements OnInit {
     try {
       const res = await this.expenseService.updateExpense(this.bookId, this.editExpenseId(), payload);
       if (res.success) {
-        this.toast.success(v.type === 'income' ? 'Income updated' : 'Expense updated');
+        const bulkCount = res.data?.payeeBulkUpdateCount ?? 0;
+        const base = v.type === 'income' ? 'Income updated' : 'Expense updated';
+        this.toast.success(bulkCount > 0
+          ? `${base} — also applied to ${bulkCount} other transaction${bulkCount === 1 ? '' : 's'} from this payee`
+          : base);
         this.closeEditModal();
         this.loadExpenses();
       } else {
@@ -810,7 +918,7 @@ export class ExpenseListComponent implements OnInit {
     }
   }
 
-  openDeleteConfirm(e: Expense) { this.expenseToDelete.set(e); this.showDeleteConfirm.set(true); }
+  openDeleteConfirm(e: Expense) { this.swipedExpenseId.set(null); this.expenseToDelete.set(e); this.showDeleteConfirm.set(true); }
 
   async handleDelete() {
     const e = this.expenseToDelete();

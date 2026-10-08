@@ -86,6 +86,14 @@ public class Expense
     [BsonIgnoreIfNull]
     public string? ExternalTxnRef { get; set; }
 
+    // Stable payee identifier derived from a bank-sync narration (UPI VPA or NEFT/RTGS/IMPS
+    // beneficiary name) — not shown in the UI. Lets future imports recognize the same payee
+    // and reapply whatever category the user picked for them last time. Null for expenses
+    // not sourced from bank sync.
+    [BsonElement("payeeKey")]
+    [BsonIgnoreIfNull]
+    public string? PayeeKey { get; set; }
+
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

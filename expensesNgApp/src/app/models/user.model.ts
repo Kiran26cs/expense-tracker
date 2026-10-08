@@ -41,3 +41,15 @@ export interface PaginatedResponse<T> {
 }
 
 export type Theme = 'light' | 'dark';
+
+export interface AccountLinkPreview {
+  name: string;
+  email: string;
+  createdAt: string;
+}
+
+// Shared by googleLogin() and login() — either flow can discover an existing account that
+// was created via the other method and needs one-time link confirmation.
+export type LinkableLoginOutcome =
+  | { requiresLinking: true; preview: AccountLinkPreview }
+  | { requiresLinking: false };

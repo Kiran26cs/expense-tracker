@@ -173,6 +173,7 @@ public class ImportService : IImportService
         ProcessedCount = s.ProcessedCount,
         SuccessCount   = s.SuccessCount,
         FailedCount    = s.FailedCount,
+        CategorizedUncategorized = s.CategorizedUncategorized,
         Records        = s.Records.Select(r => new ImportRecordDto
         {
             RowNumber     = r.RowNumber,

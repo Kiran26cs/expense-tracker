@@ -1,18 +1,19 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Observable, catchError, finalize, map, shareReplay, throwError } from 'rxjs';
 import { ApiService } from './api.service';
 import { SessionBus } from './session-bus.service';
 import { ToastService } from './toast.service';
 import { ThemeService } from './theme.service';
 import { PushNotificationService } from './push-notification.service';
-import { User, ApiResponse } from '../models/user.model';
+import { User, ApiResponse, LinkableLoginOutcome } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
 export class AuthStateService {
   private userSignal = signal<User | null>(null);
   private loadingSignal = signal(true);
   private _handlingExpiry = false;
+  private refreshInProgress$: Observable<string> | null = null;
 
   user = this.userSignal.asReadonly();
   isLoading = this.loadingSignal.asReadonly();
@@ -46,9 +47,58 @@ export class AuthStateService {
     localStorage.setItem('authToken', token);
   }
 
+  getSessionId(): string | null {
+    return localStorage.getItem('sessionId');
+  }
+
+  getRefreshToken(): string | null {
+    return localStorage.getItem('refreshToken');
+  }
+
+  private setSession(token: string, refreshToken: string, sessionId: string): void {
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('sessionId', sessionId);
+  }
+
   clearToken(): void {
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('sessionId');
+  }
+
+  /** Silently exchanges the stored refresh token for a new access token. De-duped so
+   *  concurrent 401s share one in-flight request instead of racing to refresh. */
+  refreshAccessToken(): Observable<string> {
+    if (this.refreshInProgress$) return this.refreshInProgress$;
+
+    const sessionId = this.getSessionId();
+    const refreshToken = this.getRefreshToken();
+    if (!sessionId || !refreshToken) {
+      return throwError(() => new Error('No refresh token available'));
+    }
+
+    this.refreshInProgress$ = this.api
+      .post<ApiResponse<{ token: string; refreshToken: string; sessionId: string; user: User }>>(
+        '/Auth/refresh',
+        { sessionId, refreshToken },
+      )
+      .pipe(
+        map(response => {
+          if (!response.success || !response.data) throw new Error(response.error || 'Refresh failed');
+          this.setSession(response.data.token, response.data.refreshToken, response.data.sessionId);
+          return response.data.token;
+        }),
+        catchError(err => {
+          this.clearSession();
+          return throwError(() => err);
+        }),
+        finalize(() => { this.refreshInProgress$ = null; }),
+        shareReplay(1),
+      );
+
+    return this.refreshInProgress$;
   }
 
   clearSession(): void {
@@ -88,42 +138,95 @@ export class AuthStateService {
     this.loadingSignal.set(false);
   }
 
-  async login(email: string, otp: string): Promise<void> {
+  /** Returns `{ requiresLinking: true, preview }` without creating a session when this OTP
+   *  matches an existing Google-created account that's never used OTP login before — the
+   *  caller must show a confirmation and call confirmOtpLink() to proceed. */
+  async login(email: string, otp: string): Promise<LinkableLoginOutcome> {
     const response = await firstValueFrom(
-      this.api.post<ApiResponse<{ token: string; user: User }>>(`/Auth/login?otp=${otp}`, { email })
+      this.api.post<ApiResponse<{
+        requiresLinking: boolean;
+        preview?: { name: string; email: string; createdAt: string };
+        auth?: { token: string; refreshToken: string; sessionId: string; user: User };
+      }>>(`/Auth/login?otp=${otp}`, { email })
     );
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Login failed');
+    }
 
+    if (response.data.requiresLinking && response.data.preview) {
+      return { requiresLinking: true, preview: response.data.preview };
+    }
+
+    if (!response.data.auth) {
+      throw new Error('Login failed');
+    }
+    this.setSession(response.data.auth.token, response.data.auth.refreshToken, response.data.auth.sessionId);
+    this.persistUser(response.data.auth.user);
+    return { requiresLinking: false };
+  }
+
+  async confirmOtpLink(email: string, otp: string): Promise<void> {
+    const response = await firstValueFrom(
+      this.api.post<ApiResponse<{ token: string; refreshToken: string; sessionId: string; user: User }>>('/Auth/login/confirm-link', { email, otp })
+    );
     if (response.success && response.data) {
-      this.setToken(response.data.token);
+      this.setSession(response.data.token, response.data.refreshToken, response.data.sessionId);
       this.persistUser(response.data.user);
     } else {
-      throw new Error(response.error || 'Login failed');
+      throw new Error(response.error || 'Account linking failed');
     }
   }
 
   async signup(name: string, email: string, otp: string): Promise<void> {
     const response = await firstValueFrom(
-      this.api.post<ApiResponse<{ token: string; user: User }>>(`/Auth/signup?otp=${otp}`, {
+      this.api.post<ApiResponse<{ token: string; refreshToken: string; sessionId: string; user: User }>>(`/Auth/signup?otp=${otp}`, {
         name, email, currency: 'USD', monthlyIncome: 0,
       })
     );
     if (response.success && response.data) {
-      this.setToken(response.data.token);
+      this.setSession(response.data.token, response.data.refreshToken, response.data.sessionId);
       this.persistUser(response.data.user);
     } else {
       throw new Error(response.error || 'Signup failed');
     }
   }
 
-  async googleLogin(credential: string): Promise<void> {
+  /** Returns `{ requiresLinking: true, preview }` without creating a session when the
+   *  credential matches an existing OTP-created account that's never used Google before —
+   *  the caller must show a confirmation and call confirmGoogleLink() to proceed. */
+  async googleLogin(credential: string): Promise<LinkableLoginOutcome> {
     const response = await firstValueFrom(
-      this.api.post<ApiResponse<{ token: string; user: User }>>('/Auth/google', { credential })
+      this.api.post<ApiResponse<{
+        requiresLinking: boolean;
+        preview?: { name: string; email: string; createdAt: string };
+        auth?: { token: string; refreshToken: string; sessionId: string; user: User };
+      }>>('/Auth/google', { credential })
+    );
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Google login failed');
+    }
+
+    if (response.data.requiresLinking && response.data.preview) {
+      return { requiresLinking: true, preview: response.data.preview };
+    }
+
+    if (!response.data.auth) {
+      throw new Error('Google login failed');
+    }
+    this.setSession(response.data.auth.token, response.data.auth.refreshToken, response.data.auth.sessionId);
+    this.persistUser(response.data.auth.user);
+    return { requiresLinking: false };
+  }
+
+  async confirmGoogleLink(credential: string): Promise<void> {
+    const response = await firstValueFrom(
+      this.api.post<ApiResponse<{ token: string; refreshToken: string; sessionId: string; user: User }>>('/Auth/google/confirm-link', { credential })
     );
     if (response.success && response.data) {
-      this.setToken(response.data.token);
+      this.setSession(response.data.token, response.data.refreshToken, response.data.sessionId);
       this.persistUser(response.data.user);
     } else {
-      throw new Error(response.error || 'Google login failed');
+      throw new Error(response.error || 'Account linking failed');
     }
   }
 
@@ -136,6 +239,22 @@ export class AuthStateService {
   }
 
   logout(): void {
+    const sessionId = this.getSessionId();
+    if (sessionId) {
+      // Best-effort — clear locally regardless of whether the API call succeeds.
+      firstValueFrom(this.api.post<ApiResponse<boolean>>('/Auth/logout', { sessionId })).catch(() => {});
+    }
+    this.themeService.reset();
+    this.clearSession();
+    this.router.navigate(['/login']);
+  }
+
+  async logoutAll(): Promise<void> {
+    try {
+      await firstValueFrom(this.api.post<ApiResponse<boolean>>('/Auth/logout-all'));
+    } catch {
+      // Best-effort — still clear locally so this device is logged out either way.
+    }
     this.themeService.reset();
     this.clearSession();
     this.router.navigate(['/login']);

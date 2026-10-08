@@ -17,14 +17,33 @@ public class AuthService : IAuthService
     private readonly MongoDbContext _context;
     private readonly IConfiguration _configuration;
     private readonly IMessagingService _messaging;
+    private readonly ISessionService _sessions;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private const int OTP_EXPIRY_MINUTES = 5;
     private const int MAX_OTP_ATTEMPTS = 3;
 
-    public AuthService(MongoDbContext context, IConfiguration configuration, IMessagingService messaging)
+    // Namespaces this service's OTPs against PlatformAdminAuthService's, which uses "platform-admin".
+    // Without this, a regular user could clear/replace a platform admin's pending OTP (or vice versa)
+    // by sending an OTP request for the same email address.
+    private const string OtpPurpose = "user";
+
+    // Date the account-linking confirmation feature shipped. Accounts created before this
+    // predate the GoogleId/OtpLinkedAt fields, so a null value on them doesn't mean "never
+    // used this method" — see GoogleLoginAsync's and LoginAsync's grandfather branches.
+    private static readonly DateTime AccountLinkingFeatureCutoverUtc = new(2026, 8, 12, 0, 0, 0, DateTimeKind.Utc);
+
+    public AuthService(
+        MongoDbContext context,
+        IConfiguration configuration,
+        IMessagingService messaging,
+        ISessionService sessions,
+        IHttpContextAccessor httpContextAccessor)
     {
         _context = context;
         _configuration = configuration;
         _messaging = messaging;
+        _sessions = sessions;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<bool> SendOtpAsync(string email, bool isLogin = false)
@@ -50,11 +69,13 @@ public class AuthService : IAuthService
             Otp = otp,
             ExpiresAt = expiresAt,
             Attempts = 0,
-            Verified = false
+            Verified = false,
+            Purpose = OtpPurpose
         };
 
+        // Scoped to Purpose so this never clears/interferes with a platform-admin OTP for the same email.
         await _context.OtpRecords.DeleteManyAsync(
-            Builders<OtpRecord>.Filter.Eq(o => o.Email, email));
+            Builders<OtpRecord>.Filter.Eq(o => o.Email, email) & Builders<OtpRecord>.Filter.Eq(o => o.Purpose, OtpPurpose));
 
         await _context.OtpRecords.InsertOneAsync(otpRecord);
         Console.WriteLine($"your otp is: {otp}");
@@ -77,6 +98,7 @@ public class AuthService : IAuthService
             return false;
 
         var filter = Builders<OtpRecord>.Filter.Eq(o => o.Email, email)
+                     & Builders<OtpRecord>.Filter.Eq(o => o.Purpose, OtpPurpose)
                      & Builders<OtpRecord>.Filter.Gt(o => o.ExpiresAt, DateTime.UtcNow);
 
         var otpRecord = await _context.OtpRecords.Find(filter).FirstOrDefaultAsync();
@@ -111,7 +133,7 @@ public class AuthService : IAuthService
             return false;
 
         var otpRecord = await _context.OtpRecords
-            .Find(Builders<OtpRecord>.Filter.Eq(o => o.Email, email))
+            .Find(Builders<OtpRecord>.Filter.Eq(o => o.Email, email) & Builders<OtpRecord>.Filter.Eq(o => o.Purpose, OtpPurpose))
             .FirstOrDefaultAsync();
 
         return otpRecord != null
@@ -137,20 +159,17 @@ public class AuthService : IAuthService
             Email = request.Email,
             Name = request.Name,
             Currency = request.Currency,
-            MonthlyIncome = request.MonthlyIncome
+            MonthlyIncome = request.MonthlyIncome,
+            // OTP-native signup — this account's origin is known, nothing to ever link.
+            OtpLinkedAt = DateTime.UtcNow,
         };
 
         await _context.Users.InsertOneAsync(user);
 
-        return new AuthResponse
-        {
-            Token = GenerateJwtToken(user),
-            RefreshToken = GenerateRefreshToken(),
-            User = MapToUserDto(user)
-        };
+        return await BuildAuthResponseAsync(user);
     }
 
-    public async Task<AuthResponse> LoginAsync(string email, string otp)
+    public async Task<LoginLinkResult> LoginAsync(string email, string otp)
     {
         if (!await IsOtpVerifiedAsync(email, otp))
             throw new UnauthorizedAccessException("Invalid or expired OTP. Please verify OTP first.");
@@ -162,17 +181,54 @@ public class AuthService : IAuthService
         if (user == null)
             throw new UnauthorizedAccessException("User not found");
 
-        return new AuthResponse
+        if (user.OtpLinkedAt != null)
         {
-            Token = GenerateJwtToken(user),
-            RefreshToken = GenerateRefreshToken(),
-            User = MapToUserDto(user)
+            // Already used OTP login on this account before — normal login.
+            return new LoginLinkResult { RequiresLinking = false, Auth = await BuildAuthResponseAsync(user) };
+        }
+
+        if (user.CreatedAt < AccountLinkingFeatureCutoverUtc)
+        {
+            // Predates the OtpLinkedAt field — can't tell whether this account originally
+            // signed up via Google or OTP, so grandfather it in silently, same as the
+            // symmetric case in GoogleLoginAsync.
+            await LinkOtpAccountAsync(user.Id);
+            return new LoginLinkResult { RequiresLinking = false, Auth = await BuildAuthResponseAsync(user) };
+        }
+
+        // Existing Google-created account (created after the cutover, so its history is
+        // known), first time seen with an OTP login — require explicit confirmation.
+        return new LoginLinkResult
+        {
+            RequiresLinking = true,
+            Preview = new AccountLinkPreviewDto { Name = user.Name, Email = user.Email ?? string.Empty, CreatedAt = user.CreatedAt },
         };
     }
 
-    public async Task<AuthResponse> GoogleLoginAsync(string credential)
+    public async Task<AuthResponse> ConfirmOtpLinkAsync(string email, string otp)
     {
-        var googleClientId = _configuration["Google:ClientId"] 
+        if (!await IsOtpVerifiedAsync(email, otp))
+            throw new UnauthorizedAccessException("Invalid or expired OTP. Please verify OTP first.");
+
+        var user = await _context.Users
+            .Find(u => u.Email == email)
+            .FirstOrDefaultAsync()
+            ?? throw new UnauthorizedAccessException("User not found");
+
+        if (user.OtpLinkedAt == null)
+            await LinkOtpAccountAsync(user.Id);
+
+        return await BuildAuthResponseAsync(user);
+    }
+
+    private Task LinkOtpAccountAsync(string userId)
+        => _context.Users.UpdateOneAsync(
+            u => u.Id == userId,
+            Builders<User>.Update.Set(u => u.OtpLinkedAt, DateTime.UtcNow));
+
+    private async Task<GoogleJsonWebSignature.Payload> ValidateGoogleCredentialAsync(string credential)
+    {
+        var googleClientId = _configuration["Google:ClientId"]
             ?? throw new InvalidOperationException("Google ClientId not configured");
 
         var settings = new GoogleJsonWebSignature.ValidationSettings
@@ -180,47 +236,148 @@ public class AuthService : IAuthService
             Audience = new[] { googleClientId }
         };
 
-        GoogleJsonWebSignature.Payload payload;
         try
         {
-            payload = await GoogleJsonWebSignature.ValidateAsync(credential, settings);
+            return await GoogleJsonWebSignature.ValidateAsync(credential, settings);
         }
         catch (InvalidJwtException)
         {
             throw new UnauthorizedAccessException("Invalid Google token");
         }
+    }
 
-        // Find existing user by email
+    public async Task<LoginLinkResult> GoogleLoginAsync(string credential)
+    {
+        var payload = await ValidateGoogleCredentialAsync(credential);
+
         var user = await _context.Users
             .Find(u => u.Email == payload.Email)
             .FirstOrDefaultAsync();
 
         if (user == null)
         {
-            // Auto-create user from Google profile
+            // Fresh account — no existing account to link to, so this is a normal signup.
             user = new User
             {
                 Email = payload.Email,
                 Name = payload.Name ?? payload.Email ?? "Google User",
                 Currency = "USD",
-                MonthlyIncome = 0
+                MonthlyIncome = 0,
+                GoogleId = payload.Subject,
+                GoogleLinkedAt = DateTime.UtcNow,
             };
             await _context.Users.InsertOneAsync(user);
+            return new LoginLinkResult { RequiresLinking = false, Auth = await BuildAuthResponseAsync(user) };
         }
+
+        if (user.GoogleId == payload.Subject)
+        {
+            // Already linked to this Google account — normal login.
+            return new LoginLinkResult { RequiresLinking = false, Auth = await BuildAuthResponseAsync(user) };
+        }
+
+        if (!string.IsNullOrEmpty(user.GoogleId))
+        {
+            // Shouldn't happen — Google emails are globally unique — but don't silently proceed.
+            throw new UnauthorizedAccessException("This email is linked to a different Google account.");
+        }
+
+        if (user.CreatedAt < AccountLinkingFeatureCutoverUtc)
+        {
+            // This account predates the GoogleId field entirely, so a null GoogleId here
+            // doesn't mean "never used Google" — it just means we never recorded it. We can't
+            // tell whether this account originally signed up via OTP or Google, so grandfather
+            // it in silently (one time only) rather than surprising a long-time Google user
+            // with a linking prompt that makes no sense from their side.
+            await LinkGoogleAccountAsync(user.Id, payload.Subject);
+            return new LoginLinkResult { RequiresLinking = false, Auth = await BuildAuthResponseAsync(user) };
+        }
+
+        // Existing OTP-created account (created after the cutover, so its history is known),
+        // first time seen with a Google credential — require explicit confirmation before
+        // linking rather than silently logging in.
+        return new LoginLinkResult
+        {
+            RequiresLinking = true,
+            Preview = new AccountLinkPreviewDto { Name = user.Name, Email = user.Email ?? string.Empty, CreatedAt = user.CreatedAt },
+        };
+    }
+
+    public async Task<AuthResponse> ConfirmGoogleLinkAsync(string credential)
+    {
+        var payload = await ValidateGoogleCredentialAsync(credential);
+
+        var user = await _context.Users
+            .Find(u => u.Email == payload.Email)
+            .FirstOrDefaultAsync()
+            ?? throw new UnauthorizedAccessException("User not found");
+
+        if (string.IsNullOrEmpty(user.GoogleId))
+            await LinkGoogleAccountAsync(user.Id, payload.Subject);
+
+        return await BuildAuthResponseAsync(user);
+    }
+
+    private Task LinkGoogleAccountAsync(string userId, string googleSubject)
+        => _context.Users.UpdateOneAsync(
+            u => u.Id == userId,
+            Builders<User>.Update
+                .Set(u => u.GoogleId, googleSubject)
+                .Set(u => u.GoogleLinkedAt, DateTime.UtcNow));
+
+    public async Task<AuthResponse> RefreshTokenAsync(string sessionId, string refreshToken)
+    {
+        var (newSessionId, newRefreshToken) = await _sessions.RotateAsync(sessionId, refreshToken, CurrentUserAgent());
+
+        // The session row doesn't carry the user id back out of RotateAsync's tuple, so look
+        // it up — cheap single read, and keeps ISessionService free of User/AuthResponse concerns.
+        var userId = await _context.Sessions
+            .Find(s => s.Id == newSessionId)
+            .Project(s => s.UserId)
+            .FirstOrDefaultAsync();
+        var user = await _context.Users.Find(u => u.Id == userId).FirstOrDefaultAsync()
+            ?? throw new UnauthorizedAccessException("User not found");
 
         return new AuthResponse
         {
             Token = GenerateJwtToken(user),
-            RefreshToken = GenerateRefreshToken(),
+            RefreshToken = newRefreshToken,
+            SessionId = newSessionId,
             User = MapToUserDto(user)
         };
     }
 
+    public Task LogoutAsync(string sessionId, string userId)
+        => _sessions.RevokeAsync(sessionId, "user_logout", requireUserId: userId);
+
+    public Task LogoutAllAsync(string userId)
+        => _sessions.RevokeAllForUserAsync(userId, "user_logout_all");
+
+    public Task<List<SessionDto>> ListSessionsAsync(string userId, string? currentSessionId)
+        => _sessions.ListActiveForUserAsync(userId, currentSessionId);
+
+    private async Task<AuthResponse> BuildAuthResponseAsync(User user)
+    {
+        var (sessionId, refreshToken) = await _sessions.CreateSessionAsync(user.Id, CurrentUserAgent());
+        return new AuthResponse
+        {
+            Token = GenerateJwtToken(user),
+            RefreshToken = refreshToken,
+            SessionId = sessionId,
+            User = MapToUserDto(user)
+        };
+    }
+
+    private string CurrentUserAgent()
+        => _httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString() ?? string.Empty;
+
     public string GenerateJwtToken(User user)
     {
-        var securityKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"] ?? "your-super-secret-key-min-32-chars-long"));
+        var jwtSecret = _configuration["Jwt:Secret"]
+            ?? throw new InvalidOperationException("Jwt:Secret must be configured.");
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+        var accessMinutes = int.TryParse(_configuration["Jwt:AccessTokenMinutes"], out var minutes) ? minutes : 30;
 
         var claims = new[]
         {
@@ -233,19 +390,11 @@ public class AuthService : IAuthService
             issuer: _configuration["Jwt:Issuer"] ?? "ExpensesBackend",
             audience: _configuration["Jwt:Audience"] ?? "ExpensesBackend",
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(24),
+            expires: DateTime.UtcNow.AddMinutes(accessMinutes),
             signingCredentials: credentials
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
-    }
-
-    public string GenerateRefreshToken()
-    {
-        var randomNumber = new byte[32];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(randomNumber);
-        return Convert.ToBase64String(randomNumber);
     }
 
     private static string GenerateOtp()

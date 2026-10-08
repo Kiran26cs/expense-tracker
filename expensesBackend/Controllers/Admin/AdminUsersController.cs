@@ -58,6 +58,35 @@ public class AdminUsersController : ControllerBase
         catch (KeyNotFoundException ex) { return NotFound(ApiResponse<AdminUserDetailDto>.ErrorResponse(ex.Message)); }
     }
 
+    [HttpGet("{userId}/sessions")]
+    public async Task<ActionResult<ApiResponse<List<SessionDto>>>> GetSessions(string userId)
+    {
+        var result = await _users.GetSessionsAsync(userId);
+        return Ok(ApiResponse<List<SessionDto>>.SuccessResponse(result));
+    }
+
+    [HttpPost("{userId}/sessions/{sessionId}/revoke")]
+    public async Task<ActionResult<ApiResponse<bool>>> RevokeSession(string userId, string sessionId)
+    {
+        try
+        {
+            await _users.RevokeSessionAsync(userId, sessionId, GetAdminId(), GetAdminEmail());
+            return Ok(ApiResponse<bool>.SuccessResponse(true));
+        }
+        catch (KeyNotFoundException ex) { return NotFound(ApiResponse<bool>.ErrorResponse(ex.Message)); }
+    }
+
+    [HttpPost("{userId}/sessions/revoke-all")]
+    public async Task<ActionResult<ApiResponse<bool>>> RevokeAllSessions(string userId)
+    {
+        try
+        {
+            await _users.RevokeAllSessionsAsync(userId, GetAdminId(), GetAdminEmail());
+            return Ok(ApiResponse<bool>.SuccessResponse(true));
+        }
+        catch (KeyNotFoundException ex) { return NotFound(ApiResponse<bool>.ErrorResponse(ex.Message)); }
+    }
+
     private string GetAdminId()    => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     private string GetAdminEmail() => User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
 }

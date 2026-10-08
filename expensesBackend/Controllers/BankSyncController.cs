@@ -34,7 +34,8 @@ public class BankSyncController : ControllerBase
     [HttpPost("{connectionId}/parse")]
     [RequestSizeLimit(15 * 1024 * 1024)] // 15 MB
     public async Task<ActionResult<ApiResponse<BankStatementPreviewDto>>> ParseStatement(
-        string connectionId, IFormFile file, [FromForm] string? password = null)
+        string connectionId, IFormFile file, [FromForm] string? password = null,
+        [FromForm] string? expenseBookId = null)
     {
         try
         {
@@ -42,7 +43,7 @@ public class BankSyncController : ControllerBase
                 return BadRequest(ApiResponse<BankStatementPreviewDto>.ErrorResponse("No file uploaded"));
 
             var result = await _bankSyncService.ParseStatementAsync(
-                connectionId, GetUserId(), file, password);
+                connectionId, GetUserId(), file, password, expenseBookId);
             return Ok(ApiResponse<BankStatementPreviewDto>.SuccessResponse(result));
         }
         catch (KeyNotFoundException)

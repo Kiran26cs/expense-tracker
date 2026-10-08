@@ -28,6 +28,11 @@ export interface ParsedBankTransactionDto {
   description: string;
   amount: number;
   type: 'expense' | 'income';
+  // Suggested category (payee memory, then AI) — editable in the preview step before confirming.
+  category: string;
+  // Stable payee identifier — lets the UI recognize repeat payees within this statement and
+  // propagate a chosen category across them. Null when the narration wasn't recognized.
+  payeeKey?: string | null;
 }
 
 export interface BankStatementPreviewDto {
@@ -42,6 +47,8 @@ export interface ConfirmBankSyncRequest {
   expenseBookId: string;
   defaultPaymentMethod: string;
   excludeRowNumbers: number[];
+  // Final category per row (rowNumber -> category name) as reviewed/edited on the preview screen.
+  categoryOverrides: Record<number, string>;
 }
 
 export interface BankSyncConfirmResultDto {

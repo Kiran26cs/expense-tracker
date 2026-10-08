@@ -5,7 +5,6 @@ using ExpensesBackend.API.Services.Interfaces;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System.Threading.Channels;
-using ExpensesBackend.API.Services.AI;
 
 namespace ExpensesBackend.API.Services;
 
@@ -15,7 +14,7 @@ public class ImportProcessorService : BackgroundService
     private readonly MongoDbContext _context;
     private readonly ILogger<ImportProcessorService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly AiBankTransactionCategorizer _categorizer;
+    private readonly IPayeeCategoryMemoryService _payeeMemory;
 
     private static readonly HashSet<string> ValidPaymentMethods = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -29,13 +28,13 @@ public class ImportProcessorService : BackgroundService
         MongoDbContext context,
         ILogger<ImportProcessorService> logger,
         IServiceScopeFactory scopeFactory,
-        AiBankTransactionCategorizer categorizer)
+        IPayeeCategoryMemoryService payeeMemory)
     {
         _channel      = channel;
         _context      = context;
         _logger       = logger;
         _scopeFactory = scopeFactory;
-        _categorizer  = categorizer;
+        _payeeMemory  = payeeMemory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -65,28 +64,19 @@ public class ImportProcessorService : BackgroundService
                 u => u.Set(s => s.Status, ImportStatus.Processing), ct);
         }
 
-        var (categoryMap, categoryDisplayNames) = await BuildCategoryMapAsync(job.ExpenseBookId);
+        var (categoryMap, _) = await BuildCategoryMapAsync(job.ExpenseBookId);
 
-        // For bank sync imports, AI-classify every transaction description into a book category.
-        // This runs as a single batched call before the row loop, so it's one API round-trip
-        // per ~50 transactions rather than one per row.
+        // Bank-sync rows arrive here already categorized: BankSyncService suggested a category
+        // (payee memory, then AI) at preview time and the user reviewed/edited it before
+        // confirming. Nothing to classify here — just record how many still ended up
+        // Uncategorized, as a signal of how well suggestion + review is working in practice.
         if (!string.IsNullOrEmpty(job.BankSyncSessionId))
         {
-            var inputs = job.Rows
-                .Select(r => (r.RowNumber, r.Description))
-                .ToList();
+            var uncategorized = job.Rows.Count(r =>
+                string.Equals(r.Category, "Uncategorized", StringComparison.OrdinalIgnoreCase));
 
-            var assignments = await _categorizer.ClassifyAsync(inputs, categoryDisplayNames);
-
-            foreach (var row in job.Rows)
-            {
-                if (assignments.TryGetValue(row.RowNumber, out var cat))
-                    row.Category = cat;
-            }
-
-            _logger.LogInformation(
-                "AI categorized {Count} bank sync rows for import {ImportId}",
-                assignments.Count, job.ImportSessionId);
+            await PatchSessionAsync(job.ImportSessionId,
+                u => u.Set(s => s.CategorizedUncategorized, uncategorized), ct);
         }
 
         // Build a mutable set of allowed IDs for quick O(1) lookup
@@ -121,6 +111,16 @@ public class ImportProcessorService : BackgroundService
                 {
                     validExpenses.Add(expense!);
                     recordUpdates.Add((row.RowNumber, ImportRecordStatus.Success, null));
+
+                    // Teach the payee memory whatever category this row landed on, so the next
+                    // import of the same payee skips the AI call entirely. Skip the generic
+                    // Uncategorized bucket — that's a non-answer, not a learned preference.
+                    if (!string.IsNullOrEmpty(row.PayeeKey) &&
+                        !string.Equals(expense!.Category, "Uncategorized", StringComparison.OrdinalIgnoreCase) &&
+                        categoryMap.TryGetValue(expense.Category.ToLowerInvariant(), out var catId))
+                    {
+                        await _payeeMemory.RememberAsync(job.ExpenseBookId, row.PayeeKey!, catId, expense.Category);
+                    }
                 }
             }
 
@@ -287,6 +287,7 @@ public class ImportProcessorService : BackgroundService
             Description     = row.Description.Trim(),
             Notes           = string.IsNullOrWhiteSpace(row.Notes) ? null : row.Notes.Trim(),
             ExternalTxnRef  = string.IsNullOrWhiteSpace(row.ExternalTxnRef) ? null : row.ExternalTxnRef,
+            PayeeKey        = string.IsNullOrWhiteSpace(row.PayeeKey) ? null : row.PayeeKey,
             CreatedAt       = DateTime.UtcNow,
             UpdatedAt       = DateTime.UtcNow
         }, null);
